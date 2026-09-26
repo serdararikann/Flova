@@ -78,6 +78,9 @@ class FlovaStudioApp {
 
     // Toast Container
     this.toastContainer = document.getElementById('toastContainer');
+
+    // Bottom Studio Rack (Spectrum & Master Effects)
+    this.studioBottomRack = document.getElementById('studioBottomRack');
   }
 
   initComponents() {
@@ -434,6 +437,11 @@ class FlovaStudioApp {
     this.mergerView.style.display = 'none';
     this.vocalSplitterView.style.display = 'none';
     this.stemSplitterView.style.display = 'none';
+
+    // Show Studio Bottom Rack (Spectrum & Master Effects) ONLY in Editor mode
+    if (this.studioBottomRack) {
+      this.studioBottomRack.style.display = mode === 'editor' ? 'grid' : 'none';
+    }
 
     if (mode === 'editor') {
       this.tabEditor.classList.add('active');
