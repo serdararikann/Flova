@@ -65,7 +65,7 @@ python -m venv .venv
 # macOS / Linux:
 source .venv/bin/activate
 
-pip install -r requirements.txt
+pip install -r requirements-server.txt
 ```
 
 ### 3. Sunucuyu Başlatın

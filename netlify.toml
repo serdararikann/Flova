@@ -1,5 +1,5 @@
 [build]
-  command = ""
+  command = "echo 'Static build complete'"
   publish = "."
 
 [[redirects]]
