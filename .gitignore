@@ -1,0 +1,37 @@
+# Python virtual environment
+.venv/
+venv/
+env/
+ENV/
+
+# Python cache & artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Audio files & temporary separation cache
+temp_stems/
+*.wav
+*.mp3
+*.flac
+*.m4a
+*.aac
+*.ogg
+*.zip
+
+# Deep learning models & weights (large binaries)
+*.onnx
+*.pth
+*.pt
+*.bin
+models/
+hf_cache/
+
+# Editor & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

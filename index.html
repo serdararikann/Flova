@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flova Audio Studio</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- MP3 & ZIP Encoders -->
+  <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Header -->
+    <header class="studio-header">
+      <div class="brand-section">
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M9 18V5l12-2v13"></path>
+            <circle cx="6" cy="18" r="3"></circle>
+            <circle cx="18" cy="16" r="3"></circle>
+          </svg>
+        </div>
+        <div class="brand-title">
+          FLOVA <span style="font-weight: 300; opacity: 0.85;">STUDIO</span>
+          <span class="badge-pro">PRO</span>
+        </div>
+      </div>
+
+      <!-- Mode Tabs -->
+      <nav class="header-modes">
+        <button id="tabEditor" class="mode-tab-btn active">
+          ✂️ Düzenleyici
+        </button>
+        <button id="tabMerger" class="mode-tab-btn">
+          🔗 Birleştirici
+        </button>
+        <button id="tabVocalSplitter" class="mode-tab-btn">
+          🎙️ Vokal
+        </button>
+        <button id="tabStemSplitter" class="mode-tab-btn">
+          🎸 Enstrümanlar
+        </button>
+      </nav>
+
+      <!-- Action Buttons -->
+      <div class="header-actions">
+        <button id="loadDemoBtn" class="btn btn-secondary btn-sm" title="Örnek müzik yükle">
+          ✨ Demo
+        </button>
+        
+        <button id="openFileBtn" class="btn btn-primary btn-sm">
+          📂 Dosya Aç
+        </button>
+        
+        <input type="file" id="fileInput" accept="audio/*" style="display: none;" />
+
+        <button id="exportBtn" class="btn btn-emerald btn-sm">
+          💾 Dışa Aktar
+        </button>
+      </div>
+    </header>
+
+    <!-- Full-Width Studio Workspace -->
+    <main class="studio-layout">
+      
+      <!-- 1. EDITOR VIEW -->
+      <div id="editorView" class="studio-main-col">
+        
+        <!-- Empty State Drop Zone -->
+        <div id="dropZone" class="drop-zone">
+          <div class="drop-zone-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+          </div>
+          <h2 class="drop-zone-title">Ses Dosyası Bırakın veya Seçin</h2>
+          <p class="drop-zone-sub">MP3, WAV, OGG, FLAC, M4A, AAC</p>
+        </div>
+
+        <!-- Active Waveform Workspace -->
+        <div id="trackWorkspace" class="glass-card waveform-container" style="display: none;">
+          
+          <!-- Track Info Bar -->
+          <div class="track-meta-bar">
+            <div class="track-info-pill">
+              <span class="track-name" id="trackName">Parça</span>
+            </div>
+            <div class="track-specs" id="trackSpecs">
+              <!-- Injected via JS -->
+            </div>
+          </div>
+
+          <!-- Full Width Interactive Waveform Canvas -->
+          <div class="waveform-view-wrapper">
+            <canvas id="waveformCanvas"></canvas>
+            <canvas id="overlayCanvas"></canvas>
+          </div>
+
+          <!-- Transport & Playback Bar -->
+          <div class="transport-panel">
+            <div class="time-display-group">
+              <span class="time-current" id="currentTimeDisplay">00:00.000</span>
+              <span class="time-total" id="totalTimeDisplay">/ 00:00.000</span>
+            </div>
+
+            <div class="playback-controls">
+              <button id="stopBtn" class="control-circle-btn" title="Başa Sar">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+                </svg>
+              </button>
+              
+              <button id="playBtn" class="play-main-btn" title="Oynat / Duraklat (Space)">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+              </button>
+
+              <button id="loopBtn" class="control-circle-btn" title="Döngü (L)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="17 1 21 5 17 9"></polyline>
+                  <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                  <polyline points="7 23 3 19 7 15"></polyline>
+                  <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Undo / Redo -->
+            <div style="display: flex; gap: 6px;">
+              <button id="undoBtn" class="btn btn-secondary btn-sm" title="Geri Al (Ctrl+Z)" disabled>
+                ↩ Geri Al
+              </button>
+              <button id="redoBtn" class="btn btn-secondary btn-sm" title="Yinele (Ctrl+Y)" disabled>
+                ↪ Yinele
+              </button>
+            </div>
+          </div>
+
+          <!-- Selection Range Bar -->
+          <div class="selection-toolbar">
+            <div class="time-input-box">
+              <span class="time-input-label">Başlangıç</span>
+              <div class="time-input-row">
+                <input type="text" id="selStartInput" value="00:00.000" />
+                <button id="setStartToCurrentBtn" class="btn-set" title="Konumu başlangıç yap">📍</button>
+              </div>
+            </div>
+
+            <div class="time-input-box">
+              <span class="time-input-label">Bitiş</span>
+              <div class="time-input-row">
+                <input type="text" id="selEndInput" value="00:00.000" />
+                <button id="setEndToCurrentBtn" class="btn-set" title="Konumu bitiş yap">📍</button>
+              </div>
+            </div>
+
+            <div class="time-input-box">
+              <span class="time-input-label">Seçili Süre</span>
+              <div class="time-input-row">
+                <input type="text" id="selDurationInput" value="00:00.000" readonly style="opacity: 0.85;" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Audio Action Buttons -->
+          <div class="audio-action-buttons">
+            <button id="trimBtn" class="btn btn-primary" title="Seçili alanı sakla, dışındakileri sil">
+              ✂️ Kırp
+            </button>
+            <button id="cutBtn" class="btn btn-secondary" title="Seçili alanı parçadan kesip sil">
+              🗑️ Sil
+            </button>
+            <button id="silenceBtn" class="btn btn-secondary" title="Seçili alanı sessize al">
+              🔇 Sessiz
+            </button>
+            <button id="fadeInBtn" class="btn btn-secondary" title="Yumuşak başlangıç">
+              📈 Fade In
+            </button>
+            <button id="fadeOutBtn" class="btn btn-secondary" title="Yumuşak bitiş">
+              📉 Fade Out
+            </button>
+            <button id="reverseBtn" class="btn btn-secondary" title="Tersine çevir">
+              🔄 Tersine
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. MERGER VIEW -->
+      <div id="mergerView" class="studio-main-col glass-card" style="display: none;">
+        <div id="mergerContainer">
+          <!-- Merger rendered here -->
+        </div>
+      </div>
+
+      <!-- 3. VOCAL SPLITTER VIEW -->
+      <div id="vocalSplitterView" class="studio-main-col glass-card" style="display: none;">
+        <div id="vocalSplitterContainer">
+          <!-- Vocal Splitter rendered here -->
+        </div>
+      </div>
+
+      <!-- 4. 4-STEM INSTRUMENT SPLITTER VIEW -->
+      <div id="stemSplitterView" class="studio-main-col glass-card" style="display: none;">
+        <div id="stemSplitterContainer">
+          <!-- 4-Stem Splitter rendered here -->
+        </div>
+      </div>
+
+      <!-- 3. BOTTOM STUDIO RACK: Visualizer & Master Effects -->
+      <div class="studio-bottom-rack">
+        
+        <!-- Live Visualizer -->
+        <div class="glass-card visualizer-card">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+            <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
+              📊 Spektrum
+            </span>
+          </div>
+          <div class="visualizer-wrapper">
+            <canvas id="visualizerCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Master Effects & EQ Strip -->
+        <div class="glass-card">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+            <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
+              🎛️ Master Efektler & EQ
+            </span>
+          </div>
+
+          <div class="effects-horizontal-rack">
+            
+            <!-- Volume / Gain -->
+            <div class="effect-card">
+              <div class="effect-card-header">
+                <span class="effect-name">🔊 Ses Düzeyi</span>
+                <span id="masterVolumeVal" class="effect-val-pill">100%</span>
+              </div>
+              <input type="range" id="masterVolumeSlider" class="studio-slider" min="0" max="3" step="0.05" value="1.0" />
+              <div class="slider-label-row" style="margin-top: 4px;">
+                <span>0%</span>
+                <span>100%</span>
+                <span>300%</span>
+              </div>
+            </div>
+
+            <!-- Speed / Pitch -->
+            <div class="effect-card">
+              <div class="effect-card-header">
+                <span class="effect-name">⚡ Hız & Perde</span>
+                <span id="speedVal" class="effect-val-pill">1.00x</span>
+              </div>
+              <input type="range" id="speedSlider" class="studio-slider" min="0.5" max="2.0" step="0.05" value="1.0" />
+              <div class="slider-label-row" style="margin-top: 4px;">
+                <span>0.5x</span>
+                <span>1.0x</span>
+                <span>2.0x</span>
+              </div>
+            </div>
+
+            <!-- Stereo Pan & 8D -->
+            <div class="effect-card">
+              <div class="effect-card-header">
+                <span class="effect-name">🎧 Pan & 8D</span>
+                <span id="panVal" class="effect-val-pill">Merkez</span>
+              </div>
+              <input type="range" id="panSlider" class="studio-slider" min="-1" max="1" step="0.05" value="0" />
+              <div style="margin-top: 6px;">
+                <label style="font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                  <input type="checkbox" id="autoPanCheckbox" style="accent-color: var(--accent-cyan);" />
+                  8D Audio (Oto-Pan)
+                </label>
+              </div>
+            </div>
+
+            <!-- 5-Band EQ -->
+            <div class="effect-card" style="grid-column: span 1;">
+              <div class="effect-card-header">
+                <span class="effect-name">🎚️ 5-Bant EQ</span>
+              </div>
+              <div class="eq-presets-row">
+                <span class="preset-chip" data-preset="flat">Flat</span>
+                <span class="preset-chip" data-preset="bassBoost">Bass</span>
+                <span class="preset-chip" data-preset="vocalBoost">Vokal</span>
+                <span class="preset-chip" data-preset="electronic">Electro</span>
+              </div>
+              <div class="eq-bars-container">
+                <div class="eq-column">
+                  <input type="range" id="eq_band60" class="eq-slider studio-slider" min="-15" max="15" step="1" value="0" />
+                  <span class="eq-band-label">60</span>
+                </div>
+                <div class="eq-column">
+                  <input type="range" id="eq_band250" class="eq-slider studio-slider" min="-15" max="15" step="1" value="0" />
+                  <span class="eq-band-label">250</span>
+                </div>
+                <div class="eq-column">
+                  <input type="range" id="eq_band1000" class="eq-slider studio-slider" min="-15" max="15" step="1" value="0" />
+                  <span class="eq-band-label">1k</span>
+                </div>
+                <div class="eq-column">
+                  <input type="range" id="eq_band4000" class="eq-slider studio-slider" min="-15" max="15" step="1" value="0" />
+                  <span class="eq-band-label">4k</span>
+                </div>
+                <div class="eq-column">
+                  <input type="range" id="eq_band12000" class="eq-slider studio-slider" min="-15" max="15" step="1" value="0" />
+                  <span class="eq-band-label">12k</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Reverb & Echo -->
+            <div class="effect-card">
+              <div class="effect-card-header">
+                <span class="effect-name">🏛️ Reverb & Echo</span>
+              </div>
+              <div class="slider-group">
+                <div class="slider-label-row">
+                  <span>Reverb</span>
+                  <span id="reverbWetVal" class="effect-val-pill">0%</span>
+                </div>
+                <input type="range" id="reverbWetSlider" class="studio-slider" min="0" max="1" step="0.05" value="0" />
+                <input type="range" id="reverbDecaySlider" class="studio-slider" min="0.5" max="5.0" step="0.5" value="2.0" style="display: none;" />
+              </div>
+              <div class="slider-group">
+                <div class="slider-label-row">
+                  <span>Echo / Delay</span>
+                  <span id="echoWetVal" class="effect-val-pill">0%</span>
+                </div>
+                <input type="range" id="echoWetSlider" class="studio-slider" min="0" max="0.8" step="0.05" value="0" />
+                <input type="range" id="echoTimeSlider" class="studio-slider" min="0.05" max="1.0" step="0.05" value="0.3" style="display: none;" />
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+
+    <!-- Export Modal Dialog -->
+    <div id="exportModal"></div>
+
+    <!-- Toast Alerts Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+  </div>
+
+  <!-- Main JavaScript App Entry -->
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
