@@ -40,6 +40,20 @@ HTDEMUCS_SESSION = None
 HTDEMUCS_6S_SESSION = None
 SESSION_LOCK = threading.Lock()
 
+def create_optimized_session_options():
+    import onnxruntime as ort
+    sess_opts = ort.SessionOptions()
+    # Allocate up to 8 threads (leaves 12+ CPU threads completely free for Windows & apps to prevent lag)
+    total_cores = os.cpu_count() or 4
+    worker_threads = min(8, max(2, total_cores // 2))
+    sess_opts.intra_op_num_threads = worker_threads
+    sess_opts.inter_op_num_threads = 1
+    sess_opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+    sess_opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+    sess_opts.enable_cpu_mem_arena = True
+    sess_opts.enable_mem_pattern = True
+    return sess_opts
+
 def get_vocal_session():
     global VOCAL_SESSION
     with SESSION_LOCK:
@@ -47,11 +61,7 @@ def get_vocal_session():
             import onnxruntime as ort
             from demucs_onnx.inference import download_stem_model
             
-            sess_opts = ort.SessionOptions()
-            sess_opts.intra_op_num_threads = 6
-            sess_opts.inter_op_num_threads = 1
-            sess_opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-            
+            sess_opts = create_optimized_session_options()
             model_path = download_stem_model('vocals')
             VOCAL_SESSION = ort.InferenceSession(
                 str(model_path),
@@ -67,11 +77,7 @@ def get_htdemucs_session():
             import onnxruntime as ort
             from huggingface_hub import hf_hub_download
             
-            sess_opts = ort.SessionOptions()
-            sess_opts.intra_op_num_threads = 6
-            sess_opts.inter_op_num_threads = 1
-            sess_opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-            
+            sess_opts = create_optimized_session_options()
             model_path = hf_hub_download('StemSplitio/htdemucs-onnx', 'htdemucs.onnx')
             HTDEMUCS_SESSION = ort.InferenceSession(
                 str(model_path),
@@ -87,11 +93,7 @@ def get_htdemucs_6s_session():
             import onnxruntime as ort
             from huggingface_hub import hf_hub_download
             
-            sess_opts = ort.SessionOptions()
-            sess_opts.intra_op_num_threads = 6
-            sess_opts.inter_op_num_threads = 1
-            sess_opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-            
+            sess_opts = create_optimized_session_options()
             model_path = hf_hub_download('StemSplitio/htdemucs-6s-onnx', 'htdemucs_6s.onnx')
             HTDEMUCS_6S_SESSION = ort.InferenceSession(
                 str(model_path),
@@ -172,8 +174,8 @@ def run_htdemucs_job(job_id, input_path):
         audio, native_sr = load_audio(input_path, target_sr=SAMPLE_RATE)
         total_len = audio.shape[1]
         
-        # 50% overlap for seamless chunk transitions without phase flanging
-        overlap = N_SAMPLES // 2
+        # 25% overlap for fast processing & seamless chunk transitions without phase flanging
+        overlap = N_SAMPLES // 4
         stride = N_SAMPLES - overlap
         n_chunks = max(1, (total_len + stride - 1) // stride)
 
@@ -202,7 +204,8 @@ def run_htdemucs_job(job_id, input_path):
             out_stems[:, :, start:end] += stems[:, :, :chunk_len] * w
             weight[start:end] += w
 
-            time.sleep(0.01)
+            # 5ms yield to OS so system, mouse, and browser stay 100% fluid
+            time.sleep(0.005)
 
             chunk_pct = int(18 + ((i + 1) / n_chunks) * 70)
             with JOBS_LOCK:
@@ -283,8 +286,8 @@ def run_htdemucs_6s_job(job_id, input_path):
         audio, native_sr = load_audio(input_path, target_sr=SAMPLE_RATE)
         total_len = audio.shape[1]
         
-        # 50% overlap for silk-smooth transitions
-        overlap = N_SAMPLES // 2
+        # 25% overlap for high speed while keeping silk-smooth transitions
+        overlap = N_SAMPLES // 4
         stride = N_SAMPLES - overlap
         n_chunks = max(1, (total_len + stride - 1) // stride)
 
@@ -313,7 +316,8 @@ def run_htdemucs_6s_job(job_id, input_path):
             out_stems[:, :, start:end] += stems[:, :, :chunk_len] * w
             weight[start:end] += w
 
-            time.sleep(0.01)
+            # 5ms yield to OS so system, mouse, and browser stay 100% fluid
+            time.sleep(0.005)
 
             chunk_pct = int(18 + ((i + 1) / n_chunks) * 70)
             with JOBS_LOCK:
@@ -424,8 +428,8 @@ def run_demucs_job(job_id, input_path):
             out_vocals[:, start:end] += stems[row, :, :chunk_len] * w
             weight[start:end] += w
 
-            # Small 10ms yield to OS so system, mouse, and browser stay 100% fluid
-            time.sleep(0.01)
+            # Small 5ms yield to OS so system, mouse, and browser stay 100% fluid
+            time.sleep(0.005)
 
             # Real chunk progress from 18% to 88%
             chunk_pct = int(18 + ((i + 1) / n_chunks) * 70)
