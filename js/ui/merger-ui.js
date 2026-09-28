@@ -885,10 +885,16 @@ export class MergerUI {
         </div>
 
         ${this.tracks.length === 0 ? `
-          <div style="padding: 50px 20px; text-align: center; border: 2px dashed rgba(255,255,255,0.08); border-radius: var(--radius-md); color: var(--text-dim);">
-            <p style="margin-bottom: 12px; font-weight: 600; font-size: 1.05rem;">Henüz parça eklenmedi</p>
+          <div id="mergerDropZone" class="drop-zone" style="margin-top: 10px; cursor: pointer;">
+            <div class="drop-zone-icon" style="color: var(--accent-primary);">
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12h14"></path>
+              </svg>
+            </div>
+            <h2 class="drop-zone-title">Ses Dosyası Bırakın veya Seçin</h2>
+            <p class="drop-zone-sub">Birden fazla MP3, WAV, FLAC, M4A sürükleyip bırakabilirsiniz</p>
             <label class="btn btn-primary btn-sm" style="cursor: pointer;">
-              Dosya Seç veya Bırak
+              + Parça Ekle
               <input type="file" id="mergerFileInputEmpty" accept="audio/*" multiple style="display: none;" />
             </label>
           </div>
@@ -1072,21 +1078,88 @@ export class MergerUI {
 
     fileInputs.forEach(input => {
       if (input) {
+        input.addEventListener('click', () => {
+          input.value = '';
+        });
         input.addEventListener('change', async (e) => {
-          const files = Array.from(e.target.files);
-          for (const file of files) {
-            try {
-              const arrayBuffer = await file.arrayBuffer();
-              this.engine.ensureContext();
-              const buffer = await this.engine.ctx.decodeAudioData(arrayBuffer);
-              this.addTrack(file, buffer);
-            } catch (err) {
-              console.error('Dosya yüklenemedi:', err);
-            }
-          }
+          await this.handleFiles(e.target.files);
         });
       }
     });
+
+    const mergerDropZone = this.container.querySelector('#mergerDropZone');
+    const primaryInput = this.container.querySelector('#mergerFileInput') || this.container.querySelector('#mergerFileInputEmpty');
+
+    if (mergerDropZone) {
+      mergerDropZone.addEventListener('click', () => {
+        if (primaryInput) {
+          primaryInput.value = '';
+          primaryInput.click();
+        }
+      });
+
+      ['dragenter', 'dragover'].forEach(name => {
+        mergerDropZone.addEventListener(name, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          mergerDropZone.classList.add('dragover', 'drop-zone-drag');
+        });
+      });
+
+      ['dragleave', 'drop'].forEach(name => {
+        mergerDropZone.addEventListener(name, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          mergerDropZone.classList.remove('dragover', 'drop-zone-drag');
+        });
+      });
+
+      mergerDropZone.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        mergerDropZone.classList.remove('dragover', 'drop-zone-drag');
+        if (e.dataTransfer && e.dataTransfer.files) {
+          await this.handleFiles(e.dataTransfer.files);
+        }
+      });
+    }
+
+    // Allow dropping onto container even when tracks are present
+    ['dragenter', 'dragover'].forEach(name => {
+      this.container.addEventListener(name, (e) => {
+        e.preventDefault();
+      });
+    });
+    this.container.addEventListener('drop', async (e) => {
+      if (e.target && e.target.closest && e.target.closest('#mergerDropZone')) return;
+      e.preventDefault();
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+        await this.handleFiles(e.dataTransfer.files);
+      }
+    });
+  }
+
+  async handleFiles(files) {
+    if (!files || !files.length) return;
+    const fileList = Array.from(files);
+    for (const file of fileList) {
+      if (file.type.startsWith('audio/') || /\.(mp3|wav|ogg|flac|m4a|aac|wma|aiff)$/i.test(file.name)) {
+        try {
+          if (window.flovaApp) {
+            window.flovaApp.showToast(`"${file.name}" ekleniyor...`, 'info');
+          }
+          const arrayBuffer = await file.arrayBuffer();
+          this.engine.ensureContext();
+          const buffer = await this.engine.ctx.decodeAudioData(arrayBuffer);
+          this.addTrack(file, buffer);
+        } catch (err) {
+          console.error('Dosya yüklenemedi:', err);
+          if (window.flovaApp) {
+            window.flovaApp.showToast(`"${file.name}" yüklenemedi: ${err.message || err}`, 'error');
+          }
+        }
+      }
+    }
   }
 
   formatTime(sec) {

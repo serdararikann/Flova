@@ -1155,6 +1155,9 @@ export class StemSplitterUI {
   bindEvents() {
     const fileInput = document.getElementById('stemFileInput');
     if (fileInput) {
+      fileInput.addEventListener('click', () => {
+        fileInput.value = '';
+      });
       fileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -1164,18 +1167,35 @@ export class StemSplitterUI {
 
     const dropZone = document.getElementById('stemDropZone');
     if (dropZone) {
-      dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropZone.classList.add('drop-zone-drag');
+      dropZone.addEventListener('click', () => {
+        if (fileInput) {
+          fileInput.value = '';
+          fileInput.click();
+        }
       });
-      dropZone.addEventListener('dragleave', () => {
-        dropZone.classList.remove('drop-zone-drag');
+
+      ['dragenter', 'dragover'].forEach(name => {
+        dropZone.addEventListener(name, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropZone.classList.add('drop-zone-drag', 'dragover');
+        });
       });
+
+      ['dragleave', 'drop'].forEach(name => {
+        dropZone.addEventListener(name, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropZone.classList.remove('drop-zone-drag', 'dragover');
+        });
+      });
+
       dropZone.addEventListener('drop', async (e) => {
         e.preventDefault();
-        dropZone.classList.remove('drop-zone-drag');
+        e.stopPropagation();
+        dropZone.classList.remove('drop-zone-drag', 'dragover');
         const file = e.dataTransfer.files[0];
-        if (file && file.type.startsWith('audio/')) {
+        if (file && (file.type.startsWith('audio/') || /\.(mp3|wav|ogg|flac|m4a|aac|wma|aiff)$/i.test(file.name))) {
           await this.handleUserFile(file);
         }
       });

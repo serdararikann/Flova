@@ -311,9 +311,22 @@ body {
   width: 100%;
 }
 
-.drop-zone:hover {
+.drop-zone:hover,
+.drop-zone.dragover,
+.drop-zone.drop-zone-drag {
   border-color: var(--accent-cyan);
-  background: rgba(6, 182, 212, 0.08);
+  background: rgba(6, 182, 212, 0.12);
+  box-shadow: 0 0 25px rgba(6, 182, 212, 0.2);
+}
+
+.drop-zone * {
+  pointer-events: none;
+}
+
+.drop-zone label,
+.drop-zone button,
+.drop-zone input {
+  pointer-events: auto;
 }
 
 .drop-zone-icon {

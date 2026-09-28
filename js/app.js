@@ -142,9 +142,30 @@ class FlovaStudioApp {
       this.showToast('Demo müzik yüklendi! Şimdi düzenleyebilirsiniz.', 'success');
     });
 
-    this.openFileBtn.addEventListener('click', () => this.fileInput.click());
+    this.openFileBtn.addEventListener('click', () => {
+      if (this.activeMode === 'vocal-splitter') {
+        const inp = document.getElementById('splitterFileInput');
+        if (inp) { inp.value = ''; inp.click(); return; }
+      } else if (this.activeMode === 'stem-splitter') {
+        const inp = document.getElementById('stemFileInput');
+        if (inp) { inp.value = ''; inp.click(); return; }
+      } else if (this.activeMode === 'merger') {
+        const inp = document.getElementById('mergerFileInput') || document.getElementById('mergerFileInputEmpty');
+        if (inp) { inp.value = ''; inp.click(); return; }
+      }
+      this.fileInput.value = '';
+      this.fileInput.click();
+    });
+
+    this.fileInput.addEventListener('click', () => {
+      this.fileInput.value = '';
+    });
+
     if (this.dropZone) {
-      this.dropZone.addEventListener('click', () => this.fileInput.click());
+      this.dropZone.addEventListener('click', () => {
+        this.fileInput.value = '';
+        this.fileInput.click();
+      });
       this.setupDropZone(this.dropZone);
     }
 
@@ -379,26 +400,65 @@ class FlovaStudioApp {
         this.showToast(`EQ Hazır Ayar: ${chip.textContent}`, 'info');
       });
     });
+
+    // Global drag-and-drop protection & smart active-tab fallback
+    window.addEventListener('dragover', (e) => {
+      e.preventDefault();
+    });
+
+    window.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      const files = e.dataTransfer && e.dataTransfer.files;
+      if (!files || !files.length) return;
+      const file = files[0];
+      const isAudio = file.type.startsWith('audio/') || /\.(mp3|wav|ogg|flac|m4a|aac|wma|aiff)$/i.test(file.name);
+      if (!isAudio) return;
+
+      if (this.activeMode === 'vocal-splitter' && this.vocalSplitter) {
+        await this.vocalSplitter.handleUserFile(file);
+      } else if (this.activeMode === 'stem-splitter' && this.stemSplitter) {
+        await this.stemSplitter.handleUserFile(file);
+      } else if (this.activeMode === 'merger' && this.merger) {
+        await this.merger.handleFiles(files);
+      } else {
+        this.showToast(`"${file.name}" yükleniyor...`, 'info');
+        try {
+          await this.engine.loadFile(file);
+          this.visualizer.setAnalyser(this.engine.analyser);
+          this.showToast('Ses dosyası yüklendi!', 'success');
+        } catch (err) {
+          console.error(err);
+          this.showToast('Ses dosyası açılamadı.', 'error');
+        }
+      }
+    });
   }
 
   setupDropZone(zone) {
+    if (!zone) return;
+
     ['dragenter', 'dragover'].forEach(name => {
       zone.addEventListener(name, (e) => {
         e.preventDefault();
-        zone.classList.add('dragover');
+        e.stopPropagation();
+        zone.classList.add('dragover', 'drop-zone-drag');
       });
     });
 
     ['dragleave', 'drop'].forEach(name => {
       zone.addEventListener(name, (e) => {
         e.preventDefault();
-        zone.classList.remove('dragover');
+        e.stopPropagation();
+        zone.classList.remove('dragover', 'drop-zone-drag');
       });
     });
 
     zone.addEventListener('drop', async (e) => {
-      const file = e.dataTransfer.files[0];
-      if (file) {
+      e.preventDefault();
+      e.stopPropagation();
+      zone.classList.remove('dragover', 'drop-zone-drag');
+      const file = e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files[0] : null;
+      if (file && (file.type.startsWith('audio/') || /\.(mp3|wav|ogg|flac|m4a|aac|wma|aiff)$/i.test(file.name))) {
         this.showToast(`"${file.name}" yükleniyor...`, 'info');
         try {
           await this.engine.loadFile(file);

@@ -61,6 +61,24 @@ export class VocalSplitterUI {
     });
   }
 
+  async handleUserFile(file) {
+    if (!file) return;
+    try {
+      if (window.flovaApp) {
+        window.flovaApp.showToast(`"${file.name}" yükleniyor...`, 'info');
+      }
+      this.engine.ensureContext();
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = await this.engine.ctx.decodeAudioData(arrayBuffer);
+      await this.loadBuffer(buffer, file.name, file);
+    } catch (err) {
+      console.error('Vokal ayırıcı ses yükleme hatası:', err);
+      if (window.flovaApp) {
+        window.flovaApp.showToast(`Ses dosyası açılamadı: ${err.message || err}`, 'error');
+      }
+    }
+  }
+
   async loadBuffer(buffer, fileName = 'Parça', rawFile = null) {
     this.sourceBuffer = buffer;
     this.sourceFile = rawFile;
@@ -919,22 +937,54 @@ export class VocalSplitterUI {
 
     fileInputs.forEach(input => {
       if (input) {
+        input.addEventListener('click', () => {
+          input.value = '';
+        });
         input.addEventListener('change', async (e) => {
           const file = e.target.files[0];
           if (file) {
-            try {
-              const arrayBuffer = await file.arrayBuffer();
-              this.engine.ensureContext();
-              const buffer = await this.engine.ctx.decodeAudioData(arrayBuffer);
-              this.loadBuffer(buffer, file.name, file);
-            } catch (err) {
-              console.error(err);
-              if (window.flovaApp) window.flovaApp.showToast('Ses dosyası açılamadı.', 'error');
-            }
+            await this.handleUserFile(file);
           }
         });
       }
     });
+
+    const vocalDropZone = this.container.querySelector('#vocalDropZone');
+    const primaryInput = this.container.querySelector('#splitterFileInput');
+    if (vocalDropZone) {
+      vocalDropZone.addEventListener('click', () => {
+        if (primaryInput) {
+          primaryInput.value = '';
+          primaryInput.click();
+        }
+      });
+
+      ['dragenter', 'dragover'].forEach(name => {
+        vocalDropZone.addEventListener(name, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          vocalDropZone.classList.add('dragover', 'drop-zone-drag');
+        });
+      });
+
+      ['dragleave', 'drop'].forEach(name => {
+        vocalDropZone.addEventListener(name, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          vocalDropZone.classList.remove('dragover', 'drop-zone-drag');
+        });
+      });
+
+      vocalDropZone.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        vocalDropZone.classList.remove('dragover', 'drop-zone-drag');
+        const file = e.dataTransfer.files[0];
+        if (file && (file.type.startsWith('audio/') || /\.(mp3|wav|ogg|flac|m4a|aac|wma|aiff)$/i.test(file.name))) {
+          await this.handleUserFile(file);
+        }
+      });
+    }
 
     if (this.sourceBuffer && !this.isProcessing) {
       setTimeout(() => this.drawWaveforms(), 50);
