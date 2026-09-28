@@ -71,6 +71,8 @@ export class AudioEngine {
     const decodedBuffer = await this.ctx.decodeAudioData(arrayBuffer);
     
     this.currentFileName = file.name || 'Ses Dosyası';
+    this.historyStack = [];
+    this.historyIndex = -1;
     this.setBuffer(decodedBuffer, true);
     return decodedBuffer;
   }
@@ -78,24 +80,28 @@ export class AudioEngine {
   async loadDemoTrack() {
     this.ensureContext();
     this.currentFileName = 'Flova Synthwave Demo.wav';
+    this.historyStack = [];
+    this.historyIndex = -1;
     const demoBuffer = await DemoAudioGenerator.generateDemoTrack(this.ctx);
     this.setBuffer(demoBuffer, true);
     return demoBuffer;
   }
 
-  setBuffer(audioBuffer, pushHistory = true) {
+  setBuffer(audioBuffer, pushHistory = true, selectionRange = null) {
     this.stop();
     this.currentBuffer = audioBuffer;
     this.pauseOffset = 0;
-    this.loopStart = 0;
-    this.loopEnd = audioBuffer.duration;
+    this.loopStart = selectionRange ? selectionRange.start : 0;
+    this.loopEnd = selectionRange ? selectionRange.end : (audioBuffer ? audioBuffer.duration : 0);
 
-    if (pushHistory) {
+    if (pushHistory && audioBuffer) {
       // Remove any redo steps ahead
       this.historyStack = this.historyStack.slice(0, this.historyIndex + 1);
       this.historyStack.push({
         buffer: audioBuffer,
-        name: this.currentFileName
+        name: this.currentFileName,
+        selectionStart: this.loopStart,
+        selectionEnd: this.loopEnd
       });
       if (this.historyStack.length > this.maxHistory) {
         this.historyStack.shift();
@@ -104,8 +110,27 @@ export class AudioEngine {
     }
 
     if (this.onBufferChange) {
-      this.onBufferChange(this.currentBuffer);
+      this.onBufferChange(this.currentBuffer, { start: this.loopStart, end: this.loopEnd });
     }
+  }
+
+  pushSelectionState(start, end) {
+    if (!this.currentBuffer) return;
+    const lastState = this.historyStack[this.historyIndex];
+    if (lastState && Math.abs(lastState.selectionStart - start) < 0.05 && Math.abs(lastState.selectionEnd - end) < 0.05) {
+      return;
+    }
+    this.historyStack = this.historyStack.slice(0, this.historyIndex + 1);
+    this.historyStack.push({
+      buffer: this.currentBuffer,
+      name: this.currentFileName,
+      selectionStart: start,
+      selectionEnd: end
+    });
+    if (this.historyStack.length > this.maxHistory) {
+      this.historyStack.shift();
+    }
+    this.historyIndex = this.historyStack.length - 1;
   }
 
   undo() {
@@ -113,7 +138,7 @@ export class AudioEngine {
       this.historyIndex--;
       const state = this.historyStack[this.historyIndex];
       this.currentFileName = state.name;
-      this.setBuffer(state.buffer, false);
+      this.setBuffer(state.buffer, false, { start: state.selectionStart, end: state.selectionEnd });
       return true;
     }
     return false;
@@ -124,7 +149,7 @@ export class AudioEngine {
       this.historyIndex++;
       const state = this.historyStack[this.historyIndex];
       this.currentFileName = state.name;
-      this.setBuffer(state.buffer, false);
+      this.setBuffer(state.buffer, false, { start: state.selectionStart, end: state.selectionEnd });
       return true;
     }
     return false;
@@ -146,35 +171,46 @@ export class AudioEngine {
       this.stopSource();
     }
 
-    const startPos = offset !== null ? offset : this.pauseOffset;
+    const hasCustomBounds = this.loopEnd > this.loopStart && (this.loopStart > 0.05 || this.loopEnd < this.currentBuffer.duration - 0.05);
+
+    let startPos = offset !== null ? offset : this.pauseOffset;
+    if (hasCustomBounds) {
+      if (startPos < this.loopStart || startPos >= this.loopEnd - 0.05) {
+        startPos = this.loopStart;
+      }
+    }
     this.pauseOffset = Math.max(0, Math.min(this.currentBuffer.duration, startPos));
 
     this.sourceNode = this.ctx.createBufferSource();
     this.sourceNode.buffer = this.currentBuffer;
     this.sourceNode.playbackRate.value = this.effectsRack.params.playbackRate;
 
-    if (this.useLoopRegion && this.isLooping) {
+    if (this.isLooping || (this.useLoopRegion && this.isLooping)) {
       this.sourceNode.loop = true;
-      this.sourceNode.loopStart = this.loopStart;
-      this.sourceNode.loopEnd = this.loopEnd;
+      this.sourceNode.loopStart = hasCustomBounds ? this.loopStart : 0;
+      this.sourceNode.loopEnd = hasCustomBounds ? this.loopEnd : this.currentBuffer.duration;
     }
 
     this.sourceNode.connect(this.effectsRack.inputNode);
 
     this.startTime = this.ctx.currentTime - (this.pauseOffset / this.effectsRack.params.playbackRate);
-    this.sourceNode.start(0, this.pauseOffset);
+
+    if (hasCustomBounds && !this.isLooping) {
+      const playDuration = Math.max(0, (this.loopEnd - this.pauseOffset) / this.effectsRack.params.playbackRate);
+      this.sourceNode.start(0, this.pauseOffset, playDuration);
+    } else {
+      this.sourceNode.start(0, this.pauseOffset);
+    }
     this.isPlaying = true;
 
     this.sourceNode.onended = () => {
       if (this.isPlaying) {
-        const currentTime = this.getCurrentTime();
-        if (currentTime >= this.currentBuffer.duration - 0.05) {
-          this.pauseOffset = 0;
-          this.isPlaying = false;
-          if (this.onEnded) this.onEnded();
-          if (this.onPlayStateChange) this.onPlayStateChange(false);
-          this.stopTimer();
-        }
+        this.pauseOffset = hasCustomBounds ? this.loopStart : 0;
+        this.isPlaying = false;
+        if (this.onEnded) this.onEnded();
+        if (this.onPlayStateChange) this.onPlayStateChange(false);
+        this.stopTimer();
+        if (this.onTimeUpdate) this.onTimeUpdate(this.pauseOffset);
       }
     };
 
@@ -200,20 +236,28 @@ export class AudioEngine {
   stop() {
     this.stopSource();
     this.isPlaying = false;
-    this.pauseOffset = 0;
+    const hasCustomBounds = this.loopEnd > this.loopStart && (this.loopStart > 0.05 || this.loopEnd < (this.currentBuffer ? this.currentBuffer.duration - 0.05 : 0));
+    this.pauseOffset = hasCustomBounds ? this.loopStart : 0;
     this.stopTimer();
 
     if (this.onPlayStateChange) {
       this.onPlayStateChange(false);
     }
     if (this.onTimeUpdate) {
-      this.onTimeUpdate(0);
+      this.onTimeUpdate(this.pauseOffset);
     }
   }
 
   seek(timeInSeconds) {
     if (!this.currentBuffer) return;
-    const clampedTime = Math.max(0, Math.min(this.currentBuffer.duration, timeInSeconds));
+    const hasCustomBounds = this.loopEnd > this.loopStart && (this.loopStart > 0.05 || this.loopEnd < this.currentBuffer.duration - 0.05);
+    let targetTime = timeInSeconds;
+    if (hasCustomBounds) {
+      if (targetTime < this.loopStart || targetTime > this.loopEnd) {
+        targetTime = this.loopStart;
+      }
+    }
+    const clampedTime = Math.max(0, Math.min(this.currentBuffer.duration, targetTime));
     const wasPlaying = this.isPlaying;
 
     if (wasPlaying) {
@@ -304,9 +348,14 @@ export class AudioEngine {
     this.setBuffer(newBuffer, true);
   }
 
-  applyFadeToCurrent(fadeInSec, fadeOutSec) {
+  applyFadeToCurrent(fadeInSec, fadeOutSec, customRange = null) {
     if (!this.currentBuffer) return;
-    const newBuffer = AudioProcessor.applyFade(this.ctx, this.currentBuffer, fadeInSec, fadeOutSec);
+    let newBuffer;
+    if (customRange && customRange.end > customRange.start) {
+      newBuffer = AudioProcessor.applyFadeRange(this.ctx, this.currentBuffer, customRange.start, customRange.end, customRange.type);
+    } else {
+      newBuffer = AudioProcessor.applyFade(this.ctx, this.currentBuffer, fadeInSec, fadeOutSec);
+    }
     this.setBuffer(newBuffer, true);
   }
 }

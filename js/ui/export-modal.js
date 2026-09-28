@@ -30,6 +30,23 @@ export class ExportModal {
       if (!baseName.endsWith('_edit')) baseName += '_edit';
       fileNameInput.value = baseName;
     }
+
+    // Auto-select 'Sadece Seçili Alan' if track is shortened
+    const isCustomShortened = this.selectionStart > 0.05 || (this.engine.currentBuffer && this.selectionEnd < this.engine.currentBuffer.duration - 0.05);
+    const scopeSelectionInput = this.container.querySelector('input[name="exportScope"][value="selection"]');
+    const scopeAllInput = this.container.querySelector('input[name="exportScope"][value="all"]');
+    const scopeSelectionLabel = this.container.querySelector('#scopeSelectionLabel');
+    const scopeAllLabel = this.container.querySelector('#scopeAllLabel');
+
+    if (isCustomShortened) {
+      if (scopeSelectionInput) scopeSelectionInput.checked = true;
+      if (scopeSelectionLabel) scopeSelectionLabel.classList.add('checked');
+      if (scopeAllLabel) scopeAllLabel.classList.remove('checked');
+    } else {
+      if (scopeAllInput) scopeAllInput.checked = true;
+      if (scopeAllLabel) scopeAllLabel.classList.add('checked');
+      if (scopeSelectionLabel) scopeSelectionLabel.classList.remove('checked');
+    }
   }
 
   close() {

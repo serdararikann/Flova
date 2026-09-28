@@ -148,28 +148,99 @@ export class AudioProcessor {
   }
 
   /**
-   * Merges multiple audio tracks into one single AudioBuffer with optional crossfade
-   * @param {Array<{ buffer: AudioBuffer, volume?: number }>} trackList
-   * @param {number} crossfadeSec
+   * Applies Fade-In or Fade-Out directly to a specific region [startTime, endTime] of an AudioBuffer
+   */
+  static applyFadeRange(audioCtx, buffer, startTime, endTime, type = 'in') {
+    const sampleRate = buffer.sampleRate;
+    const channels = buffer.numberOfChannels;
+    const totalSamples = buffer.length;
+
+    const startSample = Math.max(0, Math.min(totalSamples, Math.floor(startTime * sampleRate)));
+    const endSample = Math.max(startSample, Math.min(totalSamples, Math.floor(endTime * sampleRate)));
+    const rangeSamples = endSample - startSample;
+    if (rangeSamples <= 0) return buffer;
+
+    const newBuffer = audioCtx.createBuffer(channels, totalSamples, sampleRate);
+
+    for (let c = 0; c < channels; c++) {
+      const srcData = buffer.getChannelData(c);
+      const destData = newBuffer.getChannelData(c);
+      destData.set(srcData);
+
+      for (let i = 0; i < rangeSamples; i++) {
+        const progress = i / rangeSamples;
+        const gain = type === 'in'
+          ? 0.5 * (1 - Math.cos(Math.PI * progress))
+          : 0.5 * (1 + Math.cos(Math.PI * progress));
+        destData[startSample + i] *= gain;
+      }
+    }
+
+    return newBuffer;
+  }
+
+  /**
+   * Merges multiple audio tracks into one single AudioBuffer with seamless crossfading & gapless overlapping
+   * Supports both 'auto' (matching individual Fade In / Fade Out envelopes) and 'manual' (fixed duration) modes
+   * @param {Array<{ buffer: AudioBuffer, volume?: number, fadeInSec?: number, fadeOutSec?: number }>} trackList
+   * @param {number|{ mode?: 'auto'|'manual', crossfadeSec?: number }} options
    * @returns {Promise<AudioBuffer>}
    */
-  static async mergeTracks(trackList, crossfadeSec = 0) {
+  static async mergeTracks(trackList, options = {}) {
     if (!trackList || trackList.length === 0) return null;
-    if (trackList.length === 1) return trackList[0].buffer;
+    if (trackList.length === 1) {
+      const single = trackList[0];
+      const hasFade = (single.fadeInSec && single.fadeInSec > 0) || (single.fadeOutSec && single.fadeOutSec > 0);
+      const hasVol = single.volume !== undefined && Math.abs(single.volume - 1.0) > 0.01;
+      if (!hasFade && !hasVol) {
+        return single.buffer;
+      }
+    }
+
+    const crossfadeSec = typeof options === 'number' 
+      ? options 
+      : (options.crossfadeSec !== undefined ? options.crossfadeSec : 1.0);
+    const mode = typeof options === 'object' && options.mode ? options.mode : 'auto';
 
     const sampleRate = trackList[0].buffer.sampleRate;
     const channels = 2; // Standardize to stereo
 
-    // Calculate total duration considering crossfades
-    let totalDuration = 0;
-    for (let i = 0; i < trackList.length; i++) {
-      const dur = trackList[i].buffer.duration;
-      if (i === 0) {
-        totalDuration += dur;
+    // Step 1: Calculate the exact overlap (crossfade) between each adjacent pair
+    const overlaps = [];
+    for (let i = 0; i < trackList.length - 1; i++) {
+      const curTrack = trackList[i];
+      const nextTrack = trackList[i + 1];
+      const curDur = curTrack.buffer.duration;
+      const nextDur = nextTrack.buffer.duration;
+
+      let overlap = 0;
+      if (mode === 'auto') {
+        const curFadeOut = curTrack.fadeOutSec || 0;
+        const nextFadeIn = nextTrack.fadeInSec || 0;
+        if (curFadeOut > 0 || nextFadeIn > 0) {
+          overlap = Math.max(curFadeOut, nextFadeIn);
+        } else {
+          overlap = crossfadeSec > 0 ? crossfadeSec : 1.5;
+        }
       } else {
-        const cross = Math.min(crossfadeSec, dur * 0.4, trackList[i - 1].buffer.duration * 0.4);
-        totalDuration += dur - cross;
+        overlap = crossfadeSec;
       }
+
+      // Safe limit: cannot exceed 48% of either track duration
+      const maxAllowed = Math.min(curDur * 0.48, nextDur * 0.48);
+      overlap = Math.max(0, Math.min(overlap, maxAllowed));
+      overlaps.push(overlap);
+    }
+
+    // Step 2: Compute start times for each track along the merged timeline
+    const startTimes = [0];
+    let totalDuration = trackList[0].buffer.duration;
+
+    for (let i = 0; i < trackList.length - 1; i++) {
+      const overlap = overlaps[i];
+      const nextStart = Math.max(0, startTimes[i] + trackList[i].buffer.duration - overlap);
+      startTimes.push(nextStart);
+      totalDuration = nextStart + trackList[i + 1].buffer.duration;
     }
 
     const totalSamples = Math.max(1, Math.ceil(totalDuration * sampleRate));
@@ -179,45 +250,60 @@ export class AudioProcessor {
       sampleRate
     );
 
-    let currentStartTime = 0;
-
+    // Step 3: Schedule each track with sample-accurate gain envelopes
     for (let i = 0; i < trackList.length; i++) {
       const track = trackList[i];
       const buffer = track.buffer;
       const volume = track.volume !== undefined ? track.volume : 1.0;
+      const startTime = startTimes[i];
+      const duration = buffer.duration;
+      const endTime = startTime + duration;
 
       const source = offlineCtx.createBufferSource();
       source.buffer = buffer;
 
       const gainNode = offlineCtx.createGain();
-      gainNode.gain.setValueAtTime(volume, currentStartTime);
 
-      // Apply crossfade in/out curves
-      if (i > 0 && crossfadeSec > 0) {
-        const cross = Math.min(crossfadeSec, buffer.duration * 0.4);
-        gainNode.gain.setValueAtTime(0, currentStartTime);
-        gainNode.gain.linearRampToValueAtTime(volume, currentStartTime + cross);
+      // Fade In Calculation
+      let fadeInDuration = 0;
+      if (i === 0) {
+        fadeInDuration = track.fadeInSec || 0;
+      } else {
+        const prevOverlap = overlaps[i - 1];
+        fadeInDuration = Math.max(track.fadeInSec || 0, prevOverlap);
+      }
+      fadeInDuration = Math.min(fadeInDuration, duration * 0.48);
+
+      // Fade Out Calculation
+      let fadeOutDuration = 0;
+      if (i < trackList.length - 1) {
+        const curOverlap = overlaps[i];
+        fadeOutDuration = Math.max(track.fadeOutSec || 0, curOverlap);
+      } else {
+        fadeOutDuration = track.fadeOutSec || 0;
+      }
+      fadeOutDuration = Math.min(fadeOutDuration, duration * 0.48);
+
+      // Schedule Gain Envelope
+      if (fadeInDuration > 0.01) {
+        gainNode.gain.setValueAtTime(0.0001, startTime);
+        gainNode.gain.linearRampToValueAtTime(volume, startTime + fadeInDuration);
+      } else {
+        gainNode.gain.setValueAtTime(volume, startTime);
       }
 
-      if (i < trackList.length - 1 && crossfadeSec > 0) {
-        const nextDur = trackList[i + 1].buffer.duration;
-        const cross = Math.min(crossfadeSec, buffer.duration * 0.4, nextDur * 0.4);
-        const fadeOutStart = currentStartTime + buffer.duration - cross;
-        gainNode.gain.setValueAtTime(volume, fadeOutStart);
-        gainNode.gain.linearRampToValueAtTime(0, currentStartTime + buffer.duration);
+      if (fadeOutDuration > 0.01) {
+        const fadeOutStartTime = Math.max(startTime + fadeInDuration, endTime - fadeOutDuration);
+        gainNode.gain.setValueAtTime(volume, fadeOutStartTime);
+        gainNode.gain.linearRampToValueAtTime(0.0001, endTime);
+      } else {
+        gainNode.gain.setValueAtTime(volume, endTime);
       }
 
       source.connect(gainNode);
       gainNode.connect(offlineCtx.destination);
 
-      source.start(currentStartTime);
-
-      // Advance start time for next track
-      if (i < trackList.length - 1) {
-        const nextDur = trackList[i + 1].buffer.duration;
-        const cross = Math.min(crossfadeSec, buffer.duration * 0.4, nextDur * 0.4);
-        currentStartTime += buffer.duration - cross;
-      }
+      source.start(startTime);
     }
 
     return await offlineCtx.startRendering();

@@ -38,12 +38,29 @@ export class WaveformCanvas {
       handle: '#ffffff'
     };
 
+    // Zoom & Horizontal Navigation
+    this.zoomLevel = 1.0;
+    this.minZoom = 1.0;
+    this.maxZoom = 32.0;
+    this.scrollTime = 0.0; // Leftmost time in seconds
+    this.isPanning = false;
+    this.panStartX = 0;
+    this.panStartScrollTime = 0;
+
     this.onSelectionChange = options.onSelectionChange || null;
     this.onSeek = options.onSeek || null;
 
     this.initEvents();
+    if (options.scrollbarContainer) {
+      this.setupScrollbar(options.scrollbarContainer);
+    }
     this.resize();
     window.addEventListener('resize', () => this.resize());
+  }
+
+  get visibleDuration() {
+    if (!this.duration || this.zoomLevel <= 1.0) return this.duration || 1;
+    return this.duration / this.zoomLevel;
   }
 
   resize() {
@@ -69,18 +86,26 @@ export class WaveformCanvas {
 
     this.draw();
     this.drawOverlay();
+    this.updateScrollbar();
   }
 
-  setBuffer(buffer) {
+  setBuffer(buffer, selStart = 0, selEnd = null) {
     this.audioBuffer = buffer;
     this.duration = buffer ? buffer.duration : 0;
     this.currentTime = 0;
-    this.selectionStart = 0;
-    this.selectionEnd = this.duration;
+    this.selectionStart = Math.max(0, Math.min(this.duration, selStart));
+    this.selectionEnd = selEnd !== null ? Math.max(this.selectionStart, Math.min(this.duration, selEnd)) : this.duration;
+    if (this.selectionEnd <= this.selectionStart && this.duration > 0) {
+      this.selectionStart = 0;
+      this.selectionEnd = this.duration;
+    }
+    this.zoomLevel = 1.0;
+    this.scrollTime = 0.0;
 
     this.resize();
     this.draw();
     this.drawOverlay();
+    this.updateScrollbar();
 
     if (this.onSelectionChange) {
       this.onSelectionChange(this.selectionStart, this.selectionEnd);
@@ -89,6 +114,15 @@ export class WaveformCanvas {
 
   setTime(time) {
     this.currentTime = Math.max(0, Math.min(this.duration, time));
+    if (this.zoomLevel > 1.0) {
+      const visDur = this.visibleDuration;
+      // If playhead walks off right edge of screen during playback, smoothly autoscroll
+      if (this.currentTime > this.scrollTime + visDur) {
+        this.scrollToTime(Math.min(this.duration - visDur, this.currentTime - visDur * 0.15));
+      } else if (this.currentTime < this.scrollTime) {
+        this.scrollToTime(Math.max(0, this.currentTime - visDur * 0.15));
+      }
+    }
     this.drawOverlay();
   }
 
@@ -104,12 +138,56 @@ export class WaveformCanvas {
 
   timeToPixel(time) {
     if (this.duration === 0 || !this.width) return 0;
-    return (time / this.duration) * this.width;
+    const visDur = this.visibleDuration;
+    return ((time - this.scrollTime) / visDur) * this.width;
   }
 
   pixelToTime(pixel) {
     if (this.width === 0 || this.duration === 0) return 0;
-    return Math.max(0, Math.min(this.duration, (pixel / this.width) * this.duration));
+    const visDur = this.visibleDuration;
+    const t = this.scrollTime + (pixel / this.width) * visDur;
+    return Math.max(0, Math.min(this.duration, t));
+  }
+
+  setZoom(newZoom, focalX = null) {
+    if (!this.audioBuffer || this.duration === 0) return;
+    newZoom = Math.max(this.minZoom, Math.min(this.maxZoom, newZoom));
+    if (Math.abs(newZoom - this.zoomLevel) < 0.001) return;
+
+    const centerX = focalX !== null ? focalX : this.width / 2;
+    const focalTime = this.pixelToTime(centerX);
+
+    this.zoomLevel = newZoom;
+    const newVisDur = this.visibleDuration;
+
+    if (newZoom <= 1.0) {
+      this.zoomLevel = 1.0;
+      this.scrollTime = 0.0;
+    } else {
+      let targetScroll = focalTime - (centerX / this.width) * newVisDur;
+      const maxScroll = Math.max(0, this.duration - newVisDur);
+      this.scrollTime = Math.max(0, Math.min(maxScroll, targetScroll));
+    }
+
+    this.draw();
+    this.drawOverlay();
+    this.updateScrollbar();
+  }
+
+  scrollToTime(time) {
+    const visDur = this.visibleDuration;
+    const maxScroll = Math.max(0, this.duration - visDur);
+    this.scrollTime = Math.max(0, Math.min(maxScroll, time));
+    this.draw();
+    this.drawOverlay();
+    this.updateScrollbar();
+  }
+
+  scrollByPixels(deltaPx) {
+    if (this.zoomLevel <= 1.0) return;
+    const visDur = this.visibleDuration;
+    const deltaTime = (deltaPx / this.width) * visDur;
+    this.scrollToTime(this.scrollTime + deltaTime);
   }
 
   draw() {
@@ -151,20 +229,27 @@ export class WaveformCanvas {
 
     ctx.fillStyle = gradient;
 
-    // Step calculation: Draw crisp peak bars
+    // Step calculation: Draw crisp peak bars for visible window
+    const visDur = this.visibleDuration;
+    const sampleRate = this.audioBuffer.sampleRate || 44100;
+    const startSample = Math.max(0, Math.floor(this.scrollTime * sampleRate));
+    const endSample = Math.min(totalSamples, Math.ceil((this.scrollTime + visDur) * sampleRate));
+    const visibleSamples = Math.max(1, endSample - startSample);
+
     const barWidth = 2;
     const gap = 1;
-    const step = Math.max(1, Math.floor(totalSamples / (w * 1.5)));
+    const step = Math.max(1, Math.floor(visibleSamples / (w * 1.5)));
 
     for (let x = 0; x < w; x += (barWidth + gap)) {
-      const sampleStart = Math.floor((x / w) * totalSamples);
+      const sampleStart = startSample + Math.floor((x / w) * visibleSamples);
       const sampleEnd = Math.min(totalSamples, sampleStart + step);
 
       let min = 1.0;
       let max = -1.0;
 
-      // Sample stride to ensure lightning speed rendering even on 1-hour tracks
-      const stride = Math.max(1, Math.floor((sampleEnd - sampleStart) / 40));
+      // Sample stride to ensure lightning speed rendering even at high zoom
+      const count = sampleEnd - sampleStart;
+      const stride = Math.max(1, Math.floor(count / 40));
 
       for (let i = sampleStart; i < sampleEnd; i += stride) {
         const valL = dataL[i] || 0;
@@ -201,50 +286,67 @@ export class WaveformCanvas {
     const playheadX = this.timeToPixel(this.currentTime);
 
     // 1. Draw Selection Range
+    const isCustomTrimmed = this.selectionEnd > this.selectionStart && (this.selectionStart > 0.05 || this.selectionEnd < this.duration - 0.05);
+
     if (this.selectionEnd > this.selectionStart) {
-      // Dimmed area outside selection
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-      ctx.fillRect(0, 0, startX, h);
-      ctx.fillRect(endX, 0, w - endX, h);
+      const visibleLeft = Math.max(0, Math.min(w, startX));
+      const visibleRight = Math.max(0, Math.min(w, endX));
 
-      // Selected area highlight
-      ctx.fillStyle = this.colors.regionBg;
-      ctx.fillRect(startX, 0, endX - startX, h);
+      // Dimmed area outside selection - only when track is actually trimmed!
+      if (isCustomTrimmed) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+        if (visibleLeft > 0) ctx.fillRect(0, 0, visibleLeft, h);
+        if (visibleRight < w) ctx.fillRect(visibleRight, 0, w - visibleRight, h);
 
-      // Selection Borders
+        // Selected area highlight
+        if (visibleRight > visibleLeft) {
+          ctx.fillStyle = this.colors.regionBg;
+          ctx.fillRect(visibleLeft, 0, visibleRight - visibleLeft, h);
+        }
+      }
+
+      // Selection Borders & Handles
       ctx.strokeStyle = this.colors.regionBorder;
       ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(startX, 0);
-      ctx.lineTo(startX, h);
-      ctx.moveTo(endX, 0);
-      ctx.lineTo(endX, h);
-      ctx.stroke();
 
-      // Draggable Handles
-      this.drawHandle(ctx, startX, 36, true);
-      this.drawHandle(ctx, endX, 36, false);
+      if (startX >= -5 && startX <= w + 5) {
+        ctx.beginPath();
+        ctx.moveTo(startX, 0);
+        ctx.lineTo(startX, h);
+        ctx.stroke();
+        this.drawHandle(ctx, startX, 36, true);
+      }
+
+      if (endX >= -5 && endX <= w + 5) {
+        ctx.beginPath();
+        ctx.moveTo(endX, 0);
+        ctx.lineTo(endX, h);
+        ctx.stroke();
+        this.drawHandle(ctx, endX, 36, false);
+      }
     }
 
     // 2. Draw Playhead Indicator
-    ctx.strokeStyle = this.colors.playhead;
-    ctx.lineWidth = 2.5;
-    ctx.shadowColor = 'rgba(244, 63, 94, 0.9)';
-    ctx.shadowBlur = 8;
-    ctx.beginPath();
-    ctx.moveTo(playheadX, 0);
-    ctx.lineTo(playheadX, h);
-    ctx.stroke();
+    if (playheadX >= -10 && playheadX <= w + 10) {
+      ctx.strokeStyle = this.colors.playhead;
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = 'rgba(244, 63, 94, 0.9)';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.moveTo(playheadX, 0);
+      ctx.lineTo(playheadX, h);
+      ctx.stroke();
 
-    // Playhead head marker
-    ctx.fillStyle = this.colors.playhead;
-    ctx.beginPath();
-    ctx.moveTo(playheadX - 7, 0);
-    ctx.lineTo(playheadX + 7, 0);
-    ctx.lineTo(playheadX, 12);
-    ctx.closePath();
-    ctx.fill();
-    ctx.shadowBlur = 0;
+      // Playhead head marker
+      ctx.fillStyle = this.colors.playhead;
+      ctx.beginPath();
+      ctx.moveTo(playheadX - 7, 0);
+      ctx.lineTo(playheadX + 7, 0);
+      ctx.lineTo(playheadX, 12);
+      ctx.closePath();
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
   }
 
   drawHandle(ctx, x, size, isLeft) {
@@ -289,13 +391,129 @@ export class WaveformCanvas {
     }
   }
 
+  setupScrollbar(container) {
+    if (!container) return;
+    this.scrollbarContainer = container;
+    this.scrollbarTrack = container.querySelector('#waveformScrollbarTrack');
+    this.scrollbarThumb = container.querySelector('#waveformScrollbarThumb');
+    this.zoomLevelDisplay = container.querySelector('#zoomLevelDisplay');
+    this.zoomInBtn = container.querySelector('#zoomInBtn');
+    this.zoomOutBtn = container.querySelector('#zoomOutBtn');
+    this.zoomResetBtn = container.querySelector('#zoomResetBtn');
+
+    if (this.zoomInBtn) {
+      this.zoomInBtn.addEventListener('click', () => {
+        this.setZoom(this.zoomLevel * 1.5);
+      });
+    }
+    if (this.zoomOutBtn) {
+      this.zoomOutBtn.addEventListener('click', () => {
+        this.setZoom(this.zoomLevel / 1.5);
+      });
+    }
+    if (this.zoomResetBtn) {
+      this.zoomResetBtn.addEventListener('click', () => {
+        this.setZoom(1.0);
+      });
+    }
+
+    let isThumbDragging = false;
+    let thumbDragStartX = 0;
+    let thumbDragStartScrollTime = 0;
+
+    if (this.scrollbarThumb) {
+      this.scrollbarThumb.addEventListener('mousedown', (e) => {
+        if (this.zoomLevel <= 1.0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        isThumbDragging = true;
+        thumbDragStartX = e.clientX;
+        thumbDragStartScrollTime = this.scrollTime;
+        this.scrollbarThumb.classList.add('active');
+      });
+    }
+
+    if (this.scrollbarTrack) {
+      this.scrollbarTrack.addEventListener('click', (e) => {
+        if (this.zoomLevel <= 1.0 || isThumbDragging) return;
+        const rect = this.scrollbarTrack.getBoundingClientRect();
+        const clickRatio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        const visDur = this.visibleDuration;
+        const targetTime = clickRatio * this.duration - visDur / 2;
+        this.scrollToTime(targetTime);
+      });
+    }
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isThumbDragging || !this.scrollbarTrack) return;
+      const rect = this.scrollbarTrack.getBoundingClientRect();
+      const trackWidth = rect.width;
+      if (trackWidth <= 0) return;
+
+      const deltaX = e.clientX - thumbDragStartX;
+      const deltaTime = (deltaX / trackWidth) * this.duration;
+      this.scrollToTime(thumbDragStartScrollTime + deltaTime);
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isThumbDragging) {
+        isThumbDragging = false;
+        if (this.scrollbarThumb) {
+          this.scrollbarThumb.classList.remove('active');
+        }
+      }
+    });
+
+    this.updateScrollbar();
+  }
+
+  updateScrollbar() {
+    if (!this.scrollbarContainer) return;
+    if (this.zoomLevelDisplay) {
+      this.zoomLevelDisplay.textContent = `${this.zoomLevel.toFixed(1)}x`;
+    }
+
+    if (!this.scrollbarThumb || !this.scrollbarTrack) return;
+
+    if (this.zoomLevel <= 1.0) {
+      this.scrollbarThumb.style.width = '100%';
+      this.scrollbarThumb.style.left = '0%';
+      this.scrollbarThumb.style.opacity = '0.35';
+      this.scrollbarThumb.style.cursor = 'default';
+    } else {
+      const thumbRatio = Math.max(0.04, 1 / this.zoomLevel);
+      const scrollRatio = this.duration > 0 ? this.scrollTime / this.duration : 0;
+      
+      const thumbWidthPct = thumbRatio * 100;
+      const thumbLeftPct = Math.min(100 - thumbWidthPct, scrollRatio * 100);
+
+      this.scrollbarThumb.style.width = `${thumbWidthPct}%`;
+      this.scrollbarThumb.style.left = `${thumbLeftPct}%`;
+      this.scrollbarThumb.style.opacity = '1';
+      this.scrollbarThumb.style.cursor = 'grab';
+    }
+  }
+
   initEvents() {
     const overlay = this.overlay;
 
-    const getX = (e) => {
-      const rect = overlay.getBoundingClientRect();
-      return Math.max(0, Math.min(rect.width, e.clientX - rect.left));
-    };
+    // Ctrl + Mouse Wheel = Zoom in/out at cursor
+    // Plain Mouse Wheel (when zoomed) = Horizontal Scroll
+    overlay.addEventListener('wheel', (e) => {
+      if (!this.audioBuffer) return;
+
+      if (e.ctrlKey) {
+        e.preventDefault();
+        const rect = overlay.getBoundingClientRect();
+        const mouseX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+        const factor = e.deltaY < 0 ? 1.3 : 0.77;
+        this.setZoom(this.zoomLevel * factor, mouseX);
+      } else if (this.zoomLevel > 1.0) {
+        e.preventDefault();
+        const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+        this.scrollByPixels(delta * 0.7);
+      }
+    }, { passive: false });
 
     let mouseDownX = 0;
     let mouseDownTime = 0;
@@ -304,15 +522,29 @@ export class WaveformCanvas {
       if (!this.audioBuffer) return;
       const rect = overlay.getBoundingClientRect();
       const x = e.clientX - rect.left;
-      const time = this.pixelToTime(x);
 
+      // Middle click or Alt+Click = Pan
+      if (e.button === 1 || (e.button === 0 && e.altKey)) {
+        e.preventDefault();
+        this.isPanning = true;
+        this.panStartX = e.clientX;
+        this.panStartScrollTime = this.scrollTime;
+        overlay.style.cursor = 'grabbing';
+        return;
+      }
+
+      if (e.button !== 0) return; // Only left click from here
+
+      const time = this.pixelToTime(x);
       mouseDownX = x;
       mouseDownTime = time;
 
       const startX = this.timeToPixel(this.selectionStart);
       const endX = this.timeToPixel(this.selectionEnd);
-
       const handleRadius = 14;
+
+      this.dragStartX = x;
+      this.dragStartSelection = { start: this.selectionStart, end: this.selectionEnd };
 
       if (Math.abs(x - startX) <= handleRadius) {
         this.isDragging = true;
@@ -320,25 +552,25 @@ export class WaveformCanvas {
       } else if (Math.abs(x - endX) <= handleRadius) {
         this.isDragging = true;
         this.dragTarget = 'end';
-      } else if (x > startX + handleRadius && x < endX - handleRadius && e.shiftKey) {
+      } else if (time >= this.selectionStart && time <= this.selectionEnd) {
         this.isDragging = true;
-        this.dragTarget = 'region';
-        this.dragStartX = x;
-        this.dragStartSelection = { start: this.selectionStart, end: this.selectionEnd };
+        this.dragTarget = e.shiftKey ? 'region' : 'seek';
       } else {
-        // Natural Selection / Seek: Start new selection from click
+        // Clicked in the dimmed / excluded portion of the track outside selection
+        // DO NOT reset selection! Keep selection bounds strictly intact.
         this.isDragging = true;
-        this.dragTarget = 'newSelection';
-        this.dragStartX = x;
-        this.selectionStart = time;
-        this.selectionEnd = time;
-        this.currentTime = time;
-        if (this.onSeek) this.onSeek(time);
-        this.drawOverlay();
+        this.dragTarget = 'outsideClick';
       }
     });
 
     window.addEventListener('mousemove', (e) => {
+      if (this.isPanning) {
+        const deltaPx = e.clientX - this.panStartX;
+        const deltaTime = (deltaPx / this.width) * this.visibleDuration;
+        this.scrollToTime(this.panStartScrollTime - deltaTime);
+        return;
+      }
+
       if (!this.isDragging || !this.audioBuffer) {
         const rect = overlay.getBoundingClientRect();
         const x = e.clientX - rect.left;
@@ -351,7 +583,7 @@ export class WaveformCanvas {
         } else if (x > startX && x < endX) {
           overlay.style.cursor = 'crosshair';
         } else {
-          overlay.style.cursor = 'pointer';
+          overlay.style.cursor = 'default';
         }
         return;
       }
@@ -361,9 +593,9 @@ export class WaveformCanvas {
       const time = this.pixelToTime(x);
 
       if (this.dragTarget === 'start') {
-        this.selectionStart = Math.min(time, this.selectionEnd - 0.05);
+        this.selectionStart = Math.max(0, Math.min(this.selectionEnd - 0.05, time));
       } else if (this.dragTarget === 'end') {
-        this.selectionEnd = Math.max(time, this.selectionStart + 0.05);
+        this.selectionEnd = Math.min(this.duration, Math.max(this.selectionStart + 0.05, time));
       } else if (this.dragTarget === 'region') {
         const deltaSec = this.pixelToTime(x) - this.pixelToTime(this.dragStartX);
         const dur = this.dragStartSelection.end - this.dragStartSelection.start;
@@ -380,8 +612,20 @@ export class WaveformCanvas {
         }
         this.selectionStart = newStart;
         this.selectionEnd = newEnd;
+      } else if (this.dragTarget === 'seek' || this.dragTarget === 'outsideClick') {
+        // If dragged more than 8 pixels, user is actively drawing a new selection
+        const dragDist = Math.abs(x - this.dragStartX);
+        if (dragDist > 8) {
+          this.dragTarget = 'newSelection';
+          if (time >= mouseDownTime) {
+            this.selectionStart = mouseDownTime;
+            this.selectionEnd = time;
+          } else {
+            this.selectionStart = time;
+            this.selectionEnd = mouseDownTime;
+          }
+        }
       } else if (this.dragTarget === 'newSelection') {
-        // Dragging to select a region
         if (time >= mouseDownTime) {
           this.selectionStart = mouseDownTime;
           this.selectionEnd = time;
@@ -393,7 +637,7 @@ export class WaveformCanvas {
 
       this.drawOverlay();
 
-      if (this.onSelectionChange && this.dragTarget !== 'seek') {
+      if (this.onSelectionChange && this.dragTarget !== 'seek' && this.dragTarget !== 'outsideClick') {
         const s = Math.min(this.selectionStart, this.selectionEnd);
         const en = Math.max(this.selectionStart, this.selectionEnd);
         this.onSelectionChange(s, en);
@@ -401,26 +645,53 @@ export class WaveformCanvas {
     });
 
     window.addEventListener('mouseup', (e) => {
+      if (this.isPanning) {
+        this.isPanning = false;
+        overlay.style.cursor = 'crosshair';
+      }
+
       if (this.isDragging) {
-        if (this.dragTarget === 'newSelection') {
+        const curX = e.clientX - overlay.getBoundingClientRect().left;
+        const dragDist = Math.abs(curX - this.dragStartX);
+
+        if (this.dragTarget === 'seek' && dragDist <= 8) {
+          // Clicked inside active selected area: seek playhead inside active selection
+          const clickedTime = Math.max(this.selectionStart, Math.min(this.selectionEnd, mouseDownTime));
+          this.currentTime = clickedTime;
+          if (this.onSeek) this.onSeek(clickedTime);
+        } else if (this.dragTarget === 'outsideClick' && dragDist <= 8) {
+          // Clicked in the excluded/shortened portion:
+          // DO NOT reset selection! Keep selection bounds intact!
+          // Place playhead at the start of the active part (selectionStart)
+          this.currentTime = this.selectionStart;
+          if (this.onSeek) this.onSeek(this.selectionStart);
+        } else if (this.dragTarget === 'newSelection') {
           const s = Math.min(this.selectionStart, this.selectionEnd);
           const en = Math.max(this.selectionStart, this.selectionEnd);
 
-          // If user barely moved (< 4px), select entire track and place playhead at click
           if (Math.abs(s - en) < 0.08) {
-            this.selectionStart = 0;
-            this.selectionEnd = this.duration;
-            this.currentTime = mouseDownTime;
-            if (this.onSeek) this.onSeek(mouseDownTime);
+            // Barely moved: restore previous selection! Never wipe out to full track!
+            this.selectionStart = this.dragStartSelection.start;
+            this.selectionEnd = this.dragStartSelection.end;
           } else {
             this.selectionStart = s;
             this.selectionEnd = en;
+            if (this.onSelectionChange) {
+              this.onSelectionChange(this.selectionStart, this.selectionEnd);
+            }
+            if (this.onSelectionCommit) {
+              this.onSelectionCommit(this.selectionStart, this.selectionEnd);
+            }
           }
-
+        } else if (this.dragTarget === 'start' || this.dragTarget === 'end' || this.dragTarget === 'region') {
           if (this.onSelectionChange) {
             this.onSelectionChange(this.selectionStart, this.selectionEnd);
           }
+          if (this.onSelectionCommit) {
+            this.onSelectionCommit(this.selectionStart, this.selectionEnd);
+          }
         }
+
         this.isDragging = false;
         this.dragTarget = null;
         this.drawOverlay();

@@ -6,7 +6,7 @@
 import { AudioEngine } from './audio/audio-engine.js';
 import { WaveformCanvas } from './ui/waveform-canvas.js';
 import { VisualizerCanvas } from './ui/visualizer-canvas.js';
-import { MergerUI } from './ui/merger-ui.js';
+import { MergerUI } from './ui/merger-ui.js?v=5.4';
 import { VocalSplitterUI } from './ui/vocal-splitter-ui.js';
 import { StemSplitterUI } from './ui/stem-splitter-ui.js';
 import { ExportModal } from './ui/export-modal.js';
@@ -62,6 +62,10 @@ class FlovaStudioApp {
     this.reverseBtn = document.getElementById('reverseBtn');
     this.fadeInBtn = document.getElementById('fadeInBtn');
     this.fadeOutBtn = document.getElementById('fadeOutBtn');
+    this.editorFadeInSlider = document.getElementById('editorFadeInSlider');
+    this.editorFadeInNum = document.getElementById('editorFadeInNum');
+    this.editorFadeOutSlider = document.getElementById('editorFadeOutSlider');
+    this.editorFadeOutNum = document.getElementById('editorFadeOutNum');
     this.undoBtn = document.getElementById('undoBtn');
     this.redoBtn = document.getElementById('redoBtn');
 
@@ -89,7 +93,8 @@ class FlovaStudioApp {
     const overlayCanvas = document.getElementById('overlayCanvas');
     this.waveform = new WaveformCanvas(waveCanvas, overlayCanvas, {
       onSelectionChange: (start, end) => this.handleSelectionChange(start, end),
-      onSeek: (time) => this.engine.seek(time)
+      onSeek: (time) => this.engine.seek(time),
+      scrollbarContainer: document.getElementById('waveformScrollbarContainer')
     });
 
     // 2. Visualizer Canvas
@@ -122,9 +127,16 @@ class FlovaStudioApp {
     this.exportModal = new ExportModal(this.exportModalContainer, this.engine);
 
     // 7. Audio Engine callbacks
-    this.engine.onBufferChange = (buffer) => this.handleBufferChange(buffer);
+    this.engine.onBufferChange = (buffer, selection) => this.handleBufferChange(buffer, selection);
     this.engine.onTimeUpdate = (time) => this.handleTimeUpdate(time);
     this.engine.onPlayStateChange = (isPlaying) => this.handlePlayStateChange(isPlaying);
+
+    // 8. Waveform selection commit
+    this.waveform.onSelectionCommit = (start, end) => {
+      this.engine.pushSelectionState(start, end);
+      this.undoBtn.disabled = !this.engine.canUndo();
+      this.redoBtn.disabled = !this.engine.canRedo();
+    };
   }
 
   bindEvents() {
@@ -150,6 +162,10 @@ class FlovaStudioApp {
         const inp = document.getElementById('stemFileInput');
         if (inp) { inp.value = ''; inp.click(); return; }
       } else if (this.activeMode === 'merger') {
+        if (this.merger && typeof this.merger.triggerAddTrack === 'function') {
+          this.merger.triggerAddTrack();
+          return;
+        }
         const inp = document.getElementById('mergerFileInput') || document.getElementById('mergerFileInputEmpty');
         if (inp) { inp.value = ''; inp.click(); return; }
       }
@@ -236,32 +252,74 @@ class FlovaStudioApp {
       this.showToast('Ses ters çevrildi!', 'success');
     });
 
+    // Manual Fade In & Fade Out sync & handlers
+    if (this.editorFadeInSlider && this.editorFadeInNum) {
+      this.editorFadeInSlider.addEventListener('input', (e) => {
+        this.editorFadeInNum.value = parseFloat(e.target.value).toFixed(1);
+      });
+      this.editorFadeInNum.addEventListener('input', (e) => {
+        const val = Math.max(0.1, Math.min(30, parseFloat(e.target.value) || 0.1));
+        this.editorFadeInSlider.value = val;
+      });
+    }
+
+    if (this.editorFadeOutSlider && this.editorFadeOutNum) {
+      this.editorFadeOutSlider.addEventListener('input', (e) => {
+        this.editorFadeOutNum.value = parseFloat(e.target.value).toFixed(1);
+      });
+      this.editorFadeOutNum.addEventListener('input', (e) => {
+        const val = Math.max(0.1, Math.min(30, parseFloat(e.target.value) || 0.1));
+        this.editorFadeOutSlider.value = val;
+      });
+    }
+
     this.fadeInBtn.addEventListener('click', () => {
       if (!this.engine.currentBuffer) return;
-      const dur = Math.min(3.0, this.engine.currentBuffer.duration * 0.25);
-      this.engine.applyFadeToCurrent(dur, 0);
-      this.showToast(`${dur.toFixed(1)} sn Fade-In uygulandı!`, 'success');
+      const customDur = this.editorFadeInNum ? parseFloat(this.editorFadeInNum.value) : 3.0;
+      const dur = Math.max(0.05, Math.min(this.engine.currentBuffer.duration, customDur || 3.0));
+
+      const hasSelection = this.selectionEnd > this.selectionStart + 0.05 &&
+        (this.selectionStart > 0.05 || this.selectionEnd < this.engine.currentBuffer.duration - 0.05);
+
+      if (hasSelection) {
+        this.engine.applyFadeToCurrent(0, 0, {
+          start: this.selectionStart,
+          end: this.selectionEnd,
+          type: 'in'
+        });
+        const selDur = (this.selectionEnd - this.selectionStart).toFixed(1);
+        this.showToast(`Seçili alana (${selDur} sn) Fade-In uygulandı!`, 'success');
+      } else {
+        this.engine.applyFadeToCurrent(dur, 0);
+        this.showToast(`${dur.toFixed(1)} sn Fade-In uygulandı!`, 'success');
+      }
     });
 
     this.fadeOutBtn.addEventListener('click', () => {
       if (!this.engine.currentBuffer) return;
-      const dur = Math.min(3.0, this.engine.currentBuffer.duration * 0.25);
-      this.engine.applyFadeToCurrent(0, dur);
-      this.showToast(`${dur.toFixed(1)} sn Fade-Out uygulandı!`, 'success');
+      const customDur = this.editorFadeOutNum ? parseFloat(this.editorFadeOutNum.value) : 3.0;
+      const dur = Math.max(0.05, Math.min(this.engine.currentBuffer.duration, customDur || 3.0));
+
+      const hasSelection = this.selectionEnd > this.selectionStart + 0.05 &&
+        (this.selectionStart > 0.05 || this.selectionEnd < this.engine.currentBuffer.duration - 0.05);
+
+      if (hasSelection) {
+        this.engine.applyFadeToCurrent(0, 0, {
+          start: this.selectionStart,
+          end: this.selectionEnd,
+          type: 'out'
+        });
+        const selDur = (this.selectionEnd - this.selectionStart).toFixed(1);
+        this.showToast(`Seçili alana (${selDur} sn) Fade-Out uygulandı!`, 'success');
+      } else {
+        this.engine.applyFadeToCurrent(0, dur);
+        this.showToast(`${dur.toFixed(1)} sn Fade-Out uygulandı!`, 'success');
+      }
     });
 
     // Undo / Redo
-    this.undoBtn.addEventListener('click', () => {
-      if (this.engine.undo()) {
-        this.showToast('Geri alındı (Undo)', 'info');
-      }
-    });
-
-    this.redoBtn.addEventListener('click', () => {
-      if (this.engine.redo()) {
-        this.showToast('Yinelendi (Redo)', 'info');
-      }
-    });
+    this.undoBtn.addEventListener('click', () => this.handleUndo());
+    this.redoBtn.addEventListener('click', () => this.handleRedo());
 
     // Time input markers
     this.setStartToCurrentBtn.addEventListener('click', () => {
@@ -532,7 +590,7 @@ class FlovaStudioApp {
     }
   }
 
-  handleBufferChange(buffer) {
+  handleBufferChange(buffer, selectionRange = null) {
     if (this.dropZone) this.dropZone.style.display = 'none';
     if (this.trackWorkspace) this.trackWorkspace.style.display = 'flex';
 
@@ -546,15 +604,41 @@ class FlovaStudioApp {
       <span class="spec-item">${this.formatTime(buffer.duration)}</span>
     `;
 
-    this.selectionStart = 0;
-    this.selectionEnd = buffer.duration;
+    this.selectionStart = selectionRange ? selectionRange.start : 0;
+    this.selectionEnd = selectionRange ? selectionRange.end : buffer.duration;
 
-    // Use requestAnimationFrame to guarantee layout dimensions are calculated by browser
-    requestAnimationFrame(() => {
-      this.waveform.setBuffer(buffer);
-      this.updateSelectionInputs();
-    });
+    this.waveform.setBuffer(buffer, this.selectionStart, this.selectionEnd);
+    this.updateSelectionInputs();
 
+    this.undoBtn.disabled = !this.engine.canUndo();
+    this.redoBtn.disabled = !this.engine.canRedo();
+  }
+
+  handleUndo() {
+    if (this.activeMode === 'merger') {
+      if (this.merger) {
+        this.merger.undoLastAction();
+      }
+      return;
+    }
+    if (this.engine.undo()) {
+      this.showToast('Geri alındı (Undo)', 'info');
+    } else {
+      this.showToast('Geri alınacak başka işlem yok.', 'info');
+    }
+    this.undoBtn.disabled = !this.engine.canUndo();
+    this.redoBtn.disabled = !this.engine.canRedo();
+  }
+
+  handleRedo() {
+    if (this.activeMode === 'merger') {
+      return;
+    }
+    if (this.engine.redo()) {
+      this.showToast('Yinelendi (Redo)', 'info');
+    } else {
+      this.showToast('İleri alınacak başka işlem yok.', 'info');
+    }
     this.undoBtn.disabled = !this.engine.canUndo();
     this.redoBtn.disabled = !this.engine.canRedo();
   }
@@ -679,16 +763,16 @@ class FlovaStudioApp {
           e.preventDefault();
           this.cutBtn.click();
         }
-      } else if (e.code === 'KeyZ' && (e.ctrlKey || e.metaKey)) {
+      } else if ((e.key === 'z' || e.key === 'Z' || e.code === 'KeyZ') && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         if (e.shiftKey) {
-          this.redoBtn.click();
+          this.handleRedo();
         } else {
-          this.undoBtn.click();
+          this.handleUndo();
         }
-      } else if (e.code === 'KeyY' && (e.ctrlKey || e.metaKey)) {
+      } else if ((e.key === 'y' || e.key === 'Y' || e.code === 'KeyY') && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
-        this.redoBtn.click();
+        this.handleRedo();
       }
     });
   }

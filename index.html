@@ -15,7 +15,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   
   <!-- Styles -->
-  <link rel="stylesheet" href="./css/style.css" />
+  <link rel="stylesheet" href="./css/style.css?v=5.5" />
 </head>
 <body>
   <div class="app-container">
@@ -106,6 +106,19 @@
             <canvas id="overlayCanvas"></canvas>
           </div>
 
+          <!-- Waveform Zoom Navigation & Horizontal Scrollbar -->
+          <div id="waveformScrollbarContainer" class="waveform-scrollbar-wrapper">
+            <div id="waveformScrollbarTrack" class="waveform-scrollbar-track" title="Gezinmek için kaydırın veya tıklayın">
+              <div id="waveformScrollbarThumb" class="waveform-scrollbar-thumb"></div>
+            </div>
+            <div class="waveform-zoom-bar">
+              <button id="zoomOutBtn" class="zoom-btn" title="Uzaklaştır (Ctrl + Tekerlek)">−</button>
+              <span id="zoomLevelDisplay" class="zoom-badge">1.0x</span>
+              <button id="zoomInBtn" class="zoom-btn" title="Yakınlaştır (Ctrl + Tekerlek)">+</button>
+              <button id="zoomResetBtn" class="zoom-btn zoom-btn-reset" title="Yakınlaştırmayı Sıfırla (1x)">⟲</button>
+            </div>
+          </div>
+
           <!-- Transport & Playback Bar -->
           <div class="transport-panel">
             <div class="time-display-group">
@@ -184,15 +197,29 @@
             <button id="silenceBtn" class="btn btn-secondary" title="Seçili alanı sessize al">
               🔇 Sessiz
             </button>
-            <button id="fadeInBtn" class="btn btn-secondary" title="Yumuşak başlangıç">
-              📈 Fade In
-            </button>
-            <button id="fadeOutBtn" class="btn btn-secondary" title="Yumuşak bitiş">
-              📉 Fade Out
-            </button>
             <button id="reverseBtn" class="btn btn-secondary" title="Tersine çevir">
               🔄 Tersine
             </button>
+
+            <!-- Manual Fade In Control Box -->
+            <div class="fade-control-pill" title="Fade In (Giriş) süresini ayarlayın ve uygulayın">
+              <button id="fadeInBtn" class="btn btn-secondary btn-sm" style="padding: 4px 10px; font-size: 0.8rem; font-weight: 600;">
+                📈 Fade In
+              </button>
+              <input type="range" id="editorFadeInSlider" min="0.1" max="15.0" step="0.1" value="3.0" class="studio-slider" style="width: 65px; height: 4px;" title="Fade In süresini ayarlayın" />
+              <input type="number" id="editorFadeInNum" min="0.1" max="15.0" step="0.1" value="3.0" class="fade-num-input fade-num-in" title="Saniye cinsinden Fade In süresi yazın" />
+              <span class="fade-unit">sn</span>
+            </div>
+
+            <!-- Manual Fade Out Control Box -->
+            <div class="fade-control-pill" title="Fade Out (Çıkış) süresini ayarlayın ve uygulayın">
+              <button id="fadeOutBtn" class="btn btn-secondary btn-sm" style="padding: 4px 10px; font-size: 0.8rem; font-weight: 600;">
+                📉 Fade Out
+              </button>
+              <input type="range" id="editorFadeOutSlider" min="0.1" max="15.0" step="0.1" value="3.0" class="studio-slider" style="width: 65px; height: 4px;" title="Fade Out süresini ayarlayın" />
+              <input type="number" id="editorFadeOutNum" min="0.1" max="15.0" step="0.1" value="3.0" class="fade-num-input fade-num-out" title="Saniye cinsinden Fade Out süresi yazın" />
+              <span class="fade-unit">sn</span>
+            </div>
           </div>
         </div>
       </div>
@@ -360,6 +387,6 @@
   </div>
 
   <!-- Main JavaScript App Entry -->
-  <script type="module" src="./js/app.js"></script>
+  <script type="module" src="./js/app.js?v=5.5"></script>
 </body>
 </html>
