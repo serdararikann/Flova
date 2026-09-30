@@ -3,6 +3,8 @@
    Realtime Web Audio DSP: 5-Band EQ, Reverb, Echo, Pan & Gain
    ==================================================================== */
 
+import { MasteringRack } from './mastering-rack.js';
+
 export class AudioEffectsRack {
   constructor(audioCtx) {
     this.ctx = audioCtx;
@@ -125,11 +127,31 @@ export class AudioEffectsRack {
     this.masterGain.gain.value = this.params.volume;
     this.pannerNode.connect(this.masterGain);
 
+    // 6. Studio Mastering & LUFS Rack
+    this.masteringRack = new MasteringRack(ctx);
+    this.masterGain.connect(this.masteringRack.input);
+
     // Output bus
-    this.outputNode = this.masterGain;
+    this.outputNode = this.masteringRack.output;
 
     // Start 8D Audio Auto-pan LFO loop
     this.startAutoPanLoop();
+  }
+
+  applyMasteringPreset(presetName) {
+    if (this.masteringRack) {
+      this.masteringRack.applyPreset(presetName);
+    }
+  }
+
+  setMasteringMakeup(val) {
+    if (this.masteringRack && this.masteringRack.makeupGain) {
+      this.masteringRack.makeupGain.gain.setTargetAtTime(val, this.ctx.currentTime, 0.02);
+    }
+  }
+
+  getMasteringReductionDb() {
+    return this.masteringRack ? this.masteringRack.getGainReductionDb() : 0;
   }
 
   setVolume(val) {

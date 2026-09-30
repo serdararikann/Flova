@@ -13,6 +13,7 @@ __pycache__/
 
 # Audio files & temporary separation cache
 temp_stems/
+temp_youtube/
 *.wav
 *.mp3
 *.flac

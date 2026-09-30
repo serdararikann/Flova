@@ -47,6 +47,12 @@ export class WaveformCanvas {
     this.panStartX = 0;
     this.panStartScrollTime = 0;
 
+    // Beat Grid & Snapping
+    this.beats = [];
+    this.bpm = 0;
+    this.showBeatGrid = false;
+    this.snapToBeat = false;
+
     this.onSelectionChange = options.onSelectionChange || null;
     this.onSeek = options.onSeek || null;
 
@@ -281,6 +287,32 @@ export class WaveformCanvas {
 
     if (!this.audioBuffer || this.duration === 0) return;
 
+    // 0. Draw Beat Grid (if enabled)
+    if (this.showBeatGrid && this.beats && this.beats.length > 0) {
+      ctx.strokeStyle = 'rgba(0, 242, 254, 0.22)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+
+      const visibleDuration = this.duration / this.zoomLevel;
+      const minT = this.scrollTime - 0.5;
+      const maxT = this.scrollTime + visibleDuration + 0.5;
+
+      for (let i = 0; i < this.beats.length; i++) {
+        const beatT = this.beats[i];
+        if (beatT < minT) continue;
+        if (beatT > maxT) break;
+
+        const bx = this.timeToPixel(beatT);
+        if (bx >= 0 && bx <= w) {
+          ctx.beginPath();
+          ctx.moveTo(bx, 0);
+          ctx.lineTo(bx, h);
+          ctx.stroke();
+        }
+      }
+      ctx.setLineDash([]);
+    }
+
     const startX = this.timeToPixel(this.selectionStart);
     const endX = this.timeToPixel(this.selectionEnd);
     const playheadX = this.timeToPixel(this.currentTime);
@@ -347,6 +379,22 @@ export class WaveformCanvas {
       ctx.fill();
       ctx.shadowBlur = 0;
     }
+  }
+
+  setBeats(beats, bpm = 120) {
+    this.beats = beats || [];
+    this.bpm = bpm || 120;
+    this.drawOverlay();
+  }
+
+  toggleBeatGrid(forceState = null) {
+    this.showBeatGrid = forceState !== null ? forceState : !this.showBeatGrid;
+    this.drawOverlay();
+    return this.showBeatGrid;
+  }
+
+  setSnapToBeat(enabled) {
+    this.snapToBeat = !!enabled;
   }
 
   drawHandle(ctx, x, size, isLeft) {

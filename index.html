@@ -15,7 +15,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   
   <!-- Styles -->
-  <link rel="stylesheet" href="./css/style.css?v=5.5" />
+  <link rel="stylesheet" href="./css/style.css?v=8.2" />
 </head>
 <body>
   <div class="app-container">
@@ -49,6 +49,9 @@
         </button>
         <button id="tabStemSplitter" class="mode-tab-btn">
           🎸 Enstrümanlar
+        </button>
+        <button id="tabYoutube" class="mode-tab-btn">
+          🎥 YouTube
         </button>
       </nav>
 
@@ -220,6 +223,22 @@
               <input type="number" id="editorFadeOutNum" min="0.1" max="15.0" step="0.1" value="3.0" class="fade-num-input fade-num-out" title="Saniye cinsinden Fade Out süresi yazın" />
               <span class="fade-unit">sn</span>
             </div>
+
+            <!-- Smart Tools & Creative Suite Buttons -->
+            <div style="display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; align-items: center;">
+              <button id="beatGridToggleBtn" class="btn btn-secondary btn-sm" title="Ritmik Vuruş Izgarasını Aç/Kapat">
+                ⚡ Ritim Izgarası
+              </button>
+              <button id="openSmartToolsBtn" class="btn btn-secondary btn-sm" style="background: rgba(0, 242, 254, 0.12); border-color: rgba(0, 242, 254, 0.3); color: #00f2fe;" title="AI Dip Ses Temizleme, Sessizlik Budama ve Auto-Tune">
+                🪄 Akıllı Araçlar & AI
+              </button>
+              <button id="openLyricsBtn" class="btn btn-secondary btn-sm" style="background: rgba(168, 85, 247, 0.12); border-color: rgba(168, 85, 247, 0.3); color: #c084fc;" title="Şarkı Sözü Transkriptörü ve Altyazı">
+                📜 Şarkı Sözleri
+              </button>
+              <button id="openAudiogramBtn" class="btn btn-emerald btn-sm" title="Instagram Reels / TikTok Video Oluştur">
+                📹 Video Oluştur
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -242,6 +261,13 @@
       <div id="stemSplitterView" class="studio-main-col glass-card" style="display: none;">
         <div id="stemSplitterContainer">
           <!-- 4-Stem Splitter rendered here -->
+        </div>
+      </div>
+
+      <!-- 5. YOUTUBE DOWNLOADER VIEW -->
+      <div id="youtubeView" class="studio-main-col glass-card" style="display: none;">
+        <div id="youtubeContainer">
+          <!-- YouTubeUI rendered here -->
         </div>
       </div>
 
@@ -371,6 +397,28 @@
               </div>
             </div>
 
+            <!-- Mastering Compressor & LUFS Normalizer -->
+            <div class="effect-card" style="min-width: 220px;">
+              <div class="effect-card-header">
+                <span class="effect-name">🎛️ Mastering & LUFS</span>
+                <span id="masterLufsReductionVal" class="effect-val-pill">Bypass</span>
+              </div>
+              <div class="eq-presets-row" style="margin-bottom: 8px;">
+                <span class="preset-chip active" id="lufsPreset_bypass" data-lufs="bypass">Bypass</span>
+                <span class="preset-chip" id="lufsPreset_spotify" data-lufs="spotify" title="Spotify (-14 LUFS)">Spotify</span>
+                <span class="preset-chip" id="lufsPreset_youtube" data-lufs="youtube" title="YouTube (-14 LUFS)">YouTube</span>
+                <span class="preset-chip" id="lufsPreset_podcast" data-lufs="podcast" title="Podcast / Ses (-16 LUFS)">Podcast</span>
+                <span class="preset-chip" id="lufsPreset_club" data-lufs="club" title="Club / Loud (-9 LUFS)">Club</span>
+              </div>
+              <div class="slider-group">
+                <div class="slider-label-row">
+                  <span>Makeup Gain</span>
+                  <span id="masterMakeupVal" class="effect-val-pill">1.0x</span>
+                </div>
+                <input type="range" id="masterMakeupSlider" class="studio-slider" min="0.5" max="2.5" step="0.05" value="1.0" />
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -381,12 +429,21 @@
     <!-- Export Modal Dialog -->
     <div id="exportModal"></div>
 
+    <!-- Smart Tools Modal -->
+    <div id="smartToolsModalContainer"></div>
+
+    <!-- Lyrics Modal -->
+    <div id="lyricsModalContainer"></div>
+
+    <!-- Audiogram Video Modal -->
+    <div id="audiogramModalContainer"></div>
+
     <!-- Toast Alerts Container -->
     <div id="toastContainer" class="toast-container"></div>
 
   </div>
 
   <!-- Main JavaScript App Entry -->
-  <script type="module" src="./js/app.js?v=5.5"></script>
+  <script type="module" src="./js/app.js?v=8.6"></script>
 </body>
 </html>

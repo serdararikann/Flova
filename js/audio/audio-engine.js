@@ -42,6 +42,14 @@ export class AudioEngine {
     this.animationFrameId = null;
   }
 
+  get audioBuffer() {
+    return this.currentBuffer;
+  }
+
+  get buffer() {
+    return this.currentBuffer;
+  }
+
   ensureContext() {
     if (!this.ctx) {
       const AudioCtxClass = window.AudioContext || window.webkitAudioContext;

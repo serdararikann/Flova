@@ -9,7 +9,12 @@ import { VisualizerCanvas } from './ui/visualizer-canvas.js';
 import { MergerUI } from './ui/merger-ui.js?v=5.4';
 import { VocalSplitterUI } from './ui/vocal-splitter-ui.js';
 import { StemSplitterUI } from './ui/stem-splitter-ui.js';
+import { YouTubeUI } from './ui/youtube-ui.js?v=6.0';
 import { ExportModal } from './ui/export-modal.js';
+import { BPMKeyDetector } from './audio/bpm-key-detector.js';
+import { SmartToolsModal } from './ui/smart-tools-modal.js';
+import { LyricsModal } from './ui/lyrics-modal.js?v=8.6';
+import { AudiogramModal } from './ui/audiogram-modal.js';
 
 class FlovaStudioApp {
   constructor() {
@@ -31,10 +36,12 @@ class FlovaStudioApp {
     this.tabMerger = document.getElementById('tabMerger');
     this.tabVocalSplitter = document.getElementById('tabVocalSplitter');
     this.tabStemSplitter = document.getElementById('tabStemSplitter');
+    this.tabYoutube = document.getElementById('tabYoutube');
     this.editorView = document.getElementById('editorView');
     this.mergerView = document.getElementById('mergerView');
     this.vocalSplitterView = document.getElementById('vocalSplitterView');
     this.stemSplitterView = document.getElementById('stemSplitterView');
+    this.youtubeView = document.getElementById('youtubeView');
 
     // Uploader / Empty State
     this.dropZone = document.getElementById('dropZone');
@@ -85,6 +92,12 @@ class FlovaStudioApp {
 
     // Bottom Studio Rack (Spectrum & Master Effects)
     this.studioBottomRack = document.getElementById('studioBottomRack');
+
+    // Creative Suite Buttons
+    this.openSmartToolsBtn = document.getElementById('openSmartToolsBtn');
+    this.openLyricsBtn = document.getElementById('openLyricsBtn');
+    this.openAudiogramBtn = document.getElementById('openAudiogramBtn');
+    this.beatGridToggleBtn = document.getElementById('beatGridToggleBtn');
   }
 
   initComponents() {
@@ -123,10 +136,34 @@ class FlovaStudioApp {
     this.stemSplitter = new StemSplitterUI(stemContainer, this.engine);
     window.flovaStemSplitter = this.stemSplitter;
 
-    // 6. Export Modal
+    // 6. YouTube Downloader UI
+    const ytContainer = document.getElementById('youtubeContainer');
+    if (ytContainer) {
+      this.youtubeUI = new YouTubeUI(ytContainer, this.engine);
+      window.flovaYouTube = this.youtubeUI;
+    }
+
+    // 7. Export Modal
     this.exportModal = new ExportModal(this.exportModalContainer, this.engine);
 
-    // 7. Audio Engine callbacks
+    // 8. Smart AI Tools Modal
+    this.smartToolsModal = new SmartToolsModal(
+      this.engine,
+      (msg, type) => this.showToast(msg, type),
+      (newBuffer, actionName) => {
+        this.engine.setBuffer(newBuffer, this.engine.currentFileName || 'Flova Düzeltilmiş');
+        this.onBufferLoaded(newBuffer);
+        this.showToast(`${actionName} uygulandı!`, 'success');
+      }
+    );
+
+    // 9. Lyrics / Karaoke Modal
+    this.lyricsModal = new LyricsModal(this.engine, (msg, type) => this.showToast(msg, type));
+
+    // 10. Audiogram Video Maker Modal
+    this.audiogramModal = new AudiogramModal(this.engine, (msg, type) => this.showToast(msg, type));
+
+    // Audio Engine callbacks
     this.engine.onBufferChange = (buffer, selection) => this.handleBufferChange(buffer, selection);
     this.engine.onTimeUpdate = (time) => this.handleTimeUpdate(time);
     this.engine.onPlayStateChange = (isPlaying) => this.handlePlayStateChange(isPlaying);
@@ -145,6 +182,9 @@ class FlovaStudioApp {
     this.tabMerger.addEventListener('click', () => this.switchMode('merger'));
     this.tabVocalSplitter.addEventListener('click', () => this.switchMode('vocal-splitter'));
     this.tabStemSplitter.addEventListener('click', () => this.switchMode('stem-splitter'));
+    if (this.tabYoutube) {
+      this.tabYoutube.addEventListener('click', () => this.switchMode('youtube'));
+    }
 
     // File Upload & Demo
     this.loadDemoBtn.addEventListener('click', async () => {
@@ -353,6 +393,34 @@ class FlovaStudioApp {
       this.exportModal.open(this.selectionStart, this.selectionEnd);
     });
 
+    // Creative & Smart Tools Buttons
+    this.openSmartToolsBtn?.addEventListener('click', () => {
+      this.smartToolsModal.open('denoise');
+    });
+
+    this.openLyricsBtn?.addEventListener('click', () => {
+      this.lyricsModal.open();
+    });
+
+    this.openAudiogramBtn?.addEventListener('click', () => {
+      this.audiogramModal.open(this.engine.currentFileName || 'Flova Parça');
+    });
+
+    this.beatGridToggleBtn?.addEventListener('click', () => {
+      const isShown = this.waveform.toggleBeatGrid();
+      if (isShown) {
+        this.beatGridToggleBtn.style.background = 'rgba(0, 242, 254, 0.2)';
+        this.beatGridToggleBtn.style.borderColor = '#00f2fe';
+        this.beatGridToggleBtn.style.color = '#00f2fe';
+        this.showToast('⚡ Ritim Izgarası Açıldı', 'info');
+      } else {
+        this.beatGridToggleBtn.style.background = '';
+        this.beatGridToggleBtn.style.borderColor = '';
+        this.beatGridToggleBtn.style.color = '';
+        this.showToast('Ritim Izgarası Kapatıldı', 'info');
+      }
+    });
+
     // Bind Effects Rack Controls
     this.bindEffectsControls();
   }
@@ -407,10 +475,10 @@ class FlovaStudioApp {
       reverbWetVal.textContent = Math.round(val * 100) + '%';
     });
 
-    reverbDecaySlider.addEventListener('input', (e) => {
+    reverbDecaySlider?.addEventListener('input', (e) => {
       const val = parseFloat(e.target.value);
       fx.setReverb(undefined, val);
-      reverbDecayVal.textContent = val.toFixed(1) + ' sn';
+      if (reverbDecayVal) reverbDecayVal.textContent = val.toFixed(1) + ' sn';
     });
 
     // Echo Sliders
@@ -425,10 +493,10 @@ class FlovaStudioApp {
       echoWetVal.textContent = Math.round(val * 100) + '%';
     });
 
-    echoTimeSlider.addEventListener('input', (e) => {
+    echoTimeSlider?.addEventListener('input', (e) => {
       const val = parseFloat(e.target.value);
       fx.setEcho(undefined, val, undefined);
-      echoTimeVal.textContent = val.toFixed(2) + ' sn';
+      if (echoTimeVal) echoTimeVal.textContent = val.toFixed(2) + ' sn';
     });
 
     // 5-Band EQ Sliders
@@ -444,7 +512,7 @@ class FlovaStudioApp {
     });
 
     // EQ Presets
-    const presetChips = document.querySelectorAll('.preset-chip');
+    const presetChips = document.querySelectorAll('.preset-chip[data-preset]');
     presetChips.forEach(chip => {
       chip.addEventListener('click', () => {
         const preset = chip.dataset.preset;
@@ -457,6 +525,30 @@ class FlovaStudioApp {
         });
         this.showToast(`EQ Hazır Ayar: ${chip.textContent}`, 'info');
       });
+    });
+
+    // Mastering Compressor & LUFS Presets
+    const lufsChips = document.querySelectorAll('[data-lufs]');
+    lufsChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        lufsChips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        const preset = chip.dataset.lufs;
+        fx.applyMasteringPreset(preset);
+        const badge = document.getElementById('masterLufsReductionVal');
+        if (badge) {
+          badge.textContent = preset === 'bypass' ? 'Bypass' : `${preset.toUpperCase()} Aktif`;
+        }
+        this.showToast(`Mastering: ${preset.toUpperCase()} devrede`, 'info');
+      });
+    });
+
+    const masterMakeupSlider = document.getElementById('masterMakeupSlider');
+    const masterMakeupVal = document.getElementById('masterMakeupVal');
+    masterMakeupSlider?.addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value);
+      fx.setMasteringMakeup(val);
+      if (masterMakeupVal) masterMakeupVal.textContent = `${val.toFixed(2)}x`;
     });
 
     // Global drag-and-drop protection & smart active-tab fallback
@@ -550,11 +642,13 @@ class FlovaStudioApp {
     this.tabMerger.classList.remove('active');
     this.tabVocalSplitter.classList.remove('active');
     this.tabStemSplitter.classList.remove('active');
+    if (this.tabYoutube) this.tabYoutube.classList.remove('active');
 
     this.editorView.style.display = 'none';
     this.mergerView.style.display = 'none';
     this.vocalSplitterView.style.display = 'none';
     this.stemSplitterView.style.display = 'none';
+    if (this.youtubeView) this.youtubeView.style.display = 'none';
 
     // Show Studio Bottom Rack (Spectrum & Master Effects) ONLY in Editor mode
     if (this.studioBottomRack) {
@@ -587,7 +681,15 @@ class FlovaStudioApp {
       if (this.engine.currentBuffer && !this.stemSplitter.sourceBuffer) {
         this.stemSplitter.loadBuffer(this.engine.currentBuffer, this.engine.currentFileName || 'Parça');
       }
+    } else if (mode === 'youtube') {
+      if (this.tabYoutube) this.tabYoutube.classList.add('active');
+      if (this.youtubeView) this.youtubeView.style.display = 'block';
+      if (this.youtubeUI) this.youtubeUI.render();
     }
+  }
+
+  onBufferLoaded(buffer) {
+    this.handleBufferChange(buffer);
   }
 
   handleBufferChange(buffer, selectionRange = null) {
@@ -602,7 +704,27 @@ class FlovaStudioApp {
       <span class="spec-item">${channels}</span>
       <span class="spec-item">${buffer.sampleRate} Hz</span>
       <span class="spec-item">${this.formatTime(buffer.duration)}</span>
+      <span class="spec-item spec-bpm" id="trackBpmBadge" style="cursor: pointer; background: rgba(0, 242, 254, 0.12); border: 1px solid rgba(0, 242, 254, 0.3); color: #00f2fe; font-weight: 700;" title="Ritim Izgarasını Aç/Kapat">🥁 ... BPM</span>
+      <span class="spec-item spec-key" id="trackKeyBadge" style="background: rgba(168, 85, 247, 0.12); border: 1px solid rgba(168, 85, 247, 0.3); color: #c084fc; font-weight: 700;">🎼 ...</span>
     `;
+
+    // Asynchronously detect BPM and Musical Key
+    BPMKeyDetector.analyze(buffer).then(analysis => {
+      const bpmEl = document.getElementById('trackBpmBadge');
+      const keyEl = document.getElementById('trackKeyBadge');
+      if (bpmEl) {
+        bpmEl.textContent = `🥁 ${analysis.bpm} BPM`;
+        bpmEl.onclick = () => {
+          document.getElementById('beatGridToggleBtn')?.click();
+        };
+      }
+      if (keyEl) {
+        keyEl.textContent = `🎼 ${analysis.key}`;
+      }
+      this.waveform.setBeats(analysis.beats, analysis.bpm);
+    }).catch(err => {
+      console.warn('BPM/Key analysis error:', err);
+    });
 
     this.selectionStart = selectionRange ? selectionRange.start : 0;
     this.selectionEnd = selectionRange ? selectionRange.end : buffer.duration;
@@ -717,7 +839,16 @@ class FlovaStudioApp {
   bindKeyboardShortcuts() {
     window.addEventListener('keydown', (e) => {
       // Avoid firing shortcuts when typing in text or number inputs
-      if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
+      if (e.key === 'Escape') {
+        this.smartToolsModal?.close();
+        this.lyricsModal?.close();
+        this.audiogramModal?.close();
+        if (this.exportModal) {
+          const closeBtn = document.getElementById('closeExportModalBtn');
+          closeBtn?.click();
+        }
+        return;
+      }
 
       if (e.code === 'Space') {
         e.preventDefault();
@@ -779,6 +910,10 @@ class FlovaStudioApp {
 }
 
 // Initialize on DOM ready
-document.addEventListener('DOMContentLoaded', () => {
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    window.flovaApp = new FlovaStudioApp();
+  });
+} else {
   window.flovaApp = new FlovaStudioApp();
-});
+}
