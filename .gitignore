@@ -38,3 +38,5 @@ Thumbs.db
 *.log
 node_modules/
 dist/
+cookies.txt
+*cookie*.txt

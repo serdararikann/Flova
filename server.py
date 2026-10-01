@@ -879,7 +879,7 @@ def segment_and_transcribe_audio(audio_bytes, lang='tr-TR', max_workers=4, model
     return lines
 
 
-def get_youtube_dl_opts(extra_opts=None):
+def find_valid_cookie_file():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     candidate_paths = [
         os.path.join(base_dir, 'cookies.txt'),
@@ -887,12 +887,13 @@ def get_youtube_dl_opts(extra_opts=None):
         '/app/cookies.txt',
         '/home/user/app/cookies.txt'
     ]
-    cookie_file = None
     for p in candidate_paths:
         if os.path.exists(p) and os.path.getsize(p) > 0:
-            cookie_file = p
-            break
+            return p
+    return None
 
+
+def get_youtube_dl_opts(extra_opts=None, client_list=None, use_cookies=True):
     opts = {
         'quiet': True,
         'no_warnings': True,
@@ -900,19 +901,78 @@ def get_youtube_dl_opts(extra_opts=None):
         'socket_timeout': 15,
         'ffmpeg_location': FFMPEG_EXE,
     }
-    if cookie_file:
-        print(f"[YouTube] Cookies aktif: {cookie_file}", flush=True)
-        opts['cookiefile'] = cookie_file
-    else:
-        print("[YouTube Warning] cookies.txt bulunamadi, mobil istemci taklidi deneniyor...", flush=True)
+    if client_list:
         opts['extractor_args'] = {
             'youtube': {
-                'player_client': ['ios', 'android', 'mweb']
+                'player_client': client_list
             }
         }
+
+    cookie_file = find_valid_cookie_file() if use_cookies else None
+    if cookie_file:
+        opts['cookiefile'] = cookie_file
+
     if extra_opts:
         opts.update(extra_opts)
     return opts
+
+
+def run_resilient_ytdlp_action(yt_url, base_opts=None, is_download=False):
+    """
+    Executes yt-dlp with automatic multi-tier fallback:
+    1. Android+iOS+Web with cookies (if cookies.txt exists)
+    2. Pure Android client WITHOUT cookies (bypasses stale cookie expiration & datacenter web bot filters)
+    3. Android+iOS mobile clients WITHOUT cookies
+    4. Web Embedded fallback
+    """
+    cookie_file = find_valid_cookie_file()
+    strategies = []
+    if cookie_file:
+        strategies.append({
+            'name': 'Android+iOS+Web (Cookies Aktif)',
+            'clients': ['android', 'ios', 'web'],
+            'use_cookies': True
+        })
+    strategies.append({
+        'name': 'Pure Android Mobil API (Çerezsiz - Bot Koruması Atlatıcı)',
+        'clients': ['android'],
+        'use_cookies': False
+    })
+    strategies.append({
+        'name': 'Android+iOS Hibrit (Çerezsiz)',
+        'clients': ['android', 'ios'],
+        'use_cookies': False
+    })
+    strategies.append({
+        'name': 'Web Embedded Alternatif',
+        'clients': ['web_embedded', 'mweb'],
+        'use_cookies': False
+    })
+
+    last_err = None
+    for idx, strat in enumerate(strategies, 1):
+        try:
+            ydl_opts = get_youtube_dl_opts(
+                extra_opts=base_opts,
+                client_list=strat['clients'],
+                use_cookies=strat['use_cookies']
+            )
+            print(f"[YouTube Engine] Strateji {idx}/{len(strategies)} deneniyor: {strat['name']} -> {yt_url}", flush=True)
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(yt_url, download=is_download)
+                if info:
+                    print(f"[YouTube Engine] BAŞARILI! ({strat['name']})", flush=True)
+                    return info
+        except Exception as e:
+            err_msg = str(e)
+            print(f"[YouTube Engine] Strateji {idx} başarısız ({strat['name']}): {err_msg[:120]}", flush=True)
+            last_err = e
+            if "Video unavailable" in err_msg or "Private video" in err_msg:
+                break
+
+    if last_err:
+        raise last_err
+    raise RuntimeError("YouTube verisi alınamadı.")
 
 
 class FlovaHandler(SimpleHTTPRequestHandler):
@@ -1011,25 +1071,24 @@ class FlovaHandler(SimpleHTTPRequestHandler):
 
             try:
                 if is_pl_url:
-                    ydl_opts = get_youtube_dl_opts({
+                    base_opts = {
                         'extract_flat': 'in_playlist',
                         'skip_download': True,
                         'playlist_items': '1-40',
                         'socket_timeout': 15,
-                    })
+                    }
                 else:
-                    ydl_opts = get_youtube_dl_opts({
+                    base_opts = {
                         'skip_download': True,
                         'noplaylist': True,
                         'playlist_items': '1',
                         'socket_timeout': 12,
-                    })
+                    }
 
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(yt_url, download=False)
-                    if not info:
-                        self.send_error_json(404, "Video veya çalma listesi bulunamadı.")
-                        return
+                info = run_resilient_ytdlp_action(yt_url, base_opts=base_opts, is_download=False)
+                if not info:
+                    self.send_error_json(404, "Video veya çalma listesi bulunamadı.")
+                    return
 
                     # Playlist handling
                     if info.get('_type') == 'playlist' or ('entries' in info and len(info['entries']) > 1):
@@ -1156,7 +1215,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
 
                 if fmt == 'mp3':
                     preferred_quality = quality_raw if quality_raw in ['320', '192', '128'] else '192'
-                    ydl_opts = get_youtube_dl_opts({
+                    base_opts = {
                         'format': 'bestaudio/best',
                         'outtmpl': out_tmpl,
                         'noplaylist': True,
@@ -1166,26 +1225,25 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                             'preferredcodec': 'mp3',
                             'preferredquality': preferred_quality,
                         }],
-                    })
+                    }
                     target_ext = 'mp3'
                     mime_type = 'audio/mpeg'
                 else:
                     max_height = int(quality_raw) if quality_raw.isdigit() else 720
-                    ydl_opts = get_youtube_dl_opts({
+                    base_opts = {
                         'format': f'bestvideo[height<={max_height}]+bestaudio/best[height<={max_height}]/best',
                         'outtmpl': out_tmpl,
                         'merge_output_format': 'mp4',
                         'noplaylist': True,
                         'playlist_items': '1',
-                    })
+                    }
                     target_ext = 'mp4'
                     mime_type = 'video/mp4'
 
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(yt_url, download=True)
-                    if 'entries' in info and info['entries']:
-                        info = info['entries'][0]
-                    video_title = info.get('title', 'flova_download')
+                info = run_resilient_ytdlp_action(yt_url, base_opts=base_opts, is_download=True)
+                if 'entries' in info and info['entries']:
+                    info = info['entries'][0]
+                video_title = info.get('title', 'flova_download')
 
                 filepath = os.path.join(YT_TEMP_DIR, f'{dl_id}.{target_ext}')
                 if not os.path.exists(filepath):
