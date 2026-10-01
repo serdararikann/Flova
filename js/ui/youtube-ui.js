@@ -585,8 +585,10 @@ export class YouTubeUI {
       let msg = err.message || String(err);
       if (err.name === 'AbortError' || msg.includes('Zaman aşımı')) {
         msg = 'Bağlantı zaman aşımına uğradı (25s). YouTube sunucusu geç yanıt veriyor, lütfen tekrar deneyin.';
+      } else if (msg.includes('not a bot') || msg.includes('Sign in') || msg.includes('cookies')) {
+        msg = 'YouTube, bulut sunucularını (AWS/Hugging Face) bot korumasıyla kısıtlıyor. Çözüm: Şarkıyı MP3 olarak indirip doğrudan "Vokal/Stem Ayrıştırıcı" sekmesine yükleyebilirsiniz.';
       } else if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
-        msg = 'Flova Python backend sunucusuna (localhost:3000) erişilemedi. Lütfen sunucunun (server.py) çalıştığından emin olun.';
+        msg = 'Flova Python backend sunucusuna erişilemedi. Lütfen sunucunun çalıştığından emin olun.';
       }
 
       if (window.flovaApp) {
