@@ -6,17 +6,18 @@
 import { AudioEngine } from './audio/audio-engine.js';
 import { WaveformCanvas } from './ui/waveform-canvas.js';
 import { VisualizerCanvas } from './ui/visualizer-canvas.js';
-import { MergerUI } from './ui/merger-ui.js?v=5.4';
-import { VocalSplitterUI } from './ui/vocal-splitter-ui.js';
-import { StemSplitterUI } from './ui/stem-splitter-ui.js';
-import { YouTubeUI } from './ui/youtube-ui.js?v=6.0';
+import { MergerUI } from './ui/merger-ui.js?v=9.1';
+import { VocalSplitterUI } from './ui/vocal-splitter-ui.js?v=9.1';
+import { StemSplitterUI } from './ui/stem-splitter-ui.js?v=9.1';
+import { YouTubeUI } from './ui/youtube-ui.js?v=9.1';
 import { ExportModal } from './ui/export-modal.js';
 import { BPMKeyDetector } from './audio/bpm-key-detector.js';
 import { SmartToolsModal } from './ui/smart-tools-modal.js';
-import { LyricsModal } from './ui/lyrics-modal.js?v=8.6';
+import { LyricsModal } from './ui/lyrics-modal.js?v=9.1';
 import { AudiogramModal } from './ui/audiogram-modal.js';
-import { ServerModal } from './ui/server-modal.js';
-import { CodeGuard } from './security/code-guard.js';
+import { ServerModal } from './ui/server-modal.js?v=9.1';
+import { CodeGuard } from './security/code-guard.js?v=9.1';
+import { ApiClient } from './audio/api-client.js?v=9.1';
 
 class FlovaStudioApp {
   constructor() {

@@ -15,18 +15,35 @@ export class ApiClient {
    * Returns the configured backend base URL without trailing slash.
    */
   static getBaseUrl() {
+    const isLocal = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
     const saved = localStorage.getItem(STORAGE_KEY);
+
     if (saved && saved.trim()) {
-      return saved.trim().replace(/\/+$/, '');
+      const cleanSaved = saved.trim().replace(/\/+$/, '');
+      // If we are in production, invalidate any saved URL that points to localhost or to the current static website
+      if (!isLocal && (
+        cleanSaved.includes('localhost') || 
+        cleanSaved.includes('127.0.0.1') || 
+        cleanSaved === window.location.origin || 
+        cleanSaved.includes(window.location.hostname)
+      )) {
+        console.warn('[Flova ApiClient] Clearing invalid production backend URL from localStorage:', cleanSaved);
+        localStorage.removeItem(STORAGE_KEY);
+      } else {
+        return cleanSaved;
+      }
     }
+
     // If running on localhost or 127.0.0.1, default to port 3000
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    if (isLocal) {
       return `http://${window.location.hostname}:3000`;
     }
-    // If a default cloud backend URL is set, use it for all live users
+
+    // Default global cloud backend for live production (Hugging Face Spaces)
     if (DEFAULT_CLOUD_BACKEND && DEFAULT_CLOUD_BACKEND.trim()) {
       return DEFAULT_CLOUD_BACKEND.trim().replace(/\/+$/, '');
     }
+
     // Fallback to origin
     return window.location.origin;
   }
@@ -67,7 +84,7 @@ export class ApiClient {
     const startTime = performance.now();
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3500);
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
       const res = await fetch(`${base}/api/health`, {
         method: 'GET',
         headers: { 'Accept': 'application/json' },
@@ -83,7 +100,7 @@ export class ApiClient {
       return { ok: true, latency, data, url: base };
     } catch (err) {
       const latency = Math.round(performance.now() - startTime);
-      return { ok: false, error: err.name === 'AbortError' ? 'Zaman aşımı (3.5 sn)' : (err.message || 'Erişilemedi'), latency, url: base };
+      return { ok: false, error: err.name === 'AbortError' ? 'Zaman aşımı (4 sn)' : (err.message || 'Erişilemedi'), latency, url: base };
     }
   }
 }
