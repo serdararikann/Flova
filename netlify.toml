@@ -1,6 +1,6 @@
 [build]
-  command = "echo 'Static build complete'"
-  publish = "."
+  command = "npm run build"
+  publish = "dist"
 
 [[redirects]]
   from = "/*"

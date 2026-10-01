@@ -9,6 +9,7 @@
 
 import { VocalSplitter } from '../audio/vocal-splitter.js';
 import { AudioEncoders } from '../audio/audio-encoders.js';
+import { ApiClient } from '../audio/api-client.js';
 
 export class VocalSplitterUI {
   constructor(containerElement, audioEngine) {
@@ -115,7 +116,7 @@ export class VocalSplitterUI {
 
       this.renderProgress(20, 'Ses dosyası sunucuya aktarılıyor...');
       
-      const response = await fetch('/api/separate-ai', {
+      const response = await fetch(ApiClient.getApiUrl('/api/separate-ai'), {
         method: 'POST',
         headers: { 'Content-Type': 'audio/wav' },
         body: audioBlob
@@ -147,7 +148,7 @@ export class VocalSplitterUI {
 
         let statusData = null;
         try {
-          const pollRes = await fetch(`/api/status?jobId=${jobId}`);
+          const pollRes = await fetch(ApiClient.getApiUrl(`/api/status?jobId=${jobId}`));
           if (pollRes.ok) {
             statusData = await pollRes.json();
           }
@@ -176,13 +177,13 @@ export class VocalSplitterUI {
       }
 
       this.renderProgress(92, 'Ayrıştırılmış vokal izi yükleniyor...');
-      const vocRes = await fetch(jobResult.vocalUrl);
+      const vocRes = await fetch(ApiClient.getApiUrl(jobResult.vocalUrl));
       if (!vocRes.ok) throw new Error(`Vokal izi sunucudan indirilemedi (${vocRes.status})`);
       const vocBuf = await vocRes.arrayBuffer();
       this.vocalBuffer = await this.engine.ctx.decodeAudioData(vocBuf.slice(0));
 
       this.renderProgress(96, 'Ayrıştırılmış müzik izi yükleniyor...');
-      const instRes = await fetch(jobResult.instUrl);
+      const instRes = await fetch(ApiClient.getApiUrl(jobResult.instUrl));
       if (!instRes.ok) throw new Error(`Müzik izi sunucudan indirilemedi (${instRes.status})`);
       const instBuf = await instRes.arrayBuffer();
       this.instBuffer = await this.engine.ctx.decodeAudioData(instBuf.slice(0));
@@ -202,12 +203,12 @@ export class VocalSplitterUI {
         window.flovaApp.showToast('🤖 Yapay Zeka (Demucs): Vokal ve Müzik kusursuz ayrıştırıldı!', 'success');
       }
     } catch (err) {
-      console.error('AI ayrıştırma hatası:', err);
-      this.isProcessing = false;
-      this.render();
+      console.warn('AI ayrıştırma hatası, yerel DSP motoruna yönlendiriliyor:', err);
       if (window.flovaApp) {
-        window.flovaApp.showToast(`AI Ayrıştırma Hatası: ${err.message || err}`, 'error');
+        window.flovaApp.showToast('⚠️ AI Sunucusu çevrimdışı. Tarayıcı içi Spektral DSP motoruna otomatik geçiliyor...', 'warning');
       }
+      this.engineMode = 'dsp';
+      await this.processSeparationDSP();
     }
   }
 

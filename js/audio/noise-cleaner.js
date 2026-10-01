@@ -3,6 +3,8 @@
  * Supports both client-side spectral gating and backend deep noise reduction
  */
 
+import { ApiClient } from './api-client.js';
+
 export class NoiseCleaner {
   /**
    * Perform noise reduction using backend AI or client-side fallback
@@ -38,7 +40,8 @@ export class NoiseCleaner {
     formData.append('audio', wavBlob, 'input.wav');
     formData.append('strength', strength.toString());
 
-    const resp = await fetch(`/api/ai/denoise?strength=${strength}`, {
+    const url = ApiClient.getApiUrl(`/api/ai/denoise?strength=${strength}`);
+    const resp = await fetch(url, {
       method: 'POST',
       body: wavBlob,
       headers: {

@@ -33,7 +33,7 @@ try:
 except ImportError:
     sr_module = None
 
-PORT = 3000
+PORT = int(os.environ.get('PORT', 3000))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMP_DIR = os.path.join(BASE_DIR, 'temp_stems')
 YT_TEMP_DIR = os.path.join(BASE_DIR, 'temp_youtube')
@@ -912,6 +912,37 @@ class FlovaHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
 
+        # Root welcome / status page (for Hugging Face Spaces health check & browser preview)
+        if parsed.path in ('/', ''):
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            html = """<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Flova Studio AI Backend</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; background: #070913; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+    .card { background: #101424; border: 1px solid rgba(255,255,255,0.12); padding: 36px 42px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.6); text-align: center; max-width: 500px; }
+    h1 { font-size: 24px; color: #ff6b00; margin-bottom: 8px; }
+    .status { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 20px; background: rgba(16,185,129,0.15); color: #10b981; font-weight: 700; font-size: 14px; margin-bottom: 16px; border: 1px solid rgba(16,185,129,0.3); }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 10px #10b981; }
+    p { color: #94a3b8; font-size: 14px; line-height: 1.5; margin: 0; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="status"><span class="dot"></span> AI Sunucusu Aktif (Running)</div>
+    <h1>🎛️ Flova Audio Studio</h1>
+    <p>Demucs v4 AI (4-Stem & 6-Stem), YouTube İndirici ve Ses İşleme Servisi başarıyla çalışıyor.</p>
+  </div>
+</body>
+</html>"""
+            self.wfile.write(html.encode('utf-8'))
+            return
+
         # Health Check API
         if parsed.path == '/api/health':
             self.send_json(200, {'status': 'ok', 'service': 'flova-backend', 'time': time.time()})
@@ -1397,7 +1428,11 @@ class FlovaHandler(SimpleHTTPRequestHandler):
         else:
             self.send_error(404)
 
-if __name__ == '__main__':
-    print(f'Starting Flova Threading Server on port {PORT}...')
-    server = ThreadingHTTPServer(('0.0.0.0', PORT), FlovaHandler)
+def run_server(port=None):
+    server_port = int(port or os.environ.get('PORT', 3000))
+    print(f'Starting Flova Threading Server on port {server_port}...')
+    server = ThreadingHTTPServer(('0.0.0.0', server_port), FlovaHandler)
     server.serve_forever()
+
+if __name__ == '__main__':
+    run_server()

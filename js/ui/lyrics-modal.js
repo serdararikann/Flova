@@ -4,6 +4,8 @@
  * Micro-timing Nudge (+/-0.2s), Bulk Lyrics Auto-Sync, and .LRC / .SRT / .TXT Export.
  */
 
+import { ApiClient } from '../audio/api-client.js';
+
 export class LyricsModal {
   constructor(audioEngine, showToast) {
     this.engine = audioEngine;
@@ -418,7 +420,8 @@ export class LyricsModal {
       const wavBlob = await this._audioBufferToWavBlob(buffer);
 
       const aiVocalParam = aiSeparate ? '1' : '0';
-      const resp = await fetch(`/api/ai/transcribe?lang=${lang}&model=${model}&ai_vocal=${aiVocalParam}`, {
+      const transcribeUrl = ApiClient.getApiUrl(`/api/ai/transcribe?lang=${lang}&model=${model}&ai_vocal=${aiVocalParam}`);
+      const resp = await fetch(transcribeUrl, {
         method: 'POST',
         body: wavBlob,
         headers: { 'Content-Type': 'audio/wav' }

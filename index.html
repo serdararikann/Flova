@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Flova Audio Studio</title>
   
+  <!-- Favicon / App Icon -->
+  <link rel="icon" type="image/png" href="./logo.png" />
+  <link rel="shortcut icon" href="./logo.png" />
+  <link rel="apple-touch-icon" href="./logo.png" />
+  
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,7 +20,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   
   <!-- Styles -->
-  <link rel="stylesheet" href="./css/style.css?v=8.2" />
+  <link rel="stylesheet" href="./css/style.css?v=8.3" />
 </head>
 <body>
   <div class="app-container">
@@ -24,11 +29,7 @@
     <header class="studio-header">
       <div class="brand-section">
         <div class="brand-logo">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <path d="M9 18V5l12-2v13"></path>
-            <circle cx="6" cy="18" r="3"></circle>
-            <circle cx="18" cy="16" r="3"></circle>
-          </svg>
+          <img src="./logo.png" alt="Flova Studio Logo" class="brand-logo-img" />
         </div>
         <div class="brand-title">
           FLOVA <span style="font-weight: 300; opacity: 0.85;">STUDIO</span>
@@ -66,6 +67,12 @@
         </button>
         
         <input type="file" id="fileInput" accept="audio/*" style="display: none;" />
+
+        <!-- AI Server Status Button -->
+        <button id="serverStatusBtn" class="btn btn-secondary btn-sm server-status-btn" title="Yapay Zeka Sunucu Durumu & Ayarları">
+          <span class="server-status-dot offline"></span>
+          <span class="server-status-text">AI Sunucu</span>
+        </button>
 
         <button id="exportBtn" class="btn btn-emerald btn-sm">
           💾 Dışa Aktar
@@ -438,12 +445,15 @@
     <!-- Audiogram Video Modal -->
     <div id="audiogramModalContainer"></div>
 
+    <!-- Server Settings Modal -->
+    <div id="serverModalContainer"></div>
+
     <!-- Toast Alerts Container -->
     <div id="toastContainer" class="toast-container"></div>
 
   </div>
 
   <!-- Main JavaScript App Entry -->
-  <script type="module" src="./js/app.js?v=8.6"></script>
+  <script type="module" src="./js/app.js?v=8.7"></script>
 </body>
 </html>

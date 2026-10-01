@@ -15,9 +15,12 @@ import { BPMKeyDetector } from './audio/bpm-key-detector.js';
 import { SmartToolsModal } from './ui/smart-tools-modal.js';
 import { LyricsModal } from './ui/lyrics-modal.js?v=8.6';
 import { AudiogramModal } from './ui/audiogram-modal.js';
+import { ServerModal } from './ui/server-modal.js';
+import { CodeGuard } from './security/code-guard.js';
 
 class FlovaStudioApp {
   constructor() {
+    CodeGuard.init();
     this.engine = new AudioEngine();
     this.activeMode = 'editor'; // 'editor' | 'merger' | 'vocal-splitter' | 'stem-splitter'
 
@@ -163,6 +166,15 @@ class FlovaStudioApp {
     // 10. Audiogram Video Maker Modal
     this.audiogramModal = new AudiogramModal(this.engine, (msg, type) => this.showToast(msg, type));
 
+    // 11. AI Server Settings Modal
+    const serverContainer = document.getElementById('serverModalContainer');
+    if (serverContainer) {
+      this.serverModal = new ServerModal(serverContainer, () => {
+        if (this.vocalSplitter) this.vocalSplitter.isProcessing = false;
+      });
+      window.flovaServerModal = this.serverModal;
+    }
+
     // Audio Engine callbacks
     this.engine.onBufferChange = (buffer, selection) => this.handleBufferChange(buffer, selection);
     this.engine.onTimeUpdate = (time) => this.handleTimeUpdate(time);
@@ -177,6 +189,14 @@ class FlovaStudioApp {
   }
 
   bindEvents() {
+    // AI Server Status Button
+    const serverStatusBtn = document.getElementById('serverStatusBtn');
+    if (serverStatusBtn) {
+      serverStatusBtn.addEventListener('click', () => {
+        if (this.serverModal) this.serverModal.open();
+      });
+    }
+
     // Mode Switch
     this.tabEditor.addEventListener('click', () => this.switchMode('editor'));
     this.tabMerger.addEventListener('click', () => this.switchMode('merger'));

@@ -9,6 +9,7 @@
    ==================================================================== */
 
 import { AudioEncoders } from '../audio/audio-encoders.js';
+import { ApiClient } from '../audio/api-client.js';
 
 export const STEM_DEFS = {
   vocals: {
@@ -158,7 +159,7 @@ export class StemSplitterUI {
 
       this.renderProgress(16, 'Ses dosyası sunucuya aktarılıyor...');
       
-      const response = await fetch(`/api/separate-stems?mode=${this.separationMode}`, {
+      const response = await fetch(ApiClient.getApiUrl(`/api/separate-stems?mode=${this.separationMode}`), {
         method: 'POST',
         headers: { 'Content-Type': 'audio/wav' },
         body: audioBlob
@@ -190,7 +191,7 @@ export class StemSplitterUI {
 
         let statusData = null;
         try {
-          const pollRes = await fetch(`/api/status?jobId=${jobId}`);
+          const pollRes = await fetch(ApiClient.getApiUrl(`/api/status?jobId=${jobId}`));
           if (pollRes.ok) {
             statusData = await pollRes.json();
           }
@@ -239,7 +240,7 @@ export class StemSplitterUI {
         this.renderProgress(pct, `Stüdyo izi yükleniyor: ${stemNamesTr[key] || key} (%${pct})...`);
 
         const stemUrl = jobResult.stems[key];
-        const res = await fetch(stemUrl);
+        const res = await fetch(ApiClient.getApiUrl(stemUrl));
         if (!res.ok) throw new Error(`${stemNamesTr[key] || key} izi indirilemedi (${res.status})`);
         const ab = await res.arrayBuffer();
         if (this.stems[key]) {
@@ -269,7 +270,11 @@ export class StemSplitterUI {
       this.isProcessing = false;
       this.render();
       if (window.flovaApp) {
-        window.flovaApp.showToast(`Ayrıştırma Hatası: ${err.message || err}`, 'error');
+        const isNetworkErr = err.message?.includes('Failed to fetch') || err.message?.includes('sunucusundan');
+        const userMsg = isNetworkErr
+          ? '⚠️ AI Sunucusuna bağlanılamadı. Sağ üstteki "AI Sunucu" butonundan bağlantınızı ayarlayabilirsiniz.'
+          : `Ayrıştırma Hatası: ${err.message || err}`;
+        window.flovaApp.showToast(userMsg, 'error');
       }
     }
   }

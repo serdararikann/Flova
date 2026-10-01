@@ -4,6 +4,8 @@
    supports batch ZIP downloading and integrates directly with Flova's Editor, Merger & Splitters!
    ==================================================================== */
 
+import { ApiClient } from '../audio/api-client.js';
+
 export class YouTubeUI {
   constructor(containerElement, audioEngine, options = {}) {
     this.container = containerElement;
@@ -32,12 +34,7 @@ export class YouTubeUI {
   }
 
   getApiBase() {
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      return `http://${window.location.hostname}:3000`;
-    }
-    const saved = localStorage.getItem('flova_backend_url');
-    if (saved) return saved.replace(/\/+$/, '');
-    return window.location.origin;
+    return ApiClient.getBaseUrl();
   }
 
   escapeHtml(str) {
