@@ -879,6 +879,42 @@ def segment_and_transcribe_audio(audio_bytes, lang='tr-TR', max_workers=4, model
     return lines
 
 
+def get_youtube_dl_opts(extra_opts=None):
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    candidate_paths = [
+        os.path.join(base_dir, 'cookies.txt'),
+        os.path.join(os.getcwd(), 'cookies.txt'),
+        '/app/cookies.txt',
+        '/home/user/app/cookies.txt'
+    ]
+    cookie_file = None
+    for p in candidate_paths:
+        if os.path.exists(p) and os.path.getsize(p) > 0:
+            cookie_file = p
+            break
+
+    opts = {
+        'quiet': True,
+        'no_warnings': True,
+        'nocheckcertificate': True,
+        'socket_timeout': 15,
+        'ffmpeg_location': FFMPEG_EXE,
+    }
+    if cookie_file:
+        print(f"[YouTube] Cookies aktif: {cookie_file}", flush=True)
+        opts['cookiefile'] = cookie_file
+    else:
+        print("[YouTube Warning] cookies.txt bulunamadi, mobil istemci taklidi deneniyor...", flush=True)
+        opts['extractor_args'] = {
+            'youtube': {
+                'player_client': ['ios', 'android', 'mweb']
+            }
+        }
+    if extra_opts:
+        opts.update(extra_opts)
+    return opts
+
+
 class FlovaHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=BASE_DIR, **kwargs)
@@ -974,40 +1010,20 @@ class FlovaHandler(SimpleHTTPRequestHandler):
             print(f"[YouTube Info] Bilgi alınıyor (is_playlist={is_pl_url}): {yt_url}")
 
             try:
-                COOKIE_FILE = os.path.join(BASE_DIR, 'cookies.txt')
-                extractor_args = {
-                    'youtube': {
-                        'player_client': ['ios', 'android', 'mweb']
-                    }
-                }
-
                 if is_pl_url:
-                    ydl_opts = {
-                        'quiet': True,
-                        'no_warnings': True,
+                    ydl_opts = get_youtube_dl_opts({
                         'extract_flat': 'in_playlist',
                         'skip_download': True,
-                        'playlist_items': '1-40', # Limit to first 40 items for speed
-                        'socket_timeout': 12,
-                        'nocheckcertificate': True,
-                        'ffmpeg_location': FFMPEG_EXE,
-                        'extractor_args': extractor_args,
-                    }
+                        'playlist_items': '1-40',
+                        'socket_timeout': 15,
+                    })
                 else:
-                    ydl_opts = {
-                        'quiet': True,
-                        'no_warnings': True,
+                    ydl_opts = get_youtube_dl_opts({
                         'skip_download': True,
-                        'nocheckcertificate': True,
                         'noplaylist': True,
                         'playlist_items': '1',
-                        'socket_timeout': 10,
-                        'ffmpeg_location': FFMPEG_EXE,
-                        'extractor_args': extractor_args,
-                    }
-
-                if os.path.exists(COOKIE_FILE):
-                    ydl_opts['cookiefile'] = COOKIE_FILE
+                        'socket_timeout': 12,
+                    })
 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(yt_url, download=False)
@@ -1138,54 +1154,32 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                 dl_id = str(uuid.uuid4())[:10]
                 out_tmpl = os.path.join(YT_TEMP_DIR, f'{dl_id}.%(ext)s')
 
-                COOKIE_FILE = os.path.join(BASE_DIR, 'cookies.txt')
-                extractor_args = {
-                    'youtube': {
-                        'player_client': ['ios', 'android', 'mweb']
-                    }
-                }
-
                 if fmt == 'mp3':
                     preferred_quality = quality_raw if quality_raw in ['320', '192', '128'] else '192'
-                    ydl_opts = {
+                    ydl_opts = get_youtube_dl_opts({
                         'format': 'bestaudio/best',
                         'outtmpl': out_tmpl,
                         'noplaylist': True,
                         'playlist_items': '1',
-                        'socket_timeout': 15,
                         'postprocessors': [{
                             'key': 'FFmpegExtractAudio',
                             'preferredcodec': 'mp3',
                             'preferredquality': preferred_quality,
                         }],
-                        'ffmpeg_location': FFMPEG_EXE,
-                        'quiet': True,
-                        'no_warnings': True,
-                        'nocheckcertificate': True,
-                        'extractor_args': extractor_args,
-                    }
+                    })
                     target_ext = 'mp3'
                     mime_type = 'audio/mpeg'
                 else:
                     max_height = int(quality_raw) if quality_raw.isdigit() else 720
-                    ydl_opts = {
+                    ydl_opts = get_youtube_dl_opts({
                         'format': f'bestvideo[height<={max_height}]+bestaudio/best[height<={max_height}]/best',
                         'outtmpl': out_tmpl,
                         'merge_output_format': 'mp4',
                         'noplaylist': True,
                         'playlist_items': '1',
-                        'socket_timeout': 15,
-                        'ffmpeg_location': FFMPEG_EXE,
-                        'quiet': True,
-                        'no_warnings': True,
-                        'nocheckcertificate': True,
-                        'extractor_args': extractor_args,
-                    }
+                    })
                     target_ext = 'mp4'
                     mime_type = 'video/mp4'
-
-                if os.path.exists(COOKIE_FILE):
-                    ydl_opts['cookiefile'] = COOKIE_FILE
 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(yt_url, download=True)
