@@ -1090,101 +1090,101 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                     self.send_error_json(404, "Video veya çalma listesi bulunamadı.")
                     return
 
-                    # Playlist handling
-                    if info.get('_type') == 'playlist' or ('entries' in info and len(info['entries']) > 1):
-                        entries = info.get('entries', []) or []
-                        parsed_items = []
-                        total_secs = 0
-                        for idx, item in enumerate(entries, 1):
-                            if not item:
-                                continue
-                            item_id = item.get('id', '')
-                            item_dur = item.get('duration') or 0
-                            try:
-                                item_dur = int(item_dur)
-                            except (ValueError, TypeError):
-                                item_dur = 0
-                            total_secs += item_dur
-                            mins = item_dur // 60
-                            secs = item_dur % 60
-                            thumb = item.get('thumbnail')
-                            if not thumb and item_id:
-                                thumb = f"https://img.youtube.com/vi/{item_id}/hqdefault.jpg"
+                # Playlist handling
+                if info.get('_type') == 'playlist' or ('entries' in info and len(info['entries']) > 1):
+                    entries = info.get('entries', []) or []
+                    parsed_items = []
+                    total_secs = 0
+                    for idx, item in enumerate(entries, 1):
+                        if not item:
+                            continue
+                        item_id = item.get('id', '')
+                        item_dur = item.get('duration') or 0
+                        try:
+                            item_dur = int(item_dur)
+                        except (ValueError, TypeError):
+                            item_dur = 0
+                        total_secs += item_dur
+                        mins = item_dur // 60
+                        secs = item_dur % 60
+                        thumb = item.get('thumbnail')
+                        if not thumb and item_id:
+                            thumb = f"https://img.youtube.com/vi/{item_id}/hqdefault.jpg"
 
-                            parsed_items.append({
-                                'index': idx,
-                                'id': item_id,
-                                'title': item.get('title') or f"Parça #{idx}",
-                                'uploader': item.get('uploader') or item.get('channel') or info.get('uploader') or 'Bilinmeyen Kanal',
-                                'duration': item_dur,
-                                'duration_formatted': f"{mins:02d}:{secs:02d}",
-                                'thumbnail': thumb,
-                                'url': f"https://www.youtube.com/watch?v={item_id}" if item_id else ''
-                            })
+                        parsed_items.append({
+                            'index': idx,
+                            'id': item_id,
+                            'title': item.get('title') or f"Parça #{idx}",
+                            'uploader': item.get('uploader') or item.get('channel') or info.get('uploader') or 'Bilinmeyen Kanal',
+                            'duration': item_dur,
+                            'duration_formatted': f"{mins:02d}:{secs:02d}",
+                            'thumbnail': thumb,
+                            'url': f"https://www.youtube.com/watch?v={item_id}" if item_id else ''
+                        })
 
-                        total_mins = total_secs // 60
-                        total_hrs = total_mins // 60
-                        rem_mins = total_mins % 60
-                        if total_hrs > 0:
-                            total_time_str = f"{total_hrs} sa {rem_mins} dk"
-                        else:
-                            total_time_str = f"{total_mins} dk {total_secs % 60} sn"
-
-                        resp_data = {
-                            'success': True,
-                            'is_playlist': True,
-                            'id': info.get('id', ''),
-                            'title': info.get('title', 'YouTube Çalma Listesi'),
-                            'uploader': info.get('uploader') or info.get('channel', 'YouTube'),
-                            'item_count': len(parsed_items),
-                            'total_duration_formatted': total_time_str,
-                            'items': parsed_items,
-                            'video_resolutions': ['1080p', '720p', '480p', '360p'],
-                            'audio_qualities': ['320 kbps (Ultra)', '192 kbps (Önerilen)', '128 kbps (Kompakt)'],
-                        }
-                        print(f"[YouTube Info] Çalma Listesi Başarılı ({time.time() - t_start:.2f}s): {resp_data['title']} ({len(parsed_items)} parça)")
-                        self.send_json(200, resp_data)
-                        return
-
-                    # Single video handling
-                    if 'entries' in info and info['entries']:
-                        info = info['entries'][0]
-
-                    formats = info.get('formats', []) or []
-                    available_heights = set()
-                    for f in formats:
-                        h = f.get('height')
-                        vcodec = f.get('vcodec', 'none')
-                        if h and vcodec != 'none':
-                            available_heights.add(h)
-
-                    standard_resolutions = []
-                    for res in [1080, 720, 480, 360]:
-                        if any(h >= res for h in available_heights) or res == 360:
-                            standard_resolutions.append(f"{res}p")
-
-                    if not standard_resolutions:
-                        standard_resolutions = ["720p", "360p"]
-
-                    duration = info.get('duration', 0) or 0
-                    mins = duration // 60
-                    secs = duration % 60
-                    duration_str = f"{mins:02d}:{secs:02d}"
+                    total_mins = total_secs // 60
+                    total_hrs = total_mins // 60
+                    rem_mins = total_mins % 60
+                    if total_hrs > 0:
+                        total_time_str = f"{total_hrs} sa {rem_mins} dk"
+                    else:
+                        total_time_str = f"{total_mins} dk {total_secs % 60} sn"
 
                     resp_data = {
                         'success': True,
-                        'is_playlist': False,
+                        'is_playlist': True,
                         'id': info.get('id', ''),
-                        'title': info.get('title', 'YouTube Video'),
-                        'uploader': info.get('uploader') or info.get('channel', 'Bilinmeyen Kanal'),
-                        'duration': duration,
-                        'duration_formatted': duration_str,
-                        'thumbnail': info.get('thumbnail') or f"https://img.youtube.com/vi/{info.get('id', '')}/hqdefault.jpg",
-                        'video_resolutions': standard_resolutions,
-                        'audio_qualities': ['320 kbps (En Yüksek)', '192 kbps (Önerilen)', '128 kbps (Hızlı)'],
+                        'title': info.get('title', 'YouTube Çalma Listesi'),
+                        'uploader': info.get('uploader') or info.get('channel', 'YouTube'),
+                        'item_count': len(parsed_items),
+                        'total_duration_formatted': total_time_str,
+                        'items': parsed_items,
+                        'video_resolutions': ['1080p', '720p', '480p', '360p'],
+                        'audio_qualities': ['320 kbps (Ultra)', '192 kbps (Önerilen)', '128 kbps (Kompakt)'],
                     }
-                    print(f"[YouTube Info] Başarılı ({time.time() - t_start:.2f}s): {resp_data['title']}")
+                    print(f"[YouTube Info] Çalma Listesi Başarılı ({time.time() - t_start:.2f}s): {resp_data['title']} ({len(parsed_items)} parça)")
                     self.send_json(200, resp_data)
+                    return
+
+                # Single video handling
+                if 'entries' in info and info['entries']:
+                    info = info['entries'][0]
+
+                formats = info.get('formats', []) or []
+                available_heights = set()
+                for f in formats:
+                    h = f.get('height')
+                    vcodec = f.get('vcodec', 'none')
+                    if h and vcodec != 'none':
+                        available_heights.add(h)
+
+                standard_resolutions = []
+                for res in [1080, 720, 480, 360]:
+                    if any(h >= res for h in available_heights) or res == 360:
+                        standard_resolutions.append(f"{res}p")
+
+                if not standard_resolutions:
+                    standard_resolutions = ["720p", "360p"]
+
+                duration = info.get('duration', 0) or 0
+                mins = duration // 60
+                secs = duration % 60
+                duration_str = f"{mins:02d}:{secs:02d}"
+
+                resp_data = {
+                    'success': True,
+                    'is_playlist': False,
+                    'id': info.get('id', ''),
+                    'title': info.get('title', 'YouTube Video'),
+                    'uploader': info.get('uploader') or info.get('channel', 'Bilinmeyen Kanal'),
+                    'duration': duration,
+                    'duration_formatted': duration_str,
+                    'thumbnail': info.get('thumbnail') or f"https://img.youtube.com/vi/{info.get('id', '')}/hqdefault.jpg",
+                    'video_resolutions': standard_resolutions,
+                    'audio_qualities': ['320 kbps (En Yüksek)', '192 kbps (Önerilen)', '128 kbps (Hızlı)'],
+                }
+                print(f"[YouTube Info] Başarılı ({time.time() - t_start:.2f}s): {resp_data['title']}")
+                self.send_json(200, resp_data)
             except Exception as e:
                 print(f"[YouTube Info] Hata ({time.time() - t_start:.2f}s): {str(e)}")
                 self.send_error_json(500, f"YouTube video bilgisi alınamadı: {str(e)}")
