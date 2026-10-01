@@ -974,6 +974,13 @@ class FlovaHandler(SimpleHTTPRequestHandler):
             print(f"[YouTube Info] Bilgi alınıyor (is_playlist={is_pl_url}): {yt_url}")
 
             try:
+                COOKIE_FILE = os.path.join(BASE_DIR, 'cookies.txt')
+                extractor_args = {
+                    'youtube': {
+                        'player_client': ['ios', 'android', 'mweb']
+                    }
+                }
+
                 if is_pl_url:
                     ydl_opts = {
                         'quiet': True,
@@ -984,6 +991,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                         'socket_timeout': 12,
                         'nocheckcertificate': True,
                         'ffmpeg_location': FFMPEG_EXE,
+                        'extractor_args': extractor_args,
                     }
                 else:
                     ydl_opts = {
@@ -995,7 +1003,11 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                         'playlist_items': '1',
                         'socket_timeout': 10,
                         'ffmpeg_location': FFMPEG_EXE,
+                        'extractor_args': extractor_args,
                     }
+
+                if os.path.exists(COOKIE_FILE):
+                    ydl_opts['cookiefile'] = COOKIE_FILE
 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(yt_url, download=False)
@@ -1126,6 +1138,13 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                 dl_id = str(uuid.uuid4())[:10]
                 out_tmpl = os.path.join(YT_TEMP_DIR, f'{dl_id}.%(ext)s')
 
+                COOKIE_FILE = os.path.join(BASE_DIR, 'cookies.txt')
+                extractor_args = {
+                    'youtube': {
+                        'player_client': ['ios', 'android', 'mweb']
+                    }
+                }
+
                 if fmt == 'mp3':
                     preferred_quality = quality_raw if quality_raw in ['320', '192', '128'] else '192'
                     ydl_opts = {
@@ -1143,6 +1162,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                         'quiet': True,
                         'no_warnings': True,
                         'nocheckcertificate': True,
+                        'extractor_args': extractor_args,
                     }
                     target_ext = 'mp3'
                     mime_type = 'audio/mpeg'
@@ -1159,9 +1179,13 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                         'quiet': True,
                         'no_warnings': True,
                         'nocheckcertificate': True,
+                        'extractor_args': extractor_args,
                     }
                     target_ext = 'mp4'
                     mime_type = 'video/mp4'
+
+                if os.path.exists(COOKIE_FILE):
+                    ydl_opts['cookiefile'] = COOKIE_FILE
 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(yt_url, download=True)
