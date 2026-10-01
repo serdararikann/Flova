@@ -1044,6 +1044,53 @@ class FlovaHandler(SimpleHTTPRequestHandler):
             self.send_json(200, {'status': 'ok', 'service': 'flova-backend', 'time': time.time()})
             return
 
+        # YouTube Diagnostic API
+        if parsed.path == '/api/debug/yt':
+            query = parse_qs(parsed.query)
+            test_url = query.get('url', ['https://www.youtube.com/watch?v=zrS2wKWVWzI'])[0]
+            cookie_path = find_valid_cookie_file()
+            results = {
+                'yt_dlp_version': getattr(yt_dlp, '__version__', 'unknown'),
+                'cookie_file_found': cookie_path,
+                'cookie_file_size': os.path.getsize(cookie_path) if cookie_path else 0,
+                'cwd': os.getcwd(),
+                'tests': []
+            }
+            tests_to_run = [
+                {'name': 'android_no_cookies', 'clients': ['android'], 'cookies': False},
+                {'name': 'ios_no_cookies', 'clients': ['ios'], 'cookies': False},
+                {'name': 'web_no_cookies', 'clients': ['web'], 'cookies': False},
+                {'name': 'tv_no_cookies', 'clients': ['tv'], 'cookies': False},
+                {'name': 'android_with_cookies', 'clients': ['android'], 'cookies': True},
+                {'name': 'web_with_cookies', 'clients': ['web'], 'cookies': True},
+            ]
+            for t in tests_to_run:
+                opts = {
+                    'quiet': True,
+                    'no_warnings': True,
+                    'skip_download': True,
+                    'socket_timeout': 10,
+                    'extractor_args': {'youtube': {'player_client': t['clients']}}
+                }
+                if t['cookies'] and cookie_path:
+                    opts['cookiefile'] = cookie_path
+                try:
+                    with yt_dlp.YoutubeDL(opts) as ydl:
+                        inf = ydl.extract_info(test_url, download=False)
+                        results['tests'].append({
+                            'name': t['name'],
+                            'success': True,
+                            'title': inf.get('title', '')
+                        })
+                except Exception as ex:
+                    results['tests'].append({
+                        'name': t['name'],
+                        'success': False,
+                        'error': str(ex)
+                    })
+            self.send_json(200, results)
+            return
+
         # YouTube Info API
         if parsed.path == '/api/youtube/info':
             query = parse_qs(parsed.query)
