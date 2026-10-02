@@ -1084,8 +1084,10 @@ def download_stream_and_convert(stream_url, target_path, media_format='mp3', qua
        Bypasses YouTube 1x throttling and FFmpeg TLS/networking limitations completely (0.5s transfer).
     2. Runs local FFmpeg to transcode raw stream into high-quality MP3 (or copy for MP4).
     """
-    if not FFMPEG_EXE or not stream_url:
-        return False
+    if not FFMPEG_EXE:
+        return False, "FFMPEG_EXE bulunamadı"
+    if not stream_url:
+        return False, "stream_url boş"
         
     temp_raw = f"{target_path}.raw"
     try:
@@ -1116,6 +1118,7 @@ def download_stream_and_convert(stream_url, target_path, media_format='mp3', qua
                 
                 req = urllib.request.Request(stream_url, headers=chunk_headers)
                 chunk_data = None
+                last_http_err = None
                 for attempt in range(max_retries):
                     try:
                         with urllib.request.urlopen(req, timeout=12) as resp:
@@ -1125,24 +1128,27 @@ def download_stream_and_convert(stream_url, target_path, media_format='mp3', qua
                             chunk_data = resp.read()
                             break
                     except Exception as ce:
+                        last_http_err = ce
                         time.sleep(0.3)
-                        if attempt == max_retries - 1:
-                            raise ce
-                            
-                if not chunk_data:
-                    break
+                        
+                if chunk_data is None:
+                    if downloaded > 0:
+                        break # Got some data, let's try with what we have
+                    return False, f"HTTP chunk error: {last_http_err}"
+
                 out_f.write(chunk_data)
                 downloaded += len(chunk_data)
                 if total_size is not None and downloaded >= total_size:
                     break
 
         if not os.path.exists(temp_raw) or os.path.getsize(temp_raw) < 10240:
+            sz = os.path.getsize(temp_raw) if os.path.exists(temp_raw) else 0
             if os.path.exists(temp_raw):
                 try:
                     os.remove(temp_raw)
                 except Exception:
                     pass
-            return False
+            return False, f"İndirilen ham veri çok küçük ({sz} bayt)"
 
         # Step 2: Transcode raw audio using local FFmpeg
         import subprocess
@@ -1151,7 +1157,7 @@ def download_stream_and_convert(stream_url, target_path, media_format='mp3', qua
         else:
             cmd = [FFMPEG_EXE, '-y', '-i', temp_raw, '-c', 'copy', target_path]
             
-        subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
         
         # Clean up temp raw file
         if os.path.exists(temp_raw):
@@ -1160,7 +1166,9 @@ def download_stream_and_convert(stream_url, target_path, media_format='mp3', qua
             except Exception:
                 pass
                 
-        return os.path.exists(target_path) and os.path.getsize(target_path) > 1024
+        if os.path.exists(target_path) and os.path.getsize(target_path) > 1024:
+            return True, "OK"
+        return False, f"FFmpeg kod={res.returncode}, err={res.stderr.decode(errors='ignore')[-150:].strip()}"
     except Exception as e:
         print(f"[Stream Transcoder] Hata: {e}", flush=True)
         if os.path.exists(temp_raw):
@@ -1168,7 +1176,7 @@ def download_stream_and_convert(stream_url, target_path, media_format='mp3', qua
                 os.remove(temp_raw)
             except Exception:
                 pass
-    return False
+        return False, str(e)
 
 
 def get_youtube_dl_opts(extra_opts=None, client_list=None, use_cookies=True):
@@ -1820,10 +1828,12 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                     mime_type = 'video/mp4'
 
                 info = None
+                dl_err = None
                 try:
                     info = run_resilient_ytdlp_action(yt_url, base_opts=base_opts, is_download=True)
-                except Exception as dl_err:
-                    print(f"[YouTube Download] Standart yt-dlp indirme uyarısı ({dl_err}), doğrudan FFmpeg akış katmanı deneniyor...", flush=True)
+                except Exception as e:
+                    dl_err = str(e)
+                    print(f"[YouTube Download] Standart yt-dlp indirme uyarısı ({dl_err}), doğrudan akış katmanı deneniyor...", flush=True)
 
                 filepath = os.path.join(YT_TEMP_DIR, f'{dl_id}.{target_ext}')
 
@@ -1876,12 +1886,13 @@ class FlovaHandler(SimpleHTTPRequestHandler):
 
                     candidates.sort(key=lambda x: (x[0], x[1]), reverse=True)
                     print(f"[YouTube Download] {len(candidates)} doğrudan akış adayı bulundu.", flush=True)
+                    last_stream_err = f"Aday sayısı: {len(candidates)}"
                     for _, _, best_fmt in candidates:
                         s_url = best_fmt.get('url')
                         fid = best_fmt.get('format_id')
                         ext = best_fmt.get('ext')
                         print(f"[YouTube Download] Akış indiriliyor ve dönüştürülüyor (id={fid}, ext={ext})...", flush=True)
-                        ok = download_stream_and_convert(
+                        ok, err_detail = download_stream_and_convert(
                             stream_url=s_url,
                             target_path=filepath,
                             media_format=fmt,
@@ -1890,10 +1901,14 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                         )
                         if ok:
                             print(f"[YouTube Download] Akış dönüştürme BAŞARILI! Boyut: {os.path.getsize(filepath)} bayt", flush=True)
+                            last_stream_err = "OK"
                             break
+                        else:
+                            last_stream_err = f"id={fid}: {err_detail}"
 
                 if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
-                    self.send_error_json(500, "İndirilen medya dosyası oluşturulamadı.")
+                    diag = f"FFMPEG={FFMPEG_EXE} | DL_Err={str(dl_err)[:70] if dl_err else 'Yok'} | Adaylar={len(candidates)}/{len(formats)} | Akış={last_stream_err}"
+                    self.send_error_json(500, f"İndirilen medya dosyası oluşturulamadı. ({diag})")
                     return
 
                 if not info:
