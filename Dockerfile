@@ -26,8 +26,9 @@ WORKDIR $HOME/app
 COPY --chown=user:user requirements-server.txt .
 RUN pip install --no-cache-dir --user -r requirements-server.txt
 
-# Copy server code
+# Copy server code and cookies if present
 COPY --chown=user:user server.py .
+COPY --chown=user:user *cookie*.txt* ./
 
 # Standard port for Hugging Face Spaces
 EXPOSE 7860

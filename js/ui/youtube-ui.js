@@ -35,8 +35,11 @@ export class YouTubeUI {
     this.batchProgressText = '';
     this.cancelBatch = false;
     this.activeDownloadingItemId = null;
+    this.cookieStatus = null;
+    this.isCookieModalOpen = false;
 
     this.render();
+    this.fetchCookieStatus();
   }
 
   getApiBase() {
@@ -54,6 +57,7 @@ export class YouTubeUI {
   }
 
   render() {
+    const hasCookies = this.cookieStatus && this.cookieStatus.has_cookies;
     this.container.innerHTML = `
       <div class="youtube-module-wrapper">
         
@@ -65,9 +69,14 @@ export class YouTubeUI {
               YouTube videolarını ve çalma listelerini yüksek kalitede MP3/MP4 olarak indirin, toplu ZIP paketleyin veya doğrudan stüdyo kanallarına aktarın.
             </p>
           </div>
-          <div class="youtube-backend-badge" title="Arka planda çalışan yt-dlp & FFmpeg motoru">
-            <span class="status-indicator-dot online"></span>
-            <span>Motor: <strong>Python yt-dlp + FFmpeg</strong></span>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <button type="button" class="btn btn-secondary btn-sm yt-cookie-btn" onclick="window.flovaYouTube.openCookieModal()" title="YouTube Bot Koruması ve Bulut Çerez (cookies.txt) Yönetimi" style="padding: 5px 12px; font-size: 0.78rem; border-radius: 20px; border: 1px solid ${hasCookies ? 'rgba(16,185,129,0.45)' : 'rgba(245,158,11,0.45)'}; background: ${hasCookies ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)'}; color: ${hasCookies ? '#10b981' : '#f59e0b'};">
+              🍪 ${hasCookies ? 'Çerez Aktif' : 'Bulut Çerezi (Gerekli)'}
+            </button>
+            <div class="youtube-backend-badge" title="Arka planda çalışan yt-dlp & FFmpeg motoru">
+              <span class="status-indicator-dot online"></span>
+              <span>Motor: <strong>Python yt-dlp + FFmpeg</strong></span>
+            </div>
           </div>
         </div>
 
@@ -680,7 +689,8 @@ export class YouTubeUI {
       if (err.name === 'AbortError' || msg.includes('Zaman aşımı')) {
         msg = 'Bağlantı zaman aşımına uğradı (25s). YouTube sunucusu geç yanıt veriyor, lütfen tekrar deneyin.';
       } else if (msg.includes('not a bot') || msg.includes('Sign in') || msg.includes('cookies')) {
-        msg = 'YouTube, bulut sunucularını (AWS/Hugging Face) bot korumasıyla kısıtlıyor. Çözüm: Şarkıyı MP3 olarak indirip doğrudan "Vokal/Stem Ayrıştırıcı" sekmesine yükleyebilirsiniz.';
+        msg = 'YouTube bulut bot engeli: Hugging Face sunucusunda cookies.txt gerekli. Çerez penceresi açıldı; lütfen cookies.txt dosyanızı yükleyin veya start-cloud-tunnel.bat kullanın.';
+        setTimeout(() => this.openCookieModal(), 400);
       } else if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
         msg = 'Flova Python backend sunucusuna erişilemedi. Lütfen sunucunun çalıştığından emin olun.';
       }
@@ -1285,10 +1295,244 @@ export class YouTubeUI {
       this.isDownloading = false;
       this.downloadProgressText = '';
       this.render();
+      let errText = err.message || String(err);
+      if (errText.includes('not a bot') || errText.includes('Sign in') || errText.includes('cookies')) {
+        errText = 'YouTube bulut bot engeli: Hugging Face sunucusuna cookies.txt yükleyin veya start-cloud-tunnel.bat kullanın.';
+        setTimeout(() => this.openCookieModal(), 400);
+      }
       if (window.flovaApp) {
-        window.flovaApp.showToast(`Stüdyoya aktarma hatası: ${err.message || err}`, 'error');
+        window.flovaApp.showToast(`Stüdyoya aktarma hatası: ${errText}`, 'error');
       }
       return null;
+    }
+  }
+
+  async fetchCookieStatus() {
+    try {
+      const res = await fetch(`${this.getApiBase()}/api/youtube/cookies/status`);
+      if (res.ok) {
+        this.cookieStatus = await res.json();
+        const cookieBtn = this.container.querySelector('.yt-cookie-btn');
+        if (cookieBtn) {
+          const has = this.cookieStatus && this.cookieStatus.has_cookies;
+          cookieBtn.innerHTML = `🍪 ${has ? 'Çerez Aktif' : 'Bulut Çerezi (Gerekli)'}`;
+          cookieBtn.style.color = has ? '#10b981' : '#f59e0b';
+          cookieBtn.style.borderColor = has ? 'rgba(16,185,129,0.45)' : 'rgba(245,158,11,0.45)';
+          cookieBtn.style.background = has ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)';
+        }
+      }
+    } catch (_) {}
+  }
+
+  openCookieModal() {
+    let modalContainer = document.getElementById('youtubeCookiesModalContainer');
+    if (!modalContainer) {
+      modalContainer = document.createElement('div');
+      modalContainer.id = 'youtubeCookiesModalContainer';
+      document.body.appendChild(modalContainer);
+    }
+    this.isCookieModalOpen = true;
+    modalContainer.className = 'modal-backdrop active';
+    modalContainer.style.display = 'flex';
+    this.renderCookieModalContent(modalContainer);
+  }
+
+  closeCookieModal() {
+    const modalContainer = document.getElementById('youtubeCookiesModalContainer');
+    if (!modalContainer) return;
+    this.isCookieModalOpen = false;
+    modalContainer.className = 'modal-backdrop';
+    modalContainer.style.display = 'none';
+  }
+
+  renderCookieModalContent(container) {
+    const hasCookies = this.cookieStatus && this.cookieStatus.has_cookies;
+    const cookieSizeKb = this.cookieStatus && this.cookieStatus.size ? Math.round(this.cookieStatus.size / 1024) : 0;
+
+    container.innerHTML = `
+      <div class="modal-card glass-card server-modal-card" style="max-width: 580px;">
+        <div class="modal-header">
+          <div class="modal-title-row">
+            <span class="modal-icon">🍪</span>
+            <div>
+              <h3 class="modal-title">YouTube Bot Koruması & Bulut Çerezleri</h3>
+              <p class="modal-subtitle">Hugging Face & Bulut Sunucularda YouTube İndirmelerini Aktif Edin</p>
+            </div>
+          </div>
+          <button class="modal-close-btn" id="closeCookieModalBtn" title="Kapat">✕</button>
+        </div>
+
+        <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px;">
+          
+          <!-- Status Banner -->
+          <div class="server-status-banner ${hasCookies ? 'status-ok' : 'status-err'}">
+            <div class="status-indicator-circle ${hasCookies ? 'pulse-green' : 'pulse-red'}"></div>
+            <div style="flex: 1;">
+              <div style="font-weight: 700; font-size: 0.95rem; color: #fff;">
+                ${hasCookies ? `🟢 Aktif YouTube Çerezi Yüklü (${cookieSizeKb} KB)` : '⚠️ Bulut Sunucusunda Çerez Bulunmuyor'}
+              </div>
+              <div style="font-size: 0.82rem; color: #94a3b8; margin-top: 2px;">
+                ${hasCookies 
+                  ? 'Sunucunuz YouTube isteklerini bu çerezle yetkilendirmektedir. İndirme ve aktarma işlemleri hazırdır.' 
+                  : 'Hugging Face / AWS gibi bulut sunucuları YouTube bot kontrolüne takılır. Aşağıdan cookies.txt yükleyerek engeli kaldırabilirsiniz.'}
+              </div>
+            </div>
+            ${hasCookies ? `
+              <button id="deleteCookiesBtn" class="btn btn-secondary btn-sm" style="color: #f87171; border-color: rgba(239,68,68,0.35);">
+                🗑️ Çerezi Sil
+              </button>
+            ` : ''}
+          </div>
+
+          <!-- Explanation Box -->
+          <div class="server-info-box">
+            <div style="font-weight: 600; color: #c7d2fe; margin-bottom: 4px; font-size: 0.85rem;">
+              💡 2 Kolay Çözüm Yolu:
+            </div>
+            <ul style="font-size: 0.82rem; color: #94a3b8; margin: 0; padding-left: 18px; line-height: 1.6;">
+              <li><strong>Yöntem 1 (Önerilen - Çerez Yükleme):</strong> Chrome/Edge mağazasından ücretsiz <em>"Get cookies.txt LOCALLY"</em> eklentisini kurun. YouTube.com sekmesindeyken dışa aktardığınız <code>cookies.txt</code> dosyasını aşağıdaki kutuya bırakın.</li>
+              <li><strong>Yöntem 2 (Sıfır Çerez - Kendi PC'niz):</strong> Proje klasöründeki <code>start-cloud-tunnel.bat</code> dosyasını açın. Ev internetinizin IP'si YouTube tarafından asla engellenmez! Aldığınız linki AI Ayarları'na yapıştırın.</li>
+            </ul>
+          </div>
+
+          <!-- Drag & Drop File Zone -->
+          <div id="cookieDropZone" style="border: 2px dashed rgba(255, 107, 0, 0.45); border-radius: 12px; padding: 22px; text-align: center; background: rgba(255, 107, 0, 0.04); cursor: pointer; transition: all 0.2s ease;">
+            <input type="file" id="cookieFileInput" accept=".txt" style="display: none;" />
+            <div style="font-size: 1.8rem; margin-bottom: 6px;">📂</div>
+            <div style="font-weight: 600; font-size: 0.9rem; color: #f8fafc;">
+              cookies.txt dosyasını buraya sürükleyin veya tıklayarak seçin
+            </div>
+            <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 4px;">
+              Netscape HTTP Cookie formatı (.txt)
+            </div>
+          </div>
+
+          <!-- Paste Raw Cookies Textarea -->
+          <div class="form-group" style="margin-top: 4px;">
+            <label style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; margin-bottom: 4px; display: block;">
+              Veya Çerez Metnini Doğrudan Buraya Yapıştırın:
+            </label>
+            <textarea 
+              id="rawCookiesTextarea" 
+              class="studio-input" 
+              rows="3" 
+              placeholder="# Netscape HTTP Cookie File&#10;.youtube.com  TRUE  /  TRUE  ... "
+              style="width: 100%; font-family: monospace; font-size: 0.75rem; resize: vertical;"
+            ></textarea>
+          </div>
+
+          <!-- Action Row -->
+          <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px;">
+            <button id="closeCookieModalActionBtn" class="btn btn-secondary btn-sm">Kapat</button>
+            <button id="saveCookiesTextBtn" class="btn btn-primary btn-sm" style="padding: 7px 18px; font-weight: 700;">
+              💾 Çerezi Sunucuya Kaydet
+            </button>
+          </div>
+
+        </div>
+      </div>
+    `;
+
+    // Hook listeners
+    const closeBtn = container.querySelector('#closeCookieModalBtn');
+    const closeActionBtn = container.querySelector('#closeCookieModalActionBtn');
+    const dropZone = container.querySelector('#cookieDropZone');
+    const fileInput = container.querySelector('#cookieFileInput');
+    const saveTextBtn = container.querySelector('#saveCookiesTextBtn');
+    const deleteBtn = container.querySelector('#deleteCookiesBtn');
+    const textarea = container.querySelector('#rawCookiesTextarea');
+
+    if (closeBtn) closeBtn.onclick = () => this.closeCookieModal();
+    if (closeActionBtn) closeActionBtn.onclick = () => this.closeCookieModal();
+    container.onclick = (e) => {
+      if (e.target === container) this.closeCookieModal();
+    };
+
+    if (dropZone && fileInput) {
+      dropZone.onclick = () => fileInput.click();
+      dropZone.ondragover = (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = 'var(--accent-orange)';
+        dropZone.style.background = 'rgba(255, 107, 0, 0.12)';
+      };
+      dropZone.ondragleave = () => {
+        dropZone.style.borderColor = 'rgba(255, 107, 0, 0.45)';
+        dropZone.style.background = 'rgba(255, 107, 0, 0.04)';
+      };
+      dropZone.ondrop = (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = 'rgba(255, 107, 0, 0.45)';
+        dropZone.style.background = 'rgba(255, 107, 0, 0.04)';
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+          this.handleCookieFileUpload(e.dataTransfer.files[0]);
+        }
+      };
+      fileInput.onchange = (e) => {
+        if (e.target.files && e.target.files[0]) {
+          this.handleCookieFileUpload(e.target.files[0]);
+        }
+      };
+    }
+
+    if (saveTextBtn && textarea) {
+      saveTextBtn.onclick = () => {
+        const val = textarea.value.trim();
+        if (!val) {
+          if (window.flovaApp) window.flovaApp.showToast('Lütfen çerez metnini yapıştırın.', 'error');
+          return;
+        }
+        this.submitCookiesToBackend(val);
+      };
+    }
+
+    if (deleteBtn) {
+      deleteBtn.onclick = async () => {
+        try {
+          const res = await fetch(`${this.getApiBase()}/api/youtube/cookies/delete`);
+          const d = await res.json();
+          if (window.flovaApp) window.flovaApp.showToast(d.message || 'Çerezler silindi.', 'info');
+          await this.fetchCookieStatus();
+          this.renderCookieModalContent(container);
+        } catch (ex) {
+          if (window.flovaApp) window.flovaApp.showToast(`Silme hatası: ${ex.message}`, 'error');
+        }
+      };
+    }
+  }
+
+  async handleCookieFileUpload(file) {
+    try {
+      const text = await file.text();
+      await this.submitCookiesToBackend(text);
+    } catch (ex) {
+      if (window.flovaApp) window.flovaApp.showToast(`Dosya okuma hatası: ${ex.message}`, 'error');
+    }
+  }
+
+  async submitCookiesToBackend(cookieText) {
+    if (!cookieText || cookieText.length < 20) {
+      if (window.flovaApp) window.flovaApp.showToast('Geçersiz çerez formatı.', 'error');
+      return;
+    }
+    if (window.flovaApp) window.flovaApp.showToast('Çerezler bulut sunucusuna yükleniyor...', 'info');
+    try {
+      const res = await fetch(`${this.getApiBase()}/api/youtube/cookies`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        body: cookieText
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Çerez kaydedilemedi.');
+      }
+      if (window.flovaApp) window.flovaApp.showToast(data.message || 'YouTube çerezleri aktif edildi!', 'success');
+      await this.fetchCookieStatus();
+      const modalContainer = document.getElementById('youtubeCookiesModalContainer');
+      if (modalContainer && this.isCookieModalOpen) {
+        this.renderCookieModalContent(modalContainer);
+      }
+    } catch (ex) {
+      if (window.flovaApp) window.flovaApp.showToast(`Çerez yükleme hatası: ${ex.message}`, 'error');
     }
   }
 }

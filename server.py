@@ -1007,17 +1007,33 @@ def segment_and_transcribe_audio(audio_bytes, lang='tr-TR', max_workers=4, model
 
 
 def find_valid_cookie_file():
+    # 1. Environment variable support (ideal for Hugging Face Spaces Secrets / Docker deployments)
+    env_cookies = os.environ.get('YOUTUBE_COOKIES') or os.environ.get('COOKIES_TXT') or os.environ.get('YOUTUBE_COOKIE_CONTENT')
+    if env_cookies and env_cookies.strip():
+        target_env_file = os.path.join(TEMP_DIR, 'env_cookies.txt')
+        try:
+            with open(target_env_file, 'w', encoding='utf-8') as f:
+                f.write(env_cookies.strip())
+            return target_env_file
+        except Exception as e:
+            print(f"[Cookies] Failed to save environment cookies: {e}", flush=True)
+
+    # 2. Check candidate filesystem paths
     base_dir = os.path.dirname(os.path.abspath(__file__))
     candidate_paths = [
         os.path.join(base_dir, 'cookies.txt'),
         os.path.join(os.getcwd(), 'cookies.txt'),
+        os.path.join(TEMP_DIR, 'cookies.txt'),
+        os.path.join(YT_TEMP_DIR, 'cookies.txt'),
         '/app/cookies.txt',
-        '/home/user/app/cookies.txt'
+        '/home/user/app/cookies.txt',
+        os.path.join(TEMP_DIR, 'env_cookies.txt'),
     ]
     for p in candidate_paths:
         if os.path.exists(p) and os.path.getsize(p) > 0:
             return p
     return None
+
 
 
 def get_youtube_dl_opts(extra_opts=None, client_list=None, use_cookies=True):
@@ -1268,6 +1284,51 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                         'error': str(ex)
                     })
             self.send_json(200, results)
+            return
+
+        # YouTube Cookie Status API
+        if parsed.path == '/api/youtube/cookies/status':
+            cookie_path = find_valid_cookie_file()
+            if cookie_path and os.path.exists(cookie_path):
+                self.send_json(200, {
+                    'success': True,
+                    'has_cookies': True,
+                    'size': os.path.getsize(cookie_path),
+                    'path': cookie_path,
+                    'message': 'Sunucuda aktif YouTube çerez dosyası yüklü.'
+                })
+            else:
+                self.send_json(200, {
+                    'success': True,
+                    'has_cookies': False,
+                    'size': 0,
+                    'message': 'Sunucuda aktif çerez dosyası bulunamadı.'
+                })
+            return
+
+        # YouTube Cookie Delete API
+        if parsed.path == '/api/youtube/cookies/delete':
+            deleted = []
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            candidate_paths = [
+                os.path.join(base_dir, 'cookies.txt'),
+                os.path.join(os.getcwd(), 'cookies.txt'),
+                os.path.join(TEMP_DIR, 'cookies.txt'),
+                os.path.join(YT_TEMP_DIR, 'cookies.txt'),
+                os.path.join(TEMP_DIR, 'env_cookies.txt'),
+            ]
+            for p in candidate_paths:
+                try:
+                    if os.path.exists(p):
+                        os.remove(p)
+                        deleted.append(p)
+                except Exception:
+                    pass
+            self.send_json(200, {
+                'success': True,
+                'message': f'{len(deleted)} çerez dosyası silindi.',
+                'deleted': deleted
+            })
             return
 
         # YouTube Search API
@@ -1612,6 +1673,52 @@ class FlovaHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
+
+        # Upload / Save YouTube Cookies API
+        if parsed.path == '/api/youtube/cookies':
+            try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                payload = self.rfile.read(content_length).decode('utf-8', errors='ignore')
+                raw_cookies = payload
+                if payload.strip().startswith('{'):
+                    try:
+                        data = json.loads(payload)
+                        raw_cookies = data.get('cookies') or data.get('content') or payload
+                    except Exception:
+                        pass
+                
+                raw_cookies = raw_cookies.strip()
+                if len(raw_cookies) < 20:
+                    self.send_error_json(400, "Geçersiz veya boş çerez verisi. Lütfen Netscape formatında cookies.txt içeriği gönderin.")
+                    return
+
+                # Save to multiple candidate locations
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                save_paths = [
+                    os.path.join(base_dir, 'cookies.txt'),
+                    os.path.join(os.getcwd(), 'cookies.txt'),
+                    os.path.join(TEMP_DIR, 'cookies.txt'),
+                    os.path.join(YT_TEMP_DIR, 'cookies.txt')
+                ]
+                saved_count = 0
+                for sp in save_paths:
+                    try:
+                        with open(sp, 'w', encoding='utf-8') as f:
+                            f.write(raw_cookies)
+                        saved_count += 1
+                    except Exception:
+                        pass
+
+                print(f"[YouTube Cookies] Yeni çerez dosyası yüklendi ({len(raw_cookies)} bayt, {saved_count} konuma yazıldı)", flush=True)
+                self.send_json(200, {
+                    'success': True,
+                    'message': 'YouTube çerezleri başarıyla yüklendi ve aktif edildi!',
+                    'size': len(raw_cookies)
+                })
+            except Exception as e:
+                self.send_error_json(500, f"Çerez kaydedilemedi: {str(e)}")
+            return
+
         if parsed.path == '/api/separate-ai':
             try:
                 content_length = int(self.headers.get('Content-Length', 0))
