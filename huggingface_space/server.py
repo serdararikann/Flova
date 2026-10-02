@@ -36,10 +36,26 @@ try:
 except ImportError:
     demucs_onnx = None
 
+def get_ffmpeg_binary():
+    import shutil
+    for p in ['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/bin/ffmpeg']:
+        if os.path.exists(p):
+            return p
+    which_ffmpeg = shutil.which('ffmpeg')
+    if which_ffmpeg:
+        return which_ffmpeg
+    try:
+        import imageio_ffmpeg
+        exe = imageio_ffmpeg.get_ffmpeg_exe()
+        if exe and os.path.exists(exe):
+            return exe
+    except Exception:
+        pass
+    return 'ffmpeg'
+
 try:
     import yt_dlp
-    import imageio_ffmpeg
-    FFMPEG_EXE = imageio_ffmpeg.get_ffmpeg_exe()
+    FFMPEG_EXE = get_ffmpeg_binary()
 except Exception as e:
     yt_dlp = None
     FFMPEG_EXE = None
@@ -1061,32 +1077,97 @@ def fetch_oembed_info(yt_url):
     return None
 
 
-def download_stream_with_ffmpeg(stream_url, target_path, media_format='mp3', quality='192', headers=None):
+def download_stream_and_convert(stream_url, target_path, media_format='mp3', quality='192', headers=None, chunk_size=1048576):
     """
-    Directly streams and transcodes audio from googlevideo stream URL into high-quality MP3/MP4 via FFmpeg.
-    Bypasses yt-dlp downloader bottlenecks, SABR quirks, and format unavailability completely.
+    Two-stage high-speed reliable stream downloader & transcoder:
+    1. Downloads raw audio stream via Python's native urllib with HTTP Range chunking (1MB chunks).
+       Bypasses YouTube 1x throttling and FFmpeg TLS/networking limitations completely (0.5s transfer).
+    2. Runs local FFmpeg to transcode raw stream into high-quality MP3 (or copy for MP4).
     """
     if not FFMPEG_EXE or not stream_url:
         return False
+        
+    temp_raw = f"{target_path}.raw"
     try:
-        import subprocess
-        cmd = [FFMPEG_EXE, '-y']
+        import urllib.request
+        req_headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+            'Accept': '*/*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Referer': 'https://www.youtube.com/',
+        }
         if headers:
-            hdr_lines = []
             for k, v in headers.items():
                 if k.lower() in ('user-agent', 'accept-language', 'range'):
-                    hdr_lines.append(f"{k}: {v}")
-            if hdr_lines:
-                cmd.extend(['-headers', "\r\n".join(hdr_lines) + "\r\n"])
-        cmd.extend(['-i', stream_url])
+                    req_headers[k] = v
+
+        downloaded = 0
+        total_size = None
+        max_retries = 3
+
+        with open(temp_raw, 'wb') as out_f:
+            while True:
+                end = downloaded + chunk_size - 1
+                if total_size is not None and end >= total_size:
+                    end = total_size - 1
+                
+                chunk_headers = dict(req_headers)
+                chunk_headers['Range'] = f'bytes={downloaded}-{end}'
+                
+                req = urllib.request.Request(stream_url, headers=chunk_headers)
+                chunk_data = None
+                for attempt in range(max_retries):
+                    try:
+                        with urllib.request.urlopen(req, timeout=12) as resp:
+                            cr = resp.headers.get('Content-Range')
+                            if cr and '/' in cr:
+                                total_size = int(cr.split('/')[1])
+                            chunk_data = resp.read()
+                            break
+                    except Exception as ce:
+                        time.sleep(0.3)
+                        if attempt == max_retries - 1:
+                            raise ce
+                            
+                if not chunk_data:
+                    break
+                out_f.write(chunk_data)
+                downloaded += len(chunk_data)
+                if total_size is not None and downloaded >= total_size:
+                    break
+
+        if not os.path.exists(temp_raw) or os.path.getsize(temp_raw) < 10240:
+            if os.path.exists(temp_raw):
+                try:
+                    os.remove(temp_raw)
+                except Exception:
+                    pass
+            return False
+
+        # Step 2: Transcode raw audio using local FFmpeg
+        import subprocess
         if media_format == 'mp3':
-            cmd.extend(['-vn', '-b:a', f'{quality}k', target_path])
+            cmd = [FFMPEG_EXE, '-y', '-i', temp_raw, '-vn', '-b:a', f'{quality}k', target_path]
         else:
-            cmd.extend(['-c', 'copy', target_path])
-        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=120)
+            cmd = [FFMPEG_EXE, '-y', '-i', temp_raw, '-c', 'copy', target_path]
+            
+        subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
+        
+        # Clean up temp raw file
+        if os.path.exists(temp_raw):
+            try:
+                os.remove(temp_raw)
+            except Exception:
+                pass
+                
         return os.path.exists(target_path) and os.path.getsize(target_path) > 1024
     except Exception as e:
-        print(f"[FFmpeg Direct Stream] Hata: {e}", flush=True)
+        print(f"[Stream Transcoder] Hata: {e}", flush=True)
+        if os.path.exists(temp_raw):
+            try:
+                os.remove(temp_raw)
+            except Exception:
+                pass
     return False
 
 
@@ -1746,10 +1827,15 @@ class FlovaHandler(SimpleHTTPRequestHandler):
 
                 filepath = os.path.join(YT_TEMP_DIR, f'{dl_id}.{target_ext}')
 
-                # Fail-Safe Layer 2: If file was not created, resolve formats with is_download=False and stream via FFmpeg
+                # Fail-Safe Layer 2: Fast chunked stream downloader & local transcode
                 if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
-                    print(f"[YouTube Download] FFmpeg doğrudan akış kurtarma başlatılıyor: {yt_url}", flush=True)
-                    info_raw = run_resilient_ytdlp_action(yt_url, base_opts={'skip_download': True}, is_download=False)
+                    print(f"[YouTube Download] Hızlı doğrudan akış kurtarma başlatılıyor: {yt_url}", flush=True)
+                    try:
+                        info_raw = run_resilient_ytdlp_action(yt_url, base_opts={'skip_download': True}, is_download=False)
+                    except Exception as extract_err:
+                        print(f"[YouTube Download] Format çıkarma uyarısı: {extract_err}", flush=True)
+                        info_raw = {}
+
                     if 'entries' in info_raw and info_raw['entries']:
                         info_raw = info_raw['entries'][0]
                     if not info:
@@ -1759,18 +1845,43 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                     for f in formats:
                         if not f or not f.get('url'):
                             continue
+                        u = f.get('url', '')
+                        proto = f.get('protocol', '')
+                        # Skip HLS / DASH manifest playlists
+                        if 'manifest' in u or 'm3u8' in u or proto == 'm3u8_native':
+                            continue
+                            
                         acodec = f.get('acodec', 'none')
                         vcodec = f.get('vcodec', 'none')
-                        if acodec != 'none':
-                            is_audio_only = (vcodec == 'none')
-                            abr = f.get('abr') or f.get('tbr') or 128
-                            candidates.append((1 if is_audio_only else 0, abr, f))
+                        fid = str(f.get('format_id', ''))
+                        
+                        priority = 0
+                        if fid == '140': # 128k AAC M4A
+                            priority = 100
+                        elif fid == '251': # 160k Opus WebM
+                            priority = 90
+                        elif acodec and acodec != 'none' and vcodec == 'none':
+                            priority = 80
+                        elif fid == '18': # 360p combined MP4 (universally present)
+                            priority = 70
+                        elif fid == '22': # 720p combined MP4
+                            priority = 60
+                        elif acodec and acodec != 'none':
+                            priority = 50
+                        else:
+                            continue
+                            
+                        abr = f.get('abr') or f.get('tbr') or 128
+                        candidates.append((priority, abr, f))
 
                     candidates.sort(key=lambda x: (x[0], x[1]), reverse=True)
+                    print(f"[YouTube Download] {len(candidates)} doğrudan akış adayı bulundu.", flush=True)
                     for _, _, best_fmt in candidates:
                         s_url = best_fmt.get('url')
-                        print(f"[YouTube Download] FFmpeg ile doğrudan indirme deneniyor (id={best_fmt.get('format_id')}, ext={best_fmt.get('ext')})...", flush=True)
-                        ok = download_stream_with_ffmpeg(
+                        fid = best_fmt.get('format_id')
+                        ext = best_fmt.get('ext')
+                        print(f"[YouTube Download] Akış indiriliyor ve dönüştürülüyor (id={fid}, ext={ext})...", flush=True)
+                        ok = download_stream_and_convert(
                             stream_url=s_url,
                             target_path=filepath,
                             media_format=fmt,
@@ -1778,7 +1889,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                             headers=best_fmt.get('http_headers')
                         )
                         if ok:
-                            print(f"[YouTube Download] FFmpeg doğrudan akış BAŞARILI! Boyut: {os.path.getsize(filepath)} bayt", flush=True)
+                            print(f"[YouTube Download] Akış dönüştürme BAŞARILI! Boyut: {os.path.getsize(filepath)} bayt", flush=True)
                             break
 
                 if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
