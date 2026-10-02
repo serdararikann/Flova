@@ -1061,6 +1061,35 @@ def fetch_oembed_info(yt_url):
     return None
 
 
+def download_stream_with_ffmpeg(stream_url, target_path, media_format='mp3', quality='192', headers=None):
+    """
+    Directly streams and transcodes audio from googlevideo stream URL into high-quality MP3/MP4 via FFmpeg.
+    Bypasses yt-dlp downloader bottlenecks, SABR quirks, and format unavailability completely.
+    """
+    if not FFMPEG_EXE or not stream_url:
+        return False
+    try:
+        import subprocess
+        cmd = [FFMPEG_EXE, '-y']
+        if headers:
+            hdr_lines = []
+            for k, v in headers.items():
+                if k.lower() in ('user-agent', 'accept-language', 'range'):
+                    hdr_lines.append(f"{k}: {v}")
+            if hdr_lines:
+                cmd.extend(['-headers', "\r\n".join(hdr_lines) + "\r\n"])
+        cmd.extend(['-i', stream_url])
+        if media_format == 'mp3':
+            cmd.extend(['-vn', '-b:a', f'{quality}k', target_path])
+        else:
+            cmd.extend(['-c', 'copy', target_path])
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=120)
+        return os.path.exists(target_path) and os.path.getsize(target_path) > 1024
+    except Exception as e:
+        print(f"[FFmpeg Direct Stream] Hata: {e}", flush=True)
+    return False
+
+
 def get_youtube_dl_opts(extra_opts=None, client_list=None, use_cookies=True):
     opts = {
         'quiet': True,
@@ -1709,15 +1738,58 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                     target_ext = 'mp4'
                     mime_type = 'video/mp4'
 
-                info = run_resilient_ytdlp_action(yt_url, base_opts=base_opts, is_download=True)
+                info = None
+                try:
+                    info = run_resilient_ytdlp_action(yt_url, base_opts=base_opts, is_download=True)
+                except Exception as dl_err:
+                    print(f"[YouTube Download] Standart yt-dlp indirme uyarısı ({dl_err}), doğrudan FFmpeg akış katmanı deneniyor...", flush=True)
+
+                filepath = os.path.join(YT_TEMP_DIR, f'{dl_id}.{target_ext}')
+
+                # Fail-Safe Layer 2: If file was not created, resolve formats with is_download=False and stream via FFmpeg
+                if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
+                    print(f"[YouTube Download] FFmpeg doğrudan akış kurtarma başlatılıyor: {yt_url}", flush=True)
+                    info_raw = run_resilient_ytdlp_action(yt_url, base_opts={'skip_download': True}, is_download=False)
+                    if 'entries' in info_raw and info_raw['entries']:
+                        info_raw = info_raw['entries'][0]
+                    if not info:
+                        info = info_raw
+                    formats = info_raw.get('formats', []) or []
+                    candidates = []
+                    for f in formats:
+                        if not f or not f.get('url'):
+                            continue
+                        acodec = f.get('acodec', 'none')
+                        vcodec = f.get('vcodec', 'none')
+                        if acodec != 'none':
+                            is_audio_only = (vcodec == 'none')
+                            abr = f.get('abr') or f.get('tbr') or 128
+                            candidates.append((1 if is_audio_only else 0, abr, f))
+
+                    candidates.sort(key=lambda x: (x[0], x[1]), reverse=True)
+                    for _, _, best_fmt in candidates:
+                        s_url = best_fmt.get('url')
+                        print(f"[YouTube Download] FFmpeg ile doğrudan indirme deneniyor (id={best_fmt.get('format_id')}, ext={best_fmt.get('ext')})...", flush=True)
+                        ok = download_stream_with_ffmpeg(
+                            stream_url=s_url,
+                            target_path=filepath,
+                            media_format=fmt,
+                            quality=preferred_quality if fmt == 'mp3' else '720',
+                            headers=best_fmt.get('http_headers')
+                        )
+                        if ok:
+                            print(f"[YouTube Download] FFmpeg doğrudan akış BAŞARILI! Boyut: {os.path.getsize(filepath)} bayt", flush=True)
+                            break
+
+                if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
+                    self.send_error_json(500, "İndirilen medya dosyası oluşturulamadı.")
+                    return
+
+                if not info:
+                    info = {}
                 if 'entries' in info and info['entries']:
                     info = info['entries'][0]
                 video_title = info.get('title', 'flova_download')
-
-                filepath = os.path.join(YT_TEMP_DIR, f'{dl_id}.{target_ext}')
-                if not os.path.exists(filepath):
-                    self.send_error_json(500, "İndirilen medya dosyası oluşturulamadı.")
-                    return
 
                 file_size = os.path.getsize(filepath)
                 import unicodedata
