@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsndfile1 \
     git \
     curl \
+    nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 # Hugging Face Spaces requires a non-root user with UID 1000

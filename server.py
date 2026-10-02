@@ -1114,8 +1114,8 @@ def run_resilient_ytdlp_action(yt_url, base_opts=None, is_download=False):
             'use_cookies': False
         },
         {
-            'name': 'TV Embedded API (Çerezsiz - 45 Format & Doğrudan Ses)',
-            'clients': ['tv_embedded'],
+            'name': 'TV Client API (Çerezsiz - Yüksek Uyumluluk & Doğrudan Ses)',
+            'clients': ['tv'],
             'use_cookies': False
         },
         {
@@ -1124,8 +1124,8 @@ def run_resilient_ytdlp_action(yt_url, base_opts=None, is_download=False):
             'use_cookies': False
         },
         {
-            'name': 'Android + VisionOS Hibrit (Çerezsiz)',
-            'clients': ['android', 'visionos'],
+            'name': 'Android VR API (Çerezsiz - Kısıtlamasız)',
+            'clients': ['android_vr'],
             'use_cookies': False
         },
         {
@@ -1156,13 +1156,18 @@ def run_resilient_ytdlp_action(yt_url, base_opts=None, is_download=False):
             'use_cookies': True
         })
         strategies.append({
-            'name': 'Web + Cookies Fallback (Özel / Yaş Kısıtlamalı)',
-            'clients': ['web'],
+            'name': 'TV + Cookies (Doğrulanmış TV Oturumu)',
+            'clients': ['tv'],
             'use_cookies': True
         })
         strategies.append({
             'name': 'Android + Cookies Fallback',
             'clients': ['android'],
+            'use_cookies': True
+        })
+        strategies.append({
+            'name': 'Web + Cookies Fallback (Özel / Yaş Kısıtlamalı)',
+            'clients': ['web'],
             'use_cookies': True
         })
 
@@ -1308,32 +1313,56 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                 'cwd': os.getcwd(),
                 'tests': []
             }
+            test_dl = query.get('dl', ['0'])[0] == '1'
             tests_to_run = [
                 {'name': 'visionos_no_cookies', 'clients': ['visionos'], 'cookies': False},
-                {'name': 'tv_embedded_no_cookies', 'clients': ['tv_embedded'], 'cookies': False},
+                {'name': 'tv_no_cookies', 'clients': ['tv'], 'cookies': False},
                 {'name': 'android_no_cookies', 'clients': ['android'], 'cookies': False},
+                {'name': 'android_vr_no_cookies', 'clients': ['android_vr'], 'cookies': False},
+                {'name': 'mweb_no_cookies', 'clients': ['mweb'], 'cookies': False},
+                {'name': 'web_embedded_no_cookies', 'clients': ['web_embedded'], 'cookies': False},
+                {'name': 'tv_downgraded_no_cookies', 'clients': ['tv_downgraded'], 'cookies': False},
                 {'name': 'ios_no_cookies', 'clients': ['ios'], 'cookies': False},
                 {'name': 'web_no_cookies', 'clients': ['web'], 'cookies': False},
                 {'name': 'visionos_with_cookies', 'clients': ['visionos'], 'cookies': True},
+                {'name': 'tv_with_cookies', 'clients': ['tv'], 'cookies': True},
                 {'name': 'android_with_cookies', 'clients': ['android'], 'cookies': True},
                 {'name': 'web_with_cookies', 'clients': ['web'], 'cookies': True},
             ]
             for t in tests_to_run:
+                dl_id = f"diag_{uuid.uuid4().hex[:6]}"
+                out_tmpl = os.path.join(YT_TEMP_DIR, f"{dl_id}.%(ext)s")
                 opts = {
                     'quiet': True,
                     'no_warnings': True,
-                    'skip_download': True,
+                    'skip_download': not test_dl,
                     'socket_timeout': 10,
                     'check_formats': False,
                     'ignore_no_formats_error': True,
                     'format': 'bestaudio/ba/best[height<=720]/best/b',
+                    'outtmpl': out_tmpl,
+                    'ffmpeg_location': FFMPEG_EXE,
                     'extractor_args': {'youtube': {'player_client': t['clients']}}
                 }
+                if test_dl:
+                    opts['postprocessors'] = [{
+                        'key': 'FFmpegExtractAudio',
+                        'preferredcodec': 'mp3',
+                        'preferredquality': '128',
+                    }]
                 if t['cookies'] and cookie_path:
                     opts['cookiefile'] = cookie_path
                 try:
                     with yt_dlp.YoutubeDL(opts) as ydl:
-                        inf = ydl.extract_info(test_url, download=False)
+                        inf = ydl.extract_info(test_url, download=test_dl)
+                        # Clean up test file if created
+                        for ext in ('.mp3', '.webm', '.m4a', '.mp4'):
+                            tf = os.path.join(YT_TEMP_DIR, f"{dl_id}{ext}")
+                            if os.path.exists(tf):
+                                try:
+                                    os.remove(tf)
+                                except Exception:
+                                    pass
                         results['tests'].append({
                             'name': t['name'],
                             'success': True,
