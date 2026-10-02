@@ -4,9 +4,30 @@ import json
 import time
 import uuid
 import threading
+import re
 from urllib.parse import urlparse, parse_qs
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 import io
+import mimetypes
+
+# Fix Windows registry MIME issues where .js is often registered as text/plain
+mimetypes.init()
+mimetypes.add_type('application/javascript', '.js')
+mimetypes.add_type('application/javascript', '.mjs')
+mimetypes.add_type('text/css', '.css')
+mimetypes.add_type('application/json', '.json')
+mimetypes.add_type('image/svg+xml', '.svg')
+mimetypes.add_type('application/wasm', '.wasm')
+
+# Ensure UTF-8 output on all operating systems (prevents Windows charmap crashes on emojis/unicode)
+try:
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    if hasattr(sys.stderr, 'reconfigure'):
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+except Exception:
+    pass
+
 import soundfile as sf
 import numpy as np
 
@@ -506,17 +527,123 @@ def run_demucs_job(job_id, input_path):
                 'error': str(e)
             }
 
-def sanitize_youtube_url(raw_url):
-    raw_url = (raw_url or '').strip()
+def parse_youtube_target(raw_input):
+    """
+    Robust YouTube target parser supporting:
+    - youtu.be shortlinks (e.g. from mobile / share button)
+    - standard youtube.com/watch?v=...
+    - youtube.com/shorts/...
+    - youtube.com/embed/... or /v/... or /live/...
+    - music.youtube.com
+    - plain 11-char video IDs (e.g. dQw4w9WgXcQ)
+    - playlists (list=...)
+    - search queries (artist / song keywords)
+    """
+    raw_input = (raw_input or '').strip()
+    if not raw_input:
+        return None
+
+    # 1. Check raw 11-char video ID
+    if re.match(r'^[a-zA-Z0-9_-]{11}$', raw_input):
+        return {
+            'type': 'video',
+            'id': raw_input,
+            'url': f'https://www.youtube.com/watch?v={raw_input}',
+            'clean_url': f'https://www.youtube.com/watch?v={raw_input}'
+        }
+
+    # 2. URL parsing
     try:
-        p = urlparse(raw_url)
-        if 'youtube.com' in p.netloc and '/watch' in p.path:
-            qs = parse_qs(p.query)
+        p = urlparse(raw_input)
+        netloc = (p.netloc or '').lower()
+        path = p.path or ''
+        qs = parse_qs(p.query)
+
+        # Playlist check
+        if ('/playlist' in path or 'list=' in (p.query or '')) and 'list' in qs:
+            pl_id = qs['list'][0]
+            v_id = qs.get('v', [None])[0]
+            return {
+                'type': 'playlist',
+                'id': pl_id,
+                'video_id': v_id,
+                'url': f'https://www.youtube.com/playlist?list={pl_id}',
+                'clean_url': f'https://www.youtube.com/playlist?list={pl_id}'
+            }
+
+        # youtu.be/<id>
+        if 'youtu.be' in netloc:
+            v_id = path.strip('/').split('/')[0]
+            if v_id:
+                return {
+                    'type': 'video',
+                    'id': v_id,
+                    'url': f'https://www.youtube.com/watch?v={v_id}',
+                    'clean_url': f'https://www.youtube.com/watch?v={v_id}'
+                }
+
+        # youtube.com/shorts/<id>
+        if 'youtube.com' in netloc and '/shorts/' in path:
+            parts = path.split('/shorts/')
+            if len(parts) > 1:
+                v_id = parts[1].strip('/').split('/')[0]
+                if v_id:
+                    return {
+                        'type': 'video',
+                        'id': v_id,
+                        'url': f'https://www.youtube.com/watch?v={v_id}',
+                        'clean_url': f'https://www.youtube.com/watch?v={v_id}'
+                    }
+
+        # youtube.com/embed/<id> or /v/<id> or /live/<id>
+        for prefix in ['/embed/', '/v/', '/live/']:
+            if 'youtube.com' in netloc and prefix in path:
+                parts = path.split(prefix)
+                if len(parts) > 1:
+                    v_id = parts[1].strip('/').split('/')[0]
+                    if v_id:
+                        return {
+                            'type': 'video',
+                            'id': v_id,
+                            'url': f'https://www.youtube.com/watch?v={v_id}',
+                            'clean_url': f'https://www.youtube.com/watch?v={v_id}'
+                        }
+
+        # youtube.com/watch?v=<id> or music.youtube.com/watch?v=<id>
+        if ('youtube.com' in netloc or 'music.youtube.com' in netloc) and '/watch' in path:
             if 'v' in qs:
-                from urllib.parse import urlencode
-                return f"{p.scheme}://{p.netloc}{p.path}?{urlencode({'v': qs['v']}, doseq=True)}"
+                v_id = qs['v'][0]
+                return {
+                    'type': 'video',
+                    'id': v_id,
+                    'url': f'https://www.youtube.com/watch?v={v_id}',
+                    'clean_url': f'https://www.youtube.com/watch?v={v_id}'
+                }
     except Exception:
         pass
+
+    # If it is a generic http(s) URL that didn't match known patterns
+    if raw_input.startswith(('http://', 'https://')):
+        return {
+            'type': 'unknown_url',
+            'id': None,
+            'url': raw_input,
+            'clean_url': raw_input
+        }
+
+    # Otherwise treated as a song / artist search query
+    return {
+        'type': 'search',
+        'query': raw_input,
+        'url': f'ytsearch5:{raw_input}',
+        'clean_url': raw_input
+    }
+
+def sanitize_youtube_url(raw_url):
+    parsed = parse_youtube_target(raw_url)
+    if not parsed:
+        return None
+    return parsed.get('clean_url') or parsed.get('url')
 WHISPER_MODEL = None
 WHISPER_MODEL_NAME = None
 WHISPER_LOCK = threading.Lock()
@@ -898,8 +1025,12 @@ def get_youtube_dl_opts(extra_opts=None, client_list=None, use_cookies=True):
         'quiet': True,
         'no_warnings': True,
         'nocheckcertificate': True,
-        'socket_timeout': 15,
+        'socket_timeout': 20,
         'ffmpeg_location': FFMPEG_EXE,
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9',
+        },
     }
     if client_list:
         opts['extractor_args'] = {
@@ -919,35 +1050,59 @@ def get_youtube_dl_opts(extra_opts=None, client_list=None, use_cookies=True):
 
 def run_resilient_ytdlp_action(yt_url, base_opts=None, is_download=False):
     """
-    Executes yt-dlp with automatic multi-tier fallback:
-    1. Android+iOS+Web with cookies (if cookies.txt exists)
-    2. Pure Android client WITHOUT cookies (bypasses stale cookie expiration & datacenter web bot filters)
-    3. Android+iOS mobile clients WITHOUT cookies
-    4. Web Embedded fallback
+    Executes yt-dlp with automatic multi-tier fallback optimized for both local and datacenter cloud environments:
+    1. Pure Android Mobil API WITHOUT cookies (ultra-fast, bypasses web-bot filters & avoids stale cookies)
+    2. iOS Mobile API WITHOUT cookies
+    3. Android+iOS Mobile Hybrid WITHOUT cookies
+    4. TV Client API WITHOUT cookies
+    5. Web Embedded / mweb API WITHOUT cookies
+    6. Web Standart WITHOUT cookies
+    7. Cookies fallback (if cookies.txt exists)
     """
     cookie_file = find_valid_cookie_file()
-    strategies = []
+    strategies = [
+        {
+            'name': 'Pure Android Mobil API (Çerezsiz - Hızlı & Güvenli)',
+            'clients': ['android'],
+            'use_cookies': False
+        },
+        {
+            'name': 'iOS Mobil API (Çerezsiz)',
+            'clients': ['ios'],
+            'use_cookies': False
+        },
+        {
+            'name': 'Android+iOS Hibrit (Çerezsiz)',
+            'clients': ['android', 'ios'],
+            'use_cookies': False
+        },
+        {
+            'name': 'TV Client API (Çerezsiz)',
+            'clients': ['tv_embedded', 'tv'],
+            'use_cookies': False
+        },
+        {
+            'name': 'Web Embedded Alternatif (Çerezsiz)',
+            'clients': ['web_embedded', 'mweb'],
+            'use_cookies': False
+        },
+        {
+            'name': 'Web Standart (Çerezsiz)',
+            'clients': ['web'],
+            'use_cookies': False
+        }
+    ]
     if cookie_file:
         strategies.append({
-            'name': 'Android+iOS+Web (Cookies Aktif)',
-            'clients': ['android', 'ios', 'web'],
+            'name': 'Android API + Cookies (Gelişmiş Doğrulama)',
+            'clients': ['android'],
             'use_cookies': True
         })
-    strategies.append({
-        'name': 'Pure Android Mobil API (Çerezsiz - Bot Koruması Atlatıcı)',
-        'clients': ['android'],
-        'use_cookies': False
-    })
-    strategies.append({
-        'name': 'Android+iOS Hibrit (Çerezsiz)',
-        'clients': ['android', 'ios'],
-        'use_cookies': False
-    })
-    strategies.append({
-        'name': 'Web Embedded Alternatif',
-        'clients': ['web_embedded', 'mweb'],
-        'use_cookies': False
-    })
+        strategies.append({
+            'name': 'Web + Cookies Fallback (Özel / Yaş Kısıtlamalı)',
+            'clients': ['web'],
+            'use_cookies': True
+        })
 
     last_err = None
     for idx, strat in enumerate(strategies, 1):
@@ -976,6 +1131,16 @@ def run_resilient_ytdlp_action(yt_url, base_opts=None, is_download=False):
 
 
 class FlovaHandler(SimpleHTTPRequestHandler):
+    extensions_map = {
+        **SimpleHTTPRequestHandler.extensions_map,
+        '.js': 'application/javascript; charset=utf-8',
+        '.mjs': 'application/javascript; charset=utf-8',
+        '.css': 'text/css; charset=utf-8',
+        '.json': 'application/json; charset=utf-8',
+        '.svg': 'image/svg+xml',
+        '.wasm': 'application/wasm',
+    }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=BASE_DIR, **kwargs)
 
@@ -1008,8 +1173,20 @@ class FlovaHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
 
-        # Root welcome / status page (for Hugging Face Spaces health check & browser preview)
+        # Root route: Serve the Flova Audio Studio application (index.html)
         if parsed.path in ('/', ''):
+            index_path = os.path.join(BASE_DIR, 'index.html')
+            if os.path.exists(index_path):
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                with open(index_path, 'rb') as f:
+                    self.wfile.write(f.read())
+                return
+
+        # Diagnostics / status card for standalone backend verification
+        if parsed.path in ('/status', '/api/status-card'):
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Access-Control-Allow-Origin', '*')
@@ -1026,6 +1203,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
     .status { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 20px; background: rgba(16,185,129,0.15); color: #10b981; font-weight: 700; font-size: 14px; margin-bottom: 16px; border: 1px solid rgba(16,185,129,0.3); }
     .dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 10px #10b981; }
     p { color: #94a3b8; font-size: 14px; line-height: 1.5; margin: 0; }
+    .btn { display: inline-block; margin-top: 18px; padding: 10px 20px; background: #ff6b00; color: white; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 14px; }
   </style>
 </head>
 <body>
@@ -1033,6 +1211,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
     <div class="status"><span class="dot"></span> AI Sunucusu Aktif (Running)</div>
     <h1>🎛️ Flova Audio Studio</h1>
     <p>Demucs v4 AI (4-Stem & 6-Stem), YouTube İndirici ve Ses İşleme Servisi başarıyla çalışıyor.</p>
+    <a href="/" class="btn">🚀 Stüdyoyu Aç</a>
   </div>
 </body>
 </html>"""
@@ -1091,27 +1270,84 @@ class FlovaHandler(SimpleHTTPRequestHandler):
             self.send_json(200, results)
             return
 
+        # YouTube Search API
+        if parsed.path == '/api/youtube/search':
+            query = parse_qs(parsed.query)
+            q = query.get('q', [''])[0].strip()
+            limit = int(query.get('limit', ['8'])[0])
+            limit = max(1, min(limit, 20))
+            if not q:
+                self.send_error_json(400, "Lütfen arama terimi belirtin.")
+                return
+
+            if not yt_dlp:
+                self.send_error_json(500, "Sunucuda yt-dlp motoru hazır değil.")
+                return
+
+            t_start = time.time()
+            print(f"[YouTube Search] Arama yapılıyor: '{q}' (limit={limit})", flush=True)
+            try:
+                base_opts = {
+                    'extract_flat': True,
+                    'skip_download': True,
+                    'socket_timeout': 10,
+                }
+                search_target = f"ytsearch{limit}:{q}"
+                info = run_resilient_ytdlp_action(search_target, base_opts=base_opts, is_download=False)
+                entries = (info.get('entries', []) or []) if info else []
+                items = []
+                for e in entries:
+                    if not e:
+                        continue
+                    item_id = e.get('id', '')
+                    dur = e.get('duration') or 0
+                    try:
+                        dur = int(dur)
+                    except (ValueError, TypeError):
+                        dur = 0
+                    mins = dur // 60
+                    secs = dur % 60
+                    items.append({
+                        'id': item_id,
+                        'title': e.get('title') or 'YouTube Parça',
+                        'uploader': e.get('uploader') or e.get('channel') or 'YouTube Sanatçısı',
+                        'duration': dur,
+                        'duration_formatted': f"{mins:02d}:{secs:02d}",
+                        'thumbnail': e.get('thumbnail') or (f"https://img.youtube.com/vi/{item_id}/hqdefault.jpg" if item_id else ''),
+                        'url': f"https://www.youtube.com/watch?v={item_id}" if item_id else ''
+                    })
+                resp_data = {
+                    'success': True,
+                    'query': q,
+                    'count': len(items),
+                    'items': items,
+                    'elapsed': round(time.time() - t_start, 2)
+                }
+                print(f"[YouTube Search] Başarılı ({resp_data['elapsed']}s): {len(items)} sonuç bulundu")
+                self.send_json(200, resp_data)
+            except Exception as e:
+                print(f"[YouTube Search] Hata ({time.time() - t_start:.2f}s): {str(e)}")
+                self.send_error_json(500, f"Arama başarısız oldu: {str(e)}")
+            return
+
         # YouTube Info API
         if parsed.path == '/api/youtube/info':
             query = parse_qs(parsed.query)
             raw_url = query.get('url', [''])[0].strip()
             mode = query.get('mode', ['auto'])[0] # 'auto' | 'single' | 'playlist'
             
-            # Check if this URL represents a playlist
-            is_pl_url = ('/playlist' in raw_url) or ('list=' in raw_url and mode != 'single')
-            
-            if not is_pl_url:
-                yt_url = sanitize_youtube_url(raw_url)
-            else:
-                yt_url = raw_url
-
-            if not yt_url:
-                self.send_error_json(400, "Lütfen geçerli bir YouTube video linki belirtin.")
+            target = parse_youtube_target(raw_url)
+            if not target:
+                self.send_error_json(400, "Lütfen geçerli bir YouTube linki, video ID'si veya arama terimi belirtin.")
                 return
 
             if not yt_dlp or not FFMPEG_EXE:
                 self.send_error_json(500, "Sunucuda yt-dlp veya FFmpeg motoru hazır değil.")
                 return
+
+            # Check if this URL represents a playlist
+            is_pl_url = (target.get('type') == 'playlist' and mode != 'single') or ('/playlist' in raw_url)
+            yt_url = target.get('url', raw_url)
 
             t_start = time.time()
             print(f"[YouTube Info] Bilgi alınıyor (is_playlist={is_pl_url}): {yt_url}")
@@ -1241,13 +1477,17 @@ class FlovaHandler(SimpleHTTPRequestHandler):
         if parsed.path == '/api/youtube/download':
             query = parse_qs(parsed.query)
             raw_url = query.get('url', [''])[0].strip()
-            yt_url = sanitize_youtube_url(raw_url)
+            target = parse_youtube_target(raw_url)
+            if not target:
+                self.send_error_json(400, "YouTube video linki eksik veya geçersiz.")
+                return
+            if target.get('type') == 'search':
+                yt_url = f"ytsearch1:{target.get('query')}"
+            else:
+                yt_url = target.get('url') or target.get('clean_url')
+
             fmt = query.get('format', ['mp3'])[0].lower() # 'mp3' or 'mp4'
             quality_raw = query.get('quality', ['192'])[0].replace('p', '').split()[0]
-
-            if not yt_url:
-                self.send_error_json(400, "YouTube video linki eksik.")
-                return
 
             if not yt_dlp or not FFMPEG_EXE:
                 self.send_error_json(500, "Sunucuda yt-dlp veya FFmpeg motoru hazır değil.")
@@ -1263,7 +1503,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                 if fmt == 'mp3':
                     preferred_quality = quality_raw if quality_raw in ['320', '192', '128'] else '192'
                     base_opts = {
-                        'format': 'bestaudio/best',
+                        'format': 'bestaudio/best[height<=720]/best',
                         'outtmpl': out_tmpl,
                         'noplaylist': True,
                         'playlist_items': '1',

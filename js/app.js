@@ -9,7 +9,7 @@ import { VisualizerCanvas } from './ui/visualizer-canvas.js';
 import { MergerUI } from './ui/merger-ui.js?v=9.1';
 import { VocalSplitterUI } from './ui/vocal-splitter-ui.js?v=9.1';
 import { StemSplitterUI } from './ui/stem-splitter-ui.js?v=9.1';
-import { YouTubeUI } from './ui/youtube-ui.js?v=9.1';
+import { YouTubeUI } from './ui/youtube-ui.js?v=9.5';
 import { ExportModal } from './ui/export-modal.js';
 import { BPMKeyDetector } from './audio/bpm-key-detector.js';
 import { SmartToolsModal } from './ui/smart-tools-modal.js';
@@ -239,7 +239,19 @@ class FlovaStudioApp {
     });
 
     if (this.dropZone) {
-      this.dropZone.addEventListener('click', () => {
+      this.dropZone.addEventListener('click', (e) => {
+        if (e.target.closest('#dropZoneYoutubeBtn')) {
+          e.stopPropagation();
+          this.switchMode('youtube');
+          setTimeout(() => {
+            const inp = document.getElementById('ytUrlInput');
+            if (inp) {
+              inp.focus();
+              inp.select();
+            }
+          }, 120);
+          return;
+        }
         this.fileInput.value = '';
         this.fileInput.click();
       });

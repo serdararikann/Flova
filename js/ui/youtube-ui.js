@@ -22,6 +22,12 @@ export class YouTubeUI {
     this.downloadProgressText = '';
     this.activeAbortController = null;
 
+    // Search and Preview state
+    this.searchResults = null;
+    this.searchQuery = '';
+    this.activePreviewAudio = null;
+    this.previewingItemId = null;
+
     // Playlist specific state
     this.selectedPlaylistIndices = new Set();
     this.isBatchDownloading = false;
@@ -77,7 +83,7 @@ export class YouTubeUI {
               type="text" 
               id="ytUrlInput" 
               class="youtube-url-input" 
-              placeholder="YouTube video veya oynatma listesi linkini yapıştırın (youtube.com/watch?v=... veya playlist?list=...)"
+              placeholder="YouTube video/liste linki yapıştırın veya şarkı / sanatçı adı arayın (örn: Metallica, Rick Astley, youtu.be/...)"
               value="${this.escapeHtml(this.currentUrl)}"
               autocomplete="off"
             />
@@ -85,21 +91,27 @@ export class YouTubeUI {
               📋 Yapıştır
             </button>
             <button id="ytFetchBtn" class="btn btn-primary btn-sm yt-btn-inline" ${this.isLoading ? 'disabled' : ''}>
-              ${this.isLoading ? '⏳ Getiriliyor...' : '🔍 Bilgileri Getir'}
+              ${this.isLoading ? '⏳ Getiriliyor...' : '🔍 Ara & Getir'}
             </button>
           </div>
 
           <!-- Quick Samples / Suggestions -->
           <div class="youtube-hints">
-            <span class="hint-label">💡 Hızlı Örnekler:</span>
+            <span class="hint-label">💡 Hızlı Örnekler & Aramalar:</span>
             <button type="button" class="hint-chip" onclick="window.flovaYouTube.loadPreset('https://www.youtube.com/watch?v=jNQXAC9IVRw')">
-              🎥 Me at the zoo (Tek Video)
+              🎥 Me at the zoo (Video)
             </button>
             <button type="button" class="hint-chip" onclick="window.flovaYouTube.loadPreset('https://www.youtube.com/watch?v=dQw4w9WgXcQ')">
-              🎵 Rick Astley (Tek Video)
+              🎵 Rick Astley (Video)
             </button>
             <button type="button" class="hint-chip" style="border-color: rgba(239, 68, 68, 0.45); color: #f87171;" onclick="window.flovaYouTube.loadPreset('https://www.youtube.com/playlist?list=PLzCxunOM5WFLNCSF0UEHZqFJJlmdeL71S')">
-              📑 SoundCloud Telifsiz (Örnek Liste)
+              📑 Telifsiz Müzik (Liste)
+            </button>
+            <button type="button" class="hint-chip" style="border-color: rgba(168, 85, 247, 0.45); color: #c084fc;" onclick="window.flovaYouTube.searchVideos('queen bohemian rhapsody')">
+              🔍 Queen
+            </button>
+            <button type="button" class="hint-chip" style="border-color: rgba(56, 189, 248, 0.45); color: #38bdf8;" onclick="window.flovaYouTube.searchVideos('metallica enter sandman')">
+              🔍 Metallica
             </button>
           </div>
         </div>
@@ -116,6 +128,53 @@ export class YouTubeUI {
               <button type="button" class="btn btn-secondary btn-sm" onclick="window.flovaYouTube.cancelLoading()" title="Aramayı durdur">
                 ✕ İptal Et
               </button>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- SEARCH RESULTS GRID -->
+        ${this.searchResults && this.searchResults.length > 0 && !this.isLoading && !this.videoInfo ? `
+          <div class="youtube-search-results-section animate-fadeIn">
+            <div class="youtube-search-header">
+              <div class="youtube-search-title-text">
+                <span>🔍 Arama Sonuçları: <strong>"${this.escapeHtml(this.searchQuery)}"</strong></span>
+                <span class="youtube-search-count-badge">${this.searchResults.length} Parça Bulundu</span>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="window.flovaYouTube.clearSearchResults()">
+                ✕ Sonuçları Temizle
+              </button>
+            </div>
+
+            <div class="youtube-search-results-grid">
+              ${this.searchResults.map((item, idx) => `
+                <div class="youtube-search-card" id="ytSearchCard_${idx}">
+                  <div class="yt-card-top-row" onclick="window.flovaYouTube.selectSearchResult(${idx})" title="Detayları ve indirme seçeneklerini gör">
+                    <div class="yt-card-thumb-wrap">
+                      <img src="${this.escapeHtml(item.thumbnail)}" alt="${this.escapeHtml(item.title)}" class="yt-card-thumb-img" onerror="this.src='https://img.youtube.com/vi/${item.id}/hqdefault.jpg'" />
+                      <span class="yt-card-dur-tag">${this.escapeHtml(item.duration_formatted)}</span>
+                    </div>
+                    <div class="yt-card-meta">
+                      <div class="yt-card-title" title="${this.escapeHtml(item.title)}">${this.escapeHtml(item.title)}</div>
+                      <div class="yt-card-channel">📺 ${this.escapeHtml(item.uploader)}</div>
+                    </div>
+                  </div>
+
+                  <div class="yt-card-actions">
+                    <button type="button" class="btn-yt-card btn-yt-card-editor" onclick="window.flovaYouTube.loadSearchResultToEditor(${idx})" title="Doğrudan Dalga Formu Düzenleyicide aç">
+                      ✂️ Düzenleyicide Aç
+                    </button>
+                    <button type="button" class="btn-yt-card btn-yt-card-stem" onclick="window.flovaYouTube.loadSearchResultToStemSplitter(${idx})" title="4/6-Stem Enstrüman Ayırıcıya aktar">
+                      🎸 Stemler
+                    </button>
+                    <button type="button" class="btn-yt-card btn-yt-card-vocal" onclick="window.flovaYouTube.loadSearchResultToVocalSplitter(${idx})" title="AI Vokal / Enstrümantal Ayırıcıya aktar">
+                      🎙️ Vokal
+                    </button>
+                    <button type="button" class="btn-yt-card btn-yt-card-download" onclick="window.flovaYouTube.downloadSearchResultDirect(${idx})" title="MP3 olarak bilgisayara indir">
+                      📥 İndir (MP3)
+                    </button>
+                  </div>
+                </div>
+              `).join('')}
             </div>
           </div>
         ` : ''}
@@ -299,6 +358,17 @@ export class YouTubeUI {
                       >
                         🎙️ Vokal
                       </button>
+
+                      <!-- Send to 4/6-Stem Splitter -->
+                      <button 
+                        type="button" 
+                        class="btn btn-secondary btn-playlist-action"
+                        ${isItemDownloading || this.isBatchDownloading ? 'disabled' : ''}
+                        onclick="window.flovaYouTube.sendPlaylistItemToStemSplitter(${idx})"
+                        title="Demucs 4/6-Stem enstrüman ayırıcıya aktar"
+                      >
+                        🎸 Stem
+                      </button>
                     </div>
 
                   </div>
@@ -328,6 +398,18 @@ export class YouTubeUI {
                 <h3 class="youtube-video-title" title="${this.escapeHtml(this.videoInfo.title)}">
                   ${this.escapeHtml(this.videoInfo.title)}
                 </h3>
+
+                <!-- Audio Preview Player -->
+                <div style="margin: 4px 0; display: flex; gap: 8px; align-items: center;">
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="window.flovaYouTube.togglePreview('${this.videoInfo.id}')" title="Ses önizlemesini dinle / durdur">
+                    ${this.previewingItemId === this.videoInfo.id ? '⏹️ Önizlemeyi Durdur' : '▶️ Ses Önizle'}
+                  </button>
+                  ${this.previewingItemId === this.videoInfo.id ? `
+                    <span style="font-size: 0.76rem; color: var(--accent-cyan); display: flex; align-items: center; gap: 6px;">
+                      <span class="spinner-sm"></span> Önizleme çalınıyor...
+                    </span>
+                  ` : ''}
+                </div>
 
                 <!-- Format Selection Tabs: MP3 (Audio) vs MP4 (Video) -->
                 <div class="youtube-format-switch-bar">
@@ -377,24 +459,29 @@ export class YouTubeUI {
 
               <!-- Right: Stacked Action Buttons -->
               <div class="youtube-actions-col">
-                <!-- 1. Direct Download to PC -->
-                <button id="ytDownloadBtn" class="btn btn-emerald yt-col-btn yt-col-btn-primary" ${this.isDownloading ? 'disabled' : ''} onclick="window.flovaYouTube.downloadDirect()" title="Dosyayı doğrudan bilgisayara kaydet">
-                  ${this.isDownloading ? `<span class="spinner-sm" style="margin-right: 6px;"></span> İndiriliyor...` : `📥 Bilgisayara İndir (.${this.selectedFormat})`}
-                </button>
-
-                <!-- 2. Open in Studio Waveform Editor -->
-                <button class="btn btn-primary yt-col-btn" ${this.isDownloading ? 'disabled' : ''} onclick="window.flovaYouTube.loadToEditor()" title="Doğrudan Flova Kesici/Düzenleyici dalga formunda açar">
+                <!-- 1. Open in Studio Waveform Editor -->
+                <button class="btn btn-primary yt-col-btn yt-col-btn-primary" ${this.isDownloading ? 'disabled' : ''} onclick="window.flovaYouTube.loadToEditor()" title="Doğrudan Flova Kesici/Düzenleyici dalga formunda açar">
                   ✂️ Düzenleyicide Aç
                 </button>
 
-                <!-- 3. Add to Merger Track -->
+                <!-- 2. Send to 4-Stem & 6-Stem AI Splitter -->
+                <button class="btn btn-secondary yt-col-btn" ${this.isDownloading ? 'disabled' : ''} onclick="window.flovaYouTube.sendToStemSplitter()" title="Demucs v4 ile Davul, Bas, Gitar, Piyano, Vokal ayrıştırır">
+                  🎸 Stem Ayrıştır (4/6-Stem)
+                </button>
+
+                <!-- 3. Send to AI Vocal Splitter -->
+                <button class="btn btn-secondary yt-col-btn" ${this.isDownloading ? 'disabled' : ''} onclick="window.flovaYouTube.sendToVocalSplitter()" title="Şarkıyı AI Vokal / Enstrümantal ayırıcıya aktarır">
+                  🎙️ Vokalleri Ayır
+                </button>
+
+                <!-- 4. Add to Merger Track -->
                 <button class="btn btn-secondary yt-col-btn" ${this.isDownloading ? 'disabled' : ''} onclick="window.flovaYouTube.addToMerger()" title="Şarkı Birleştirici parçalarına yeni kanal olarak ekler">
                   🔗 Birleştiriciye Ekle
                 </button>
 
-                <!-- 4. Send to AI Vocal Splitter -->
-                <button class="btn btn-secondary yt-col-btn" ${this.isDownloading ? 'disabled' : ''} onclick="window.flovaYouTube.sendToVocalSplitter()" title="Şarkıyı AI Vokal / Enstrümantal ayırıcıya aktarır">
-                  🎙️ Vokalleri Ayır
+                <!-- 5. Direct Download to PC -->
+                <button id="ytDownloadBtn" class="btn btn-emerald yt-col-btn" ${this.isDownloading ? 'disabled' : ''} onclick="window.flovaYouTube.downloadDirect()" title="Dosyayı doğrudan bilgisayara kaydet">
+                  ${this.isDownloading ? `<span class="spinner-sm" style="margin-right: 6px;"></span> İndiriliyor...` : `📥 Bilgisayara İndir (.${this.selectedFormat})`}
                 </button>
               </div>
             </div>
@@ -512,11 +599,18 @@ export class YouTubeUI {
   async fetchVideoInfo(url) {
     url = (url || '').trim();
     if (!url) {
-      if (window.flovaApp) window.flovaApp.showToast('Lütfen geçerli bir YouTube video veya çalma listesi linki girin.', 'error');
+      if (window.flovaApp) window.flovaApp.showToast('Lütfen geçerli bir YouTube linki veya arama terimi girin.', 'error');
       return;
     }
 
+    // If input is not a URL or 11-char ID, route to direct YouTube search
+    const isUrlOrId = url.includes('http://') || url.includes('https://') || url.includes('youtu.be') || url.includes('youtube.com') || /^[a-zA-Z0-9_-]{11}$/.test(url);
+    if (!isUrlOrId) {
+      return this.searchVideos(url);
+    }
+
     this.currentUrl = url;
+    this.searchResults = null;
     this.isLoading = true;
     this.loadingStage = 'Python backend motoruna bağlanılıyor...';
     this.render();
@@ -908,6 +1002,214 @@ export class YouTubeUI {
     }
   }
 
+  async sendToStemSplitter() {
+    if (!this.videoInfo) return;
+    const audioBuffer = await this.fetchAudioBuffer();
+    if (!audioBuffer) return;
+
+    if (window.flovaStemSplitter) {
+      window.flovaStemSplitter.loadBuffer(audioBuffer, `${this.videoInfo.title}.mp3`);
+      if (window.flovaApp) {
+        window.flovaApp.switchMode('stem-splitter');
+        window.flovaApp.showToast(`"${this.videoInfo.title}" 4-Stem & 6-Stem enstrüman ayrıştırıcıya aktarıldı!`, 'success');
+      }
+    }
+  }
+
+  async sendPlaylistItemToStemSplitter(idx) {
+    if (!this.videoInfo || !this.videoInfo.items || !this.videoInfo.items[idx]) return;
+    const item = this.videoInfo.items[idx];
+    const audioBuffer = await this.fetchItemAudioBuffer(item);
+    if (!audioBuffer) return;
+
+    if (window.flovaStemSplitter) {
+      window.flovaStemSplitter.loadBuffer(audioBuffer, `${item.title}.mp3`);
+      if (window.flovaApp) {
+        window.flovaApp.switchMode('stem-splitter');
+        window.flovaApp.showToast(`"${item.title}" 4-Stem & 6-Stem ayrıştırıcıya aktarıldı!`, 'success');
+      }
+    }
+  }
+
+  clearSearchResults() {
+    this.searchResults = null;
+    this.searchQuery = '';
+    this.render();
+  }
+
+  async searchVideos(query) {
+    query = (query || '').trim();
+    if (!query) return;
+
+    this.searchQuery = query;
+    this.isLoading = true;
+    this.loadingStage = `"${query}" YouTube'da aranıyor...`;
+    this.videoInfo = null;
+    this.render();
+
+    this.activeAbortController = new AbortController();
+    const timeoutId = setTimeout(() => {
+      if (this.activeAbortController) {
+        this.activeAbortController.abort('Zaman aşımı');
+      }
+    }, 25000);
+
+    try {
+      const endpoint = `${this.getApiBase()}/api/youtube/search?q=${encodeURIComponent(query)}&limit=9`;
+      const resp = await fetch(endpoint, { signal: this.activeAbortController.signal });
+      clearTimeout(timeoutId);
+      this.activeAbortController = null;
+
+      const data = await resp.json();
+      if (!resp.ok || !data.success) {
+        throw new Error(data.error || 'Arama yapılamadı.');
+      }
+
+      this.searchResults = data.items || [];
+      this.isLoading = false;
+      this.loadingStage = '';
+      this.render();
+
+      if (window.flovaApp) {
+        window.flovaApp.showToast(`"${query}" için ${this.searchResults.length} sonuç bulundu!`, 'success');
+      }
+    } catch (err) {
+      clearTimeout(timeoutId);
+      this.activeAbortController = null;
+      this.isLoading = false;
+      this.loadingStage = '';
+      this.render();
+      if (window.flovaApp) {
+        window.flovaApp.showToast(err.message || 'Arama başarısız oldu.', 'error');
+      }
+    }
+  }
+
+  selectSearchResult(idx) {
+    if (!this.searchResults || !this.searchResults[idx]) return;
+    const item = this.searchResults[idx];
+    const url = item.url || `https://www.youtube.com/watch?v=${item.id}`;
+    this.searchResults = null;
+    this.currentUrl = url;
+    const urlInput = this.container.querySelector('#ytUrlInput');
+    if (urlInput) urlInput.value = url;
+    this.fetchVideoInfo(url);
+  }
+
+  async loadSearchResultToEditor(idx) {
+    if (!this.searchResults || !this.searchResults[idx]) return;
+    const item = this.searchResults[idx];
+    const audioBuffer = await this.fetchItemAudioBuffer(item);
+    if (!audioBuffer) return;
+
+    this.engine.currentFileName = `${item.title}.mp3`;
+    this.engine.setBuffer(audioBuffer, true);
+
+    if (window.flovaApp) {
+      window.flovaApp.switchMode('editor');
+      window.flovaApp.showToast(`"${item.title}" stüdyo düzenleyicide açıldı!`, 'success');
+    }
+  }
+
+  async loadSearchResultToStemSplitter(idx) {
+    if (!this.searchResults || !this.searchResults[idx]) return;
+    const item = this.searchResults[idx];
+    const audioBuffer = await this.fetchItemAudioBuffer(item);
+    if (!audioBuffer) return;
+
+    if (window.flovaStemSplitter) {
+      window.flovaStemSplitter.loadBuffer(audioBuffer, `${item.title}.mp3`);
+      if (window.flovaApp) {
+        window.flovaApp.switchMode('stem-splitter');
+        window.flovaApp.showToast(`"${item.title}" 4-Stem & 6-Stem ayrıştırıcıya aktarıldı!`, 'success');
+      }
+    }
+  }
+
+  async loadSearchResultToVocalSplitter(idx) {
+    if (!this.searchResults || !this.searchResults[idx]) return;
+    const item = this.searchResults[idx];
+    const audioBuffer = await this.fetchItemAudioBuffer(item);
+    if (!audioBuffer) return;
+
+    if (window.flovaSplitter) {
+      window.flovaSplitter.loadBuffer(audioBuffer, `${item.title}.mp3`);
+      if (window.flovaApp) {
+        window.flovaApp.switchMode('vocal-splitter');
+        window.flovaApp.showToast(`"${item.title}" vokal ayırıcıya aktarıldı!`, 'success');
+      }
+    }
+  }
+
+  async downloadSearchResultDirect(idx) {
+    if (!this.searchResults || !this.searchResults[idx]) return;
+    const item = this.searchResults[idx];
+    this.activeDownloadingItemId = item.id;
+    this.render();
+
+    try {
+      const itemUrl = item.url || `https://www.youtube.com/watch?v=${item.id}`;
+      const downloadUrl = `${this.getApiBase()}/api/youtube/download?url=${encodeURIComponent(itemUrl)}&format=mp3&quality=320`;
+      const resp = await fetch(downloadUrl);
+      if (!resp.ok) {
+        throw new Error(`İndirme başarısız (${resp.status})`);
+      }
+      const blob = await resp.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      const safeTitle = (item.title || 'flova_track').replace(/[\\/:*?"<>|]/g, '_');
+      a.download = `${safeTitle}.mp3`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(a.href), 15000);
+
+      this.activeDownloadingItemId = null;
+      this.render();
+      if (window.flovaApp) window.flovaApp.showToast(`"${item.title}" başarıyla indirildi!`, 'success');
+    } catch (err) {
+      this.activeDownloadingItemId = null;
+      this.render();
+      if (window.flovaApp) window.flovaApp.showToast(`İndirme hatası: ${err.message || err}`, 'error');
+    }
+  }
+
+  togglePreview(id, customUrl = null) {
+    if (this.previewingItemId === id) {
+      this.stopPreview();
+      return;
+    }
+    this.stopPreview();
+
+    const targetUrl = customUrl || (this.videoInfo && this.videoInfo.id === id ? (this.videoInfo.url || `https://www.youtube.com/watch?v=${id}`) : `https://www.youtube.com/watch?v=${id}`);
+    const audioUrl = `${this.getApiBase()}/api/youtube/download?url=${encodeURIComponent(targetUrl)}&format=mp3&quality=128`;
+
+    this.activePreviewAudio = new Audio(audioUrl);
+    this.previewingItemId = id;
+    this.render();
+
+    this.activePreviewAudio.play().catch(err => {
+      console.warn('Preview playback error:', err);
+      this.stopPreview();
+    });
+
+    this.activePreviewAudio.onended = () => {
+      this.stopPreview();
+    };
+  }
+
+  stopPreview() {
+    if (this.activePreviewAudio) {
+      try {
+        this.activePreviewAudio.pause();
+        this.activePreviewAudio.src = '';
+      } catch (e) {}
+      this.activePreviewAudio = null;
+    }
+    this.previewingItemId = null;
+    this.render();
+  }
+
   async fetchItemAudioBuffer(item) {
     this.activeDownloadingItemId = item.id;
     this.render();
@@ -942,23 +1244,32 @@ export class YouTubeUI {
     }
   }
 
-  async fetchAudioBuffer() {
-    const urlInput = this.container.querySelector('#ytUrlInput');
-    const ytUrl = urlInput ? urlInput.value.trim() : (this.currentUrl || '');
-    if (!ytUrl) return null;
+  async fetchAudioBuffer(customUrl = null) {
+    let targetUrl = customUrl;
+    if (!targetUrl) {
+      if (this.videoInfo) {
+        targetUrl = this.videoInfo.url || (this.videoInfo.id ? `https://www.youtube.com/watch?v=${this.videoInfo.id}` : null);
+      }
+      if (!targetUrl) {
+        const urlInput = this.container.querySelector('#ytUrlInput');
+        targetUrl = urlInput ? urlInput.value.trim() : (this.currentUrl || '');
+      }
+    }
+    if (!targetUrl) return null;
 
     this.isDownloading = true;
-    this.downloadProgressText = 'Ses indiriliyor ve stüdyo için işleniyor...';
+    this.downloadProgressText = 'Ses YouTube sunucularından indiriliyor ve stüdyo için işleniyor...';
     this.render();
 
     try {
-      const downloadUrl = `${this.getApiBase()}/api/youtube/download?url=${encodeURIComponent(ytUrl)}&format=mp3&quality=320`;
+      const downloadUrl = `${this.getApiBase()}/api/youtube/download?url=${encodeURIComponent(targetUrl)}&format=mp3&quality=320`;
       const resp = await fetch(downloadUrl);
       if (!resp.ok) {
-        throw new Error(`İndirme başarısız (${resp.status})`);
+        const errData = await resp.json().catch(() => null);
+        throw new Error((errData && errData.error) || `İndirme başarısız (${resp.status})`);
       }
 
-      this.downloadProgressText = 'Ses verisi çözülüyor (Decoding)...';
+      this.downloadProgressText = 'Ses verisi stüdyo dalga formuna çözülüyor (Decoding)...';
       this.render();
 
       const arrayBuffer = await resp.arrayBuffer();
