@@ -64,19 +64,14 @@ export class YouTubeUI {
         <!-- Module Header -->
         <div class="youtube-header-bar">
           <div>
-            <h2 class="youtube-title">🎥 YouTube MP3 & MP4 İndirici & Liste Yöneticisi</h2>
+            <h2 class="youtube-title">🎥 YouTube Müzik & Ses Yöneticisi</h2>
             <p class="youtube-subtitle">
-              YouTube videolarını ve çalma listelerini yüksek kalitede MP3/MP4 olarak indirin, toplu ZIP paketleyin veya doğrudan stüdyo kanallarına aktarın.
+              YouTube parçalarını stüdyo düzenleyicisine aktarın, vokallerini ayrıştırın veya MP3 olarak indirin.
             </p>
           </div>
-          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-            <button type="button" class="btn btn-secondary btn-sm yt-cookie-btn" onclick="window.flovaYouTube.openCookieModal()" title="YouTube Bot Koruması ve Bulut Çerez (cookies.txt) Yönetimi" style="padding: 5px 12px; font-size: 0.78rem; border-radius: 20px; border: 1px solid ${hasCookies ? 'rgba(16,185,129,0.45)' : 'rgba(245,158,11,0.45)'}; background: ${hasCookies ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)'}; color: ${hasCookies ? '#10b981' : '#f59e0b'};">
-              🍪 ${hasCookies ? 'Çerez Aktif' : 'Bulut Çerezi (Gerekli)'}
-            </button>
-            <div class="youtube-backend-badge" title="Arka planda çalışan yt-dlp & FFmpeg motoru">
-              <span class="status-indicator-dot online"></span>
-              <span>Motor: <strong>Python yt-dlp + FFmpeg</strong></span>
-            </div>
+          <div class="youtube-backend-badge" title="Arka planda çalışan yüksek hızlı ses işleme motoru">
+            <span class="status-indicator-dot online"></span>
+            <span>Motor: <strong>Python AI Studio + FFmpeg</strong></span>
           </div>
         </div>
 
@@ -687,12 +682,11 @@ export class YouTubeUI {
 
       let msg = err.message || String(err);
       if (err.name === 'AbortError' || msg.includes('Zaman aşımı')) {
-        msg = 'Bağlantı zaman aşımına uğradı (25s). YouTube sunucusu geç yanıt veriyor, lütfen tekrar deneyin.';
+        msg = 'Bağlantı zaman aşımına uğradı. YouTube sunucusu geç yanıt veriyor, lütfen tekrar deneyin.';
       } else if (msg.includes('not a bot') || msg.includes('Sign in') || msg.includes('cookies')) {
-        msg = 'YouTube bulut bot engeli: Hugging Face sunucusunda cookies.txt gerekli. Çerez penceresi açıldı; lütfen cookies.txt dosyanızı yükleyin veya start-cloud-tunnel.bat kullanın.';
-        setTimeout(() => this.openCookieModal(), 400);
+        msg = 'Bu şarkı YouTube tarafından kısıtlanmış. Lütfen başka bir şarkı deneyin veya ses dosyasını doğrudan stüdyoya sürükleyin.';
       } else if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
-        msg = 'Flova Python backend sunucusuna erişilemedi. Lütfen sunucunun çalıştığından emin olun.';
+        msg = 'Flova ses işleme sunucusuna ulaşılamadı. Lütfen internet bağlantınızı kontrol edin.';
       }
 
       if (window.flovaApp) {
@@ -1297,8 +1291,7 @@ export class YouTubeUI {
       this.render();
       let errText = err.message || String(err);
       if (errText.includes('not a bot') || errText.includes('Sign in') || errText.includes('cookies')) {
-        errText = 'YouTube bulut bot engeli: Hugging Face sunucusuna cookies.txt yükleyin veya start-cloud-tunnel.bat kullanın.';
-        setTimeout(() => this.openCookieModal(), 400);
+        errText = 'Bu parça YouTube erişim kısıtlamasına sahip. Lütfen başka bir şarkı deneyin veya ses dosyasını sürükleyin.';
       }
       if (window.flovaApp) {
         window.flovaApp.showToast(`Stüdyoya aktarma hatası: ${errText}`, 'error');
