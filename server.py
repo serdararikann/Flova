@@ -4,8 +4,12 @@ import json
 import time
 import uuid
 import threading
+import subprocess
+import shutil
 import re
-from urllib.parse import urlparse, parse_qs
+import urllib.request
+import urllib.parse
+from urllib.parse import urlparse, parse_qs, quote
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 import io
 import mimetypes
@@ -1057,8 +1061,6 @@ def fetch_oembed_info(yt_url):
     Never blocked by datacenter IPs, requires no cookies, returns instant title, author & thumbnail.
     """
     try:
-        import urllib.request
-        from urllib.parse import quote
         endpoint = f"https://www.youtube.com/oembed?url={quote(yt_url, safe=':/?=&')}&format=json"
         req = urllib.request.Request(endpoint, headers={
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
@@ -1091,7 +1093,6 @@ def download_stream_and_convert(stream_url, target_path, media_format='mp3', qua
         
     temp_raw = f"{target_path}.raw"
     try:
-        import urllib.request
         req_headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
             'Accept': '*/*',
@@ -1181,6 +1182,31 @@ def download_stream_and_convert(stream_url, target_path, media_format='mp3', qua
 
 POT_PROCESS = None
 POT_LOCK = threading.Lock()
+POT_STATUS = {
+    'started': False,
+    'last_check': 0,
+    'last_error': None,
+    'pot_bin': None,
+    'bin_exists': False,
+    'bin_size': 0
+}
+
+def get_js_runtime_config():
+    import shutil
+    node_exe = shutil.which('node') or shutil.which('nodejs')
+    deno_exe = shutil.which('deno')
+    runtimes = {}
+    if node_exe:
+        runtimes['node'] = {'path': node_exe}
+    else:
+        runtimes['node'] = {}
+    if deno_exe:
+        runtimes['deno'] = {'path': deno_exe}
+    else:
+        runtimes['deno'] = {}
+    runtimes['quickjs'] = {}
+    runtimes['bun'] = {}
+    return runtimes
 
 def ensure_pot_server():
     """
@@ -1188,24 +1214,28 @@ def ensure_pot_server():
     Generates authentic BotGuard tokens locally on cloud datacenter IPs (AWS / Hugging Face Spaces)
     so YouTube never blocks audio/video stream extraction.
     """
-    global POT_PROCESS
-    # Quick probe if already running
+    global POT_PROCESS, POT_STATUS
+    now = time.time()
     for target in ('http://127.0.0.1:4416/ping', 'http://localhost:4416/ping'):
         try:
             req = urllib.request.Request(target, headers={'User-Agent': 'Flova/1.0'})
             with urllib.request.urlopen(req, timeout=1.0) as resp:
                 if resp.status == 200:
+                    POT_STATUS['started'] = True
+                    POT_STATUS['last_check'] = now
+                    POT_STATUS['last_error'] = None
                     return True
         except Exception:
             pass
 
     with POT_LOCK:
-        # Re-check after acquiring lock
         for target in ('http://127.0.0.1:4416/ping', 'http://localhost:4416/ping'):
             try:
                 req = urllib.request.Request(target, headers={'User-Agent': 'Flova/1.0'})
                 with urllib.request.urlopen(req, timeout=1.0) as resp:
                     if resp.status == 200:
+                        POT_STATUS['started'] = True
+                        POT_STATUS['last_check'] = now
                         return True
             except Exception:
                 pass
@@ -1215,6 +1245,7 @@ def ensure_pot_server():
         pot_dir = os.path.join(BASE_DIR, 'bin')
         os.makedirs(pot_dir, exist_ok=True)
         pot_bin = os.path.join(pot_dir, bin_name)
+        POT_STATUS['pot_bin'] = pot_bin
 
         if not os.path.exists(pot_bin) or os.path.getsize(pot_bin) < 1000000:
             print(f"[POT Engine] BotGuard PO Token motoru indiriliyor ({bin_name})...", flush=True)
@@ -1224,14 +1255,21 @@ def ensure_pot_server():
                 url = 'https://github.com/jim60105/bgutil-ytdlp-pot-provider-rs/releases/latest/download/bgutil-pot-linux-x86_64'
 
             try:
-                import urllib.request
-                urllib.request.urlretrieve(url, pot_bin)
+                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+                req = urllib.request.Request(url, headers=headers)
+                with urllib.request.urlopen(req, timeout=60) as response, open(pot_bin, 'wb') as out_file:
+                    out_file.write(response.read())
                 if not is_windows:
                     os.chmod(pot_bin, 0o755)
                 print(f"[POT Engine] İndirme tamamlandı: {pot_bin} ({os.path.getsize(pot_bin)} bayt)", flush=True)
             except Exception as e:
-                print(f"[POT Engine] İndirme uyarısı: {e}", flush=True)
+                err = f"İndirme hatası: {e}"
+                print(f"[POT Engine] {err}", flush=True)
+                POT_STATUS['last_error'] = err
                 return False
+
+        POT_STATUS['bin_exists'] = os.path.exists(pot_bin)
+        POT_STATUS['bin_size'] = os.path.getsize(pot_bin) if os.path.exists(pot_bin) else 0
 
         if not is_windows and os.path.exists(pot_bin):
             try:
@@ -1244,10 +1282,19 @@ def ensure_pot_server():
             cmd = [pot_bin, 'server', '--host', '127.0.0.1', '--port', '4416']
             POT_PROCESS = subprocess.Popen(
                 cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
             )
-            for _ in range(25):
+            time.sleep(0.5)
+            if POT_PROCESS.poll() is not None:
+                stdout, stderr = POT_PROCESS.communicate(timeout=1)
+                err = f"Süreç hemen çöktü (kod={POT_PROCESS.returncode}): stdout={stdout.strip()} stderr={stderr.strip()}"
+                print(f"[POT Engine] {err}", flush=True)
+                POT_STATUS['last_error'] = err
+                return False
+
+            for _ in range(30):
                 time.sleep(0.2)
                 for target in ('http://127.0.0.1:4416/ping', 'http://localhost:4416/ping'):
                     try:
@@ -1255,13 +1302,18 @@ def ensure_pot_server():
                         with urllib.request.urlopen(req, timeout=1.0) as resp:
                             if resp.status == 200:
                                 print(f"[POT Engine] 🟢 BotGuard PO Token motoru aktif ve hazır (Port 4416)!", flush=True)
+                                POT_STATUS['started'] = True
+                                POT_STATUS['last_error'] = None
                                 return True
                     except Exception:
                         pass
         except Exception as e:
-            print(f"[POT Engine] Servis başlatma uyarısı: {e}", flush=True)
+            err = f"Servis başlatma hatası: {e}"
+            print(f"[POT Engine] {err}", flush=True)
+            POT_STATUS['last_error'] = err
             return False
 
+        POT_STATUS['last_error'] = "Zaman aşımı: Port 4416 /ping yanıt vermedi"
         return False
 
 
@@ -1277,6 +1329,7 @@ def get_youtube_dl_opts(extra_opts=None, client_list=None, use_cookies=True):
         'nocheckcertificate': True,
         'socket_timeout': 20,
         'ffmpeg_location': FFMPEG_EXE,
+        'js_runtimes': get_js_runtime_config(),
         'check_formats': False,
         'ignore_no_formats_error': True,
         'format': 'bestaudio/ba/best[height<=720]/best/b',
@@ -1519,6 +1572,77 @@ class FlovaHandler(SimpleHTTPRequestHandler):
         # Health Check API
         if parsed.path == '/api/health':
             self.send_json(200, {'status': 'ok', 'service': 'flova-backend', 'time': time.time()})
+            return
+
+        # POT and Engine Diagnostics API
+        if parsed.path == '/api/debug/pot':
+            import shutil
+            import platform
+            node_path = shutil.which('node') or shutil.which('nodejs')
+            deno_path = shutil.which('deno')
+            
+            pot_ping = False
+            pot_ping_text = ''
+            for target in ('http://127.0.0.1:4416/ping', 'http://localhost:4416/ping'):
+                try:
+                    req = urllib.request.Request(target, headers={'User-Agent': 'Flova/1.0'})
+                    with urllib.request.urlopen(req, timeout=1.0) as resp:
+                        if resp.status == 200:
+                            pot_ping = True
+                            pot_ping_text = resp.read().decode('utf-8', errors='ignore')
+                            break
+                except Exception as pe:
+                    pot_ping_text = str(pe)
+
+            cli_test_out = ''
+            cli_test_err = ''
+            pot_bin = POT_STATUS.get('pot_bin')
+            if pot_bin and os.path.exists(pot_bin):
+                try:
+                    res = subprocess.run([pot_bin, '--version'], capture_output=True, text=True, timeout=4)
+                    cli_test_out = res.stdout.strip()
+                    cli_test_err = res.stderr.strip()
+                except Exception as ce:
+                    cli_test_err = str(ce)
+
+            # Test actual format extraction with visionos + js_runtimes
+            extract_formats = []
+            extract_err = ''
+            try:
+                test_opts = get_youtube_dl_opts(
+                    extra_opts={'skip_download': True},
+                    client_list=['visionos'],
+                    use_cookies=False
+                )
+                with yt_dlp.YoutubeDL(test_opts) as ydl:
+                    inf = ydl.extract_info('https://www.youtube.com/watch?v=zrS2wKWVWzI', download=False)
+                    for f in inf.get('formats', []):
+                        if f.get('acodec') != 'none' and f.get('url'):
+                            extract_formats.append({
+                                'id': f.get('format_id'),
+                                'ext': f.get('ext'),
+                                'acodec': f.get('acodec'),
+                                'abr': f.get('abr')
+                            })
+            except Exception as ee:
+                extract_err = str(ee)
+
+            self.send_json(200, {
+                'platform': platform.platform(),
+                'python': sys.version,
+                'cwd': os.getcwd(),
+                'node_path': node_path,
+                'deno_path': deno_path,
+                'ffmpeg_path': FFMPEG_EXE,
+                'pot_status': POT_STATUS,
+                'cli_test_out': cli_test_out,
+                'cli_test_err': cli_test_err,
+                'pot_ping_ok': pot_ping,
+                'pot_ping_response': pot_ping_text,
+                'formats_found': len(extract_formats),
+                'formats': extract_formats,
+                'extract_error': extract_err
+            })
             return
 
         # YouTube Diagnostic API
@@ -2054,7 +2178,6 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                 import unicodedata
                 ascii_title = unicodedata.normalize('NFKD', video_title).encode('ascii', 'ignore').decode('ascii')
                 ascii_title = "".join(c for c in ascii_title if c.isalnum() or c in " ._-()").strip() or "flova_media"
-                import urllib.parse
                 safe_encoded_name = urllib.parse.quote(video_title)
 
                 print(f"[YouTube Download] Tamamlandı ({time.time() - t_start:.2f}s): {filepath} ({file_size / 1024 / 1024:.2f} MB)")
