@@ -1344,7 +1344,24 @@ def ensure_pot_server():
         return False
 
 
-def get_youtube_dl_opts(extra_opts=None, client_list=None, use_cookies=True):
+def get_configured_proxies():
+    raw = (
+        os.environ.get('YOUTUBE_PROXY') or 
+        os.environ.get('PROXY_URL') or 
+        os.environ.get('HTTPS_PROXY') or 
+        os.environ.get('HTTP_PROXY') or ''
+    )
+    proxies = []
+    for item in raw.replace('\n', ',').split(','):
+        p = item.strip()
+        if p:
+            if not p.startswith('http://') and not p.startswith('https://') and not p.startswith('socks5://'):
+                p = 'http://' + p
+            proxies.append(p)
+    return proxies
+
+
+def get_youtube_dl_opts(extra_opts=None, client_list=None, use_cookies=True, proxy_override=None):
     try:
         ensure_pot_server()
     except Exception:
@@ -1386,14 +1403,12 @@ def get_youtube_dl_opts(extra_opts=None, client_list=None, use_cookies=True):
     if cookie_file:
         opts['cookiefile'] = cookie_file
 
-    proxy = (
-        os.environ.get('YOUTUBE_PROXY') or 
-        os.environ.get('PROXY_URL') or 
-        os.environ.get('HTTPS_PROXY') or 
-        os.environ.get('HTTP_PROXY')
-    )
-    if proxy and proxy.strip():
-        opts['proxy'] = proxy.strip()
+    if proxy_override:
+        opts['proxy'] = proxy_override
+    else:
+        proxies = get_configured_proxies()
+        if proxies:
+            opts['proxy'] = proxies[0]
 
     if extra_opts:
         extra_copy = dict(extra_opts)
@@ -1486,52 +1501,56 @@ def run_resilient_ytdlp_action(yt_url, base_opts=None, is_download=False):
             'use_cookies': True
         })
 
+    proxies_to_try = get_configured_proxies() or [None]
     last_err = None
-    for idx, strat in enumerate(strategies, 1):
-        try:
-            ydl_opts = get_youtube_dl_opts(
-                extra_opts=base_opts,
-                client_list=strat['clients'],
-                use_cookies=strat['use_cookies']
-            )
-            # Ensure format check is never blocking valid extraction
-            ydl_opts['check_formats'] = False
-            ydl_opts['ignore_no_formats_error'] = True
-            if 'format' not in ydl_opts:
-                ydl_opts['format'] = '18/bestaudio/ba/140/251/best[height<=720]/best/b'
+    for p_idx, proxy_item in enumerate(proxies_to_try, 1):
+        for idx, strat in enumerate(strategies, 1):
+            try:
+                ydl_opts = get_youtube_dl_opts(
+                    extra_opts=base_opts,
+                    client_list=strat['clients'],
+                    use_cookies=strat['use_cookies'],
+                    proxy_override=proxy_item
+                )
+                # Ensure format check is never blocking valid extraction
+                ydl_opts['check_formats'] = False
+                ydl_opts['ignore_no_formats_error'] = True
+                if 'format' not in ydl_opts:
+                    ydl_opts['format'] = '18/bestaudio/ba/140/251/best[height<=720]/best/b'
 
-            print(f"[YouTube Engine] Strateji {idx}/{len(strategies)} deneniyor: {strat['name']} -> {yt_url}", flush=True)
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(yt_url, download=is_download)
-                if info:
-                    formats = info.get('formats', []) or []
-                    has_media = any(
-                        (f.get('vcodec') != 'none' or f.get('acodec') != 'none') and
-                        bool(f.get('url')) and
-                        not str(f.get('format_id', '')).startswith('sb')
-                        for f in formats
-                    )
-                    if formats and not has_media:
-                        print(f"[YouTube Engine] Strateji {idx} yalnızca görsel/storyboard döndürdü ({strat['name']}), sonraki strateji deneniyor...", flush=True)
-                        continue
+                p_info = f" [Proxy {p_idx}/{len(proxies_to_try)}]" if proxy_item else ""
+                print(f"[YouTube Engine] Strateji {idx}/{len(strategies)}{p_info} deneniyor: {strat['name']} -> {yt_url}", flush=True)
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(yt_url, download=is_download)
+                    if info:
+                        formats = info.get('formats', []) or []
+                        has_media = any(
+                            (f.get('vcodec') != 'none' or f.get('acodec') != 'none') and
+                            bool(f.get('url')) and
+                            not str(f.get('format_id', '')).startswith('sb')
+                            for f in formats
+                        )
+                        if formats and not has_media:
+                            print(f"[YouTube Engine] Strateji {idx} yalnızca görsel/storyboard döndürdü ({strat['name']}), sonraki strateji deneniyor...", flush=True)
+                            continue
 
-                    if is_download:
-                        outtmpl_pattern = base_opts.get('outtmpl') if base_opts else None
-                        if outtmpl_pattern and isinstance(outtmpl_pattern, str):
-                            prefix = os.path.basename(outtmpl_pattern).split('.%')[0]
-                            matched = [f for f in os.listdir(YT_TEMP_DIR) if f.startswith(prefix) and os.path.getsize(os.path.join(YT_TEMP_DIR, f)) > 1024]
-                            if not matched:
-                                print(f"[YouTube Engine] Strateji {idx} ({strat['name']}) indirme dosyası üretemedi, sonraki strateji deneniyor...", flush=True)
-                                continue
+                        if is_download:
+                            outtmpl_pattern = base_opts.get('outtmpl') if base_opts else None
+                            if outtmpl_pattern and isinstance(outtmpl_pattern, str):
+                                prefix = os.path.basename(outtmpl_pattern).split('.%')[0]
+                                matched = [f for f in os.listdir(YT_TEMP_DIR) if f.startswith(prefix) and os.path.getsize(os.path.join(YT_TEMP_DIR, f)) > 1024]
+                                if not matched:
+                                    print(f"[YouTube Engine] Strateji {idx} ({strat['name']}) indirme dosyası üretemedi, sonraki strateji deneniyor...", flush=True)
+                                    continue
 
-                    print(f"[YouTube Engine] BAŞARILI! ({strat['name']})", flush=True)
-                    return info
-        except Exception as e:
-            err_msg = str(e)
-            print(f"[YouTube Engine] Strateji {idx} başarısız ({strat['name']}): {err_msg[:120]}", flush=True)
-            last_err = e
-            if "Video unavailable" in err_msg or "Private video" in err_msg:
-                break
+                        print(f"[YouTube Engine] BAŞARILI! ({strat['name']})", flush=True)
+                        return info
+            except Exception as e:
+                err_msg = str(e)
+                print(f"[YouTube Engine] Strateji {idx} başarısız ({strat['name']}): {err_msg[:120]}", flush=True)
+                last_err = e
+                if "Video unavailable" in err_msg or "Private video" in err_msg:
+                    break
 
     if last_err:
         raise last_err
