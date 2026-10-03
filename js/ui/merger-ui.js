@@ -1394,9 +1394,7 @@ export class MergerUI {
                       oninput="window.flovaMerger.setCrossfade(this.value)" />
                     <span style="font-family: var(--font-mono); color: var(--accent-cyan); font-weight: 700; font-size: 0.76rem;">sn</span>
                   </div>
-                ` : `
-                  <span style="font-size: 0.74rem; color: #34d399; font-weight: 600;">(Fade Out/In ile tam eşleşir)</span>
-                `}
+                ` : ''}
               </div>
             ` : ''}
           </div>
@@ -1617,11 +1615,7 @@ export class MergerUI {
                     style="width: 60px; background: rgba(0,0,0,0.5); border: 1px solid var(--border-glass); color: var(--accent-cyan); font-family: var(--font-mono); font-weight: 700; font-size: 0.85rem; padding: 3px 6px; border-radius: 4px; outline: none;"
                     oninput="window.flovaMerger.setCrossfade(this.value)" />
                   <span style="font-family: var(--font-mono); color: var(--accent-cyan); font-weight: 700; font-size: 0.85rem;">sn</span>
-                ` : `
-                  <div style="font-size: 0.78rem; color: var(--accent-cyan); background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.2); padding: 5px 12px; border-radius: 6px; display: flex; align-items: center; gap: 6px;">
-                    <span>✨ Fade Out ve Fade In süreleri otomatik örtüştürülür. Parçalar arasında sıfır boşlukla kusursuz iç içe geçiş yapılır.</span>
-                  </div>
-                `}
+                ` : ''}
               </div>
             </div>
 

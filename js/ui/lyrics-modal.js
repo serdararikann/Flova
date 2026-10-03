@@ -38,7 +38,6 @@ export class LyricsModal {
               <span style="font-size: 1.5rem; background: linear-gradient(135deg, #a855f7, #00f2fe); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">🎙️</span>
               <div>
                 <h3 style="margin: 0; font-size: 1.18rem; font-weight: 700; color: #fff; letter-spacing: -0.01em;">AI Şarkı Sözü & Canlı Karaoke Stüdyosu</h3>
-                <p style="margin: 2px 0 0 0; font-size: 0.78rem; color: var(--text-muted, #94a3b8);">Şarkıdaki sözleri yapay zeka ile transkribe edin, ritimle senkronize edin ve karaoke olarak oynatın</p>
               </div>
             </div>
             
@@ -359,7 +358,7 @@ export class LyricsModal {
 
     const buffer = this.engine.currentBuffer || this.engine.audioBuffer;
     if (!buffer) {
-      this.showToast('İpucu: Henüz bir parça yüklemediniz. Sözleri önceden yazabilir veya Demo yükleyebilirsiniz.', 'info');
+      this.showToast('Lütfen önce bir ses dosyası açın.', 'info');
     }
 
     this._renderLines();

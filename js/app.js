@@ -208,12 +208,14 @@ class FlovaStudioApp {
     }
 
     // File Upload & Demo
-    this.loadDemoBtn.addEventListener('click', async () => {
-      this.showToast('Demo müzik sentezleniyor...', 'info');
-      await this.engine.loadDemoTrack();
-      this.visualizer.setAnalyser(this.engine.analyser);
-      this.showToast('Demo müzik yüklendi! Şimdi düzenleyebilirsiniz.', 'success');
-    });
+    if (this.loadDemoBtn) {
+      this.loadDemoBtn.addEventListener('click', async () => {
+        this.showToast('Demo müzik sentezleniyor...', 'info');
+        await this.engine.loadDemoTrack();
+        this.visualizer.setAnalyser(this.engine.analyser);
+        this.showToast('Demo müzik yüklendi! Şimdi düzenleyebilirsiniz.', 'success');
+      });
+    }
 
     this.openFileBtn.addEventListener('click', () => {
       if (this.activeMode === 'vocal-splitter') {
@@ -420,7 +422,7 @@ class FlovaStudioApp {
     // Export Modal Open
     this.exportBtn.addEventListener('click', () => {
       if (!this.engine.currentBuffer) {
-        this.showToast('Lütfen önce bir ses dosyası yükleyin veya demo oluşturun.', 'error');
+        this.showToast('Lütfen önce bir ses dosyası açın.', 'error');
         return;
       }
       this.exportModal.open(this.selectionStart, this.selectionEnd);

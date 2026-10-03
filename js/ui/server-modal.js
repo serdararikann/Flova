@@ -86,8 +86,7 @@ export class ServerModal {
           <div class="modal-title-row">
             <span class="modal-icon">🤖</span>
             <div>
-              <h3 class="modal-title">Yapay Zeka & Bulut Sunucu Ayarları</h3>
-              <p class="modal-subtitle">Demucs Vokal & 6-Stem Ayrıştırma ve YouTube İndirme Motoru</p>
+              <h3 class="modal-title">Yapay Zeka & Sunucu Ayarları</h3>
             </div>
           </div>
           <button class="modal-close-btn" id="closeServerModalBtn" title="Kapat">✕</button>
@@ -105,25 +104,14 @@ export class ServerModal {
               </div>
               <div style="font-size: 0.82rem; color: #94a3b8; margin-top: 2px;">
                 ${isOk 
-                  ? `Sunucu yanıt verdi (${this.healthStatus.latency} ms). Tüm AI ve YouTube özellikleri kullanılabilir.` 
-                  : (this.healthStatus?.error ? `Hata: ${this.healthStatus.error}` : 'Henüz sunucuya bağlanılamadı. Yerel veya bulut sunucu URL\'sini girin.')
+                  ? `Sunucu yanıt verdi (${this.healthStatus.latency} ms).` 
+                  : (this.healthStatus?.error ? `Hata: ${this.healthStatus.error}` : 'Henüz sunucuya bağlanılamadı.')
                 }
               </div>
             </div>
             <button id="testServerBtn" class="btn btn-secondary btn-sm" ${this.isTesting ? 'disabled' : ''}>
               ${this.isTesting ? '⏳ Sınanıyor...' : '⚡ Bağlantıyı Sına'}
             </button>
-          </div>
-
-          <!-- Feature Distinction Info Box -->
-          <div class="server-info-box">
-            <div style="font-weight: 600; color: #c7d2fe; margin-bottom: 4px; font-size: 0.85rem;">
-              💡 Hangi özellikler sunucu gerektirir?
-            </div>
-            <ul style="font-size: 0.82rem; color: #94a3b8; margin: 0; padding-left: 18px; line-height: 1.6;">
-              <li><strong>Sunucusuz (Her Cihazda Çalışır):</strong> Ses Düzenleyici (Trim, Cut, Fade, Reverse), Parça Birleştirici, 5-Bant EQ, Reverb/Echo, Spektrum Analizi, LUFS Mastering, MP3/WAV Dışa Aktarma ve Spektral DSP Vokal Ayırıcı.</li>
-              <li><strong>Sunucu Gerektiren:</strong> Demucs v4 Derin Öğrenme Vokal Ayırma, 6-Stem Enstrüman Ayırma ve YouTube İndirici.</li>
-            </ul>
           </div>
 
           <!-- Backend URL Input -->
@@ -149,16 +137,6 @@ export class ServerModal {
           <div class="quick-presets-row" style="display: flex; gap: 8px; flex-wrap: wrap;">
             <button class="preset-chip" id="presetLocalhost">🏠 Yerel (localhost:3000)</button>
             <button class="preset-chip" id="presetResetDefault">🔄 Sıfırla (Otomatik Algıla)</button>
-          </div>
-
-          <!-- Cloud Hosting Guide Tip -->
-          <div style="background: rgba(255, 107, 0, 0.08); border: 1px solid rgba(255, 107, 0, 0.25); border-radius: 8px; padding: 12px; font-size: 0.82rem; color: #fdba74;">
-            <strong>🚀 Başka bilgisayarlardan ve mobilden erişmek için:</strong>
-            <div style="margin-top: 4px; color: #e2e8f0; line-height: 1.5;">
-              Kendi bilgisayarınızda açık olan sunucuyu tüm dünyaya tek komutla açabilirsiniz:
-              <br/><code style="background: rgba(0,0,0,0.4); padding: 2px 6px; border-radius: 4px; color: #38bdf8;">npx cloudflared tunnel --url http://localhost:3000</code>
-              <br/>Çıkan bağlantıyı yukarıdaki kutuya yapıştırıp Kaydet'e basmanız yeterlidir.
-            </div>
           </div>
 
         </div>

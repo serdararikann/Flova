@@ -48,7 +48,6 @@ export class AudiogramModal {
               <span style="font-size: 1.4rem;">📹</span>
               <div>
                 <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #fff;">Sosyal Medya Audiogram Video Oluşturucu</h3>
-                <p style="margin: 2px 0 0 0; font-size: 0.78rem; color: var(--text-muted, #94a3b8);">Instagram Reels, TikTok ve YouTube Shorts için animasyonlu dalga formu videosu render edin</p>
               </div>
             </div>
             <button id="closeAudiogramModal" class="btn btn-secondary btn-sm" style="border-radius: 50%; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center;">✕</button>
@@ -270,7 +269,7 @@ export class AudiogramModal {
 
     const buffer = this.engine.currentBuffer || this.engine.audioBuffer;
     if (!buffer) {
-      this.showToast('İpucu: Henüz bir parça yüklemediniz. Video önizlemesini deneyebilir veya Demo yükleyebilirsiniz.', 'info');
+      this.showToast('Lütfen önce bir ses dosyası açın.', 'info');
     }
   }
 

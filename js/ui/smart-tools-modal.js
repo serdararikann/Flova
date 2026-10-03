@@ -36,7 +36,6 @@ export class SmartToolsModal {
               <span style="font-size: 1.4rem;">🪄</span>
               <div>
                 <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #fff;">Stüdyo Akıllı Araçlar & AI</h3>
-                <p style="margin: 2px 0 0 0; font-size: 0.78rem; color: var(--text-muted, #94a3b8);">Gürültü temizleme, sessizlik budama ve vokal auto-tune ayarları</p>
               </div>
             </div>
             <button id="closeSmartToolsModal" class="btn btn-secondary btn-sm" style="border-radius: 50%; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center;">✕</button>
@@ -60,10 +59,7 @@ export class SmartToolsModal {
             
             <!-- 1. DENOISE PANEL -->
             <div id="stDenoisePanel" class="st-panel">
-              <h4 style="margin: 0 0 8px 0; font-size: 0.95rem; color: #fff;">Arka Plan Dip Ses ve Hiss Temizleme</h4>
-              <p style="margin: 0 0 16px 0; font-size: 0.82rem; color: #94a3b8; line-height: 1.5;">
-                Kayıttaki fan gürültüsü, klima sesi, mikrofon cızırtısı ve mekan dip sesini spektral yapay zeka ile yok eder.
-              </p>
+              <h4 style="margin: 0 0 14px 0; font-size: 0.95rem; color: #fff;">Arka Plan Dip Ses ve Hiss Temizleme</h4>
 
               <div style="background: rgba(255,255,255,0.03); padding: 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 20px;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
@@ -85,10 +81,7 @@ export class SmartToolsModal {
 
             <!-- 2. SILENCE TRIMMER PANEL -->
             <div id="stSilencePanel" class="st-panel" style="display: none;">
-              <h4 style="margin: 0 0 8px 0; font-size: 0.95rem; color: #fff;">Konuşma & Kayıt İçi Sessizlik Budayıcı</h4>
-              <p style="margin: 0 0 16px 0; font-size: 0.82rem; color: #94a3b8; line-height: 1.5;">
-                Podcast, seslendirme ve şarkı kaydındaki gereksiz duraksamaları ve nefes boşluklarını mikrosaniyeler içinde kesip akıcı hale getirir.
-              </p>
+              <h4 style="margin: 0 0 14px 0; font-size: 0.95rem; color: #fff;">Konuşma & Kayıt İçi Sessizlik Budayıcı</h4>
 
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
                 <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);">
@@ -128,10 +121,7 @@ export class SmartToolsModal {
 
             <!-- 3. AUTOTUNE PANEL -->
             <div id="stAutotunePanel" class="st-panel" style="display: none;">
-              <h4 style="margin: 0 0 8px 0; font-size: 0.95rem; color: #fff;">Akıllı Pitch Correction & Auto-Tune</h4>
-              <p style="margin: 0 0 16px 0; font-size: 0.82rem; color: #94a3b8; line-height: 1.5;">
-                Vokal notasını müzikal gam çizgisine oturtarak detone kısımları düzeltin veya ünlü T-Pain robot vokal efektini yakalayın.
-              </p>
+              <h4 style="margin: 0 0 14px 0; font-size: 0.95rem; color: #fff;">Akıllı Pitch Correction & Auto-Tune</h4>
 
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
                 <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);">
@@ -279,7 +269,7 @@ export class SmartToolsModal {
 
     const buffer = this.engine.currentBuffer || this.engine.audioBuffer;
     if (!buffer) {
-      this.showToast('İpucu: Henüz bir parça yüklemediniz. Düzenlemek için Demo yükleyebilir veya Dosya Açabilirsiniz.', 'info');
+      this.showToast('Lütfen önce bir ses dosyası açın.', 'info');
     }
   }
 

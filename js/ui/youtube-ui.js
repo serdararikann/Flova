@@ -64,14 +64,7 @@ export class YouTubeUI {
         <!-- Module Header -->
         <div class="youtube-header-bar">
           <div>
-            <h2 class="youtube-title">🎥 YouTube Müzik & Ses Yöneticisi</h2>
-            <p class="youtube-subtitle">
-              YouTube parçalarını stüdyo düzenleyicisine aktarın, vokallerini ayrıştırın veya MP3 olarak indirin.
-            </p>
-          </div>
-          <div class="youtube-backend-badge" title="Arka planda çalışan yüksek hızlı ses işleme motoru">
-            <span class="status-indicator-dot online"></span>
-            <span>Motor: <strong>Python AI Studio + FFmpeg</strong></span>
+            <h2 class="youtube-title">🎥 YouTube Müzik & Ses İndirici</h2>
           </div>
         </div>
 
@@ -87,7 +80,7 @@ export class YouTubeUI {
               type="text" 
               id="ytUrlInput" 
               class="youtube-url-input" 
-              placeholder="YouTube video/liste linki yapıştırın veya şarkı / sanatçı adı arayın (örn: Metallica, Rick Astley, youtu.be/...)"
+              placeholder="YouTube video/liste linki yapıştırın veya şarkı adı arayın..."
               value="${this.escapeHtml(this.currentUrl)}"
               autocomplete="off"
             />
@@ -96,26 +89,6 @@ export class YouTubeUI {
             </button>
             <button id="ytFetchBtn" class="btn btn-primary btn-sm yt-btn-inline" ${this.isLoading ? 'disabled' : ''}>
               ${this.isLoading ? '⏳ Getiriliyor...' : '🔍 Ara & Getir'}
-            </button>
-          </div>
-
-          <!-- Quick Samples / Suggestions -->
-          <div class="youtube-hints">
-            <span class="hint-label">💡 Hızlı Örnekler & Aramalar:</span>
-            <button type="button" class="hint-chip" onclick="window.flovaYouTube.loadPreset('https://www.youtube.com/watch?v=jNQXAC9IVRw')">
-              🎥 Me at the zoo (Video)
-            </button>
-            <button type="button" class="hint-chip" onclick="window.flovaYouTube.loadPreset('https://www.youtube.com/watch?v=dQw4w9WgXcQ')">
-              🎵 Rick Astley (Video)
-            </button>
-            <button type="button" class="hint-chip" style="border-color: rgba(239, 68, 68, 0.45); color: #f87171;" onclick="window.flovaYouTube.loadPreset('https://www.youtube.com/playlist?list=PLzCxunOM5WFLNCSF0UEHZqFJJlmdeL71S')">
-              📑 Telifsiz Müzik (Liste)
-            </button>
-            <button type="button" class="hint-chip" style="border-color: rgba(168, 85, 247, 0.45); color: #c084fc;" onclick="window.flovaYouTube.searchVideos('queen bohemian rhapsody')">
-              🔍 Queen
-            </button>
-            <button type="button" class="hint-chip" style="border-color: rgba(56, 189, 248, 0.45); color: #38bdf8;" onclick="window.flovaYouTube.searchVideos('metallica enter sandman')">
-              🔍 Metallica
             </button>
           </div>
         </div>
@@ -1337,8 +1310,7 @@ export class YouTubeUI {
           <div class="modal-title-row">
             <span class="modal-icon">🍪</span>
             <div>
-              <h3 class="modal-title">YouTube Bot Koruması & Bulut Çerezleri</h3>
-              <p class="modal-subtitle">Hugging Face & Bulut Sunucularda YouTube İndirmelerini Aktif Edin</p>
+              <h3 class="modal-title">YouTube Çerez Ayarları</h3>
             </div>
           </div>
           <button class="modal-close-btn" id="closeCookieModalBtn" title="Kapat">✕</button>
@@ -1356,7 +1328,7 @@ export class YouTubeUI {
               <div style="font-size: 0.82rem; color: #94a3b8; margin-top: 2px;">
                 ${hasCookies 
                   ? 'Sunucunuz YouTube isteklerini bu çerezle yetkilendirmektedir. İndirme ve aktarma işlemleri hazırdır.' 
-                  : 'Hugging Face / AWS gibi bulut sunucuları YouTube bot kontrolüne takılır. Aşağıdan cookies.txt yükleyerek engeli kaldırabilirsiniz.'}
+                  : 'Bulut sunucularında YouTube bot koruması için cookies.txt yükleyebilirsiniz.'}
               </div>
             </div>
             ${hasCookies ? `
@@ -1364,17 +1336,6 @@ export class YouTubeUI {
                 🗑️ Çerezi Sil
               </button>
             ` : ''}
-          </div>
-
-          <!-- Explanation Box -->
-          <div class="server-info-box">
-            <div style="font-weight: 600; color: #c7d2fe; margin-bottom: 4px; font-size: 0.85rem;">
-              💡 2 Kolay Çözüm Yolu:
-            </div>
-            <ul style="font-size: 0.82rem; color: #94a3b8; margin: 0; padding-left: 18px; line-height: 1.6;">
-              <li><strong>Yöntem 1 (Önerilen - Çerez Yükleme):</strong> Chrome/Edge mağazasından ücretsiz <em>"Get cookies.txt LOCALLY"</em> eklentisini kurun. YouTube.com sekmesindeyken dışa aktardığınız <code>cookies.txt</code> dosyasını aşağıdaki kutuya bırakın.</li>
-              <li><strong>Yöntem 2 (Sıfır Çerez - Kendi PC'niz):</strong> Proje klasöründeki <code>start-cloud-tunnel.bat</code> dosyasını açın. Ev internetinizin IP'si YouTube tarafından asla engellenmez! Aldığınız linki AI Ayarları'na yapıştırın.</li>
-            </ul>
           </div>
 
           <!-- Drag & Drop File Zone -->
