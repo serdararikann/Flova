@@ -1179,7 +1179,98 @@ def download_stream_and_convert(stream_url, target_path, media_format='mp3', qua
         return False, str(e)
 
 
+POT_PROCESS = None
+POT_LOCK = threading.Lock()
+
+def ensure_pot_server():
+    """
+    Ensures the high-performance BotGuard Proof-of-Origin Token (POT) provider is running on http://127.0.0.1:4416.
+    Generates authentic BotGuard tokens locally on cloud datacenter IPs (AWS / Hugging Face Spaces)
+    so YouTube never blocks audio/video stream extraction.
+    """
+    global POT_PROCESS
+    # Quick probe if already running
+    for target in ('http://127.0.0.1:4416/ping', 'http://localhost:4416/ping'):
+        try:
+            req = urllib.request.Request(target, headers={'User-Agent': 'Flova/1.0'})
+            with urllib.request.urlopen(req, timeout=1.0) as resp:
+                if resp.status == 200:
+                    return True
+        except Exception:
+            pass
+
+    with POT_LOCK:
+        # Re-check after acquiring lock
+        for target in ('http://127.0.0.1:4416/ping', 'http://localhost:4416/ping'):
+            try:
+                req = urllib.request.Request(target, headers={'User-Agent': 'Flova/1.0'})
+                with urllib.request.urlopen(req, timeout=1.0) as resp:
+                    if resp.status == 200:
+                        return True
+            except Exception:
+                pass
+
+        is_windows = (os.name == 'nt')
+        bin_name = 'bgutil-pot.exe' if is_windows else 'bgutil-pot'
+        pot_dir = os.path.join(BASE_DIR, 'bin')
+        os.makedirs(pot_dir, exist_ok=True)
+        pot_bin = os.path.join(pot_dir, bin_name)
+
+        if not os.path.exists(pot_bin) or os.path.getsize(pot_bin) < 1000000:
+            print(f"[POT Engine] BotGuard PO Token motoru indiriliyor ({bin_name})...", flush=True)
+            if is_windows:
+                url = 'https://github.com/jim60105/bgutil-ytdlp-pot-provider-rs/releases/latest/download/bgutil-pot-windows-x86_64.exe'
+            else:
+                url = 'https://github.com/jim60105/bgutil-ytdlp-pot-provider-rs/releases/latest/download/bgutil-pot-linux-x86_64'
+
+            try:
+                import urllib.request
+                urllib.request.urlretrieve(url, pot_bin)
+                if not is_windows:
+                    os.chmod(pot_bin, 0o755)
+                print(f"[POT Engine] İndirme tamamlandı: {pot_bin} ({os.path.getsize(pot_bin)} bayt)", flush=True)
+            except Exception as e:
+                print(f"[POT Engine] İndirme uyarısı: {e}", flush=True)
+                return False
+
+        if not is_windows and os.path.exists(pot_bin):
+            try:
+                os.chmod(pot_bin, 0o755)
+            except Exception:
+                pass
+
+        try:
+            print(f"[POT Engine] BotGuard servisi 127.0.0.1:4416 üzerinde başlatılıyor...", flush=True)
+            cmd = [pot_bin, 'server', '--host', '127.0.0.1', '--port', '4416']
+            POT_PROCESS = subprocess.Popen(
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            for _ in range(25):
+                time.sleep(0.2)
+                for target in ('http://127.0.0.1:4416/ping', 'http://localhost:4416/ping'):
+                    try:
+                        req = urllib.request.Request(target, headers={'User-Agent': 'Flova/1.0'})
+                        with urllib.request.urlopen(req, timeout=1.0) as resp:
+                            if resp.status == 200:
+                                print(f"[POT Engine] 🟢 BotGuard PO Token motoru aktif ve hazır (Port 4416)!", flush=True)
+                                return True
+                    except Exception:
+                        pass
+        except Exception as e:
+            print(f"[POT Engine] Servis başlatma uyarısı: {e}", flush=True)
+            return False
+
+        return False
+
+
 def get_youtube_dl_opts(extra_opts=None, client_list=None, use_cookies=True):
+    try:
+        ensure_pot_server()
+    except Exception:
+        pass
+
     opts = {
         'quiet': True,
         'no_warnings': True,
@@ -1193,12 +1284,15 @@ def get_youtube_dl_opts(extra_opts=None, client_list=None, use_cookies=True):
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
             'Accept-Language': 'en-US,en;q=0.9',
         },
+        'extractor_args': {
+            'youtubepot-bgutilhttp': {
+                'base_url': ['http://127.0.0.1:4416']
+            }
+        }
     }
     if client_list:
-        opts['extractor_args'] = {
-            'youtube': {
-                'player_client': client_list
-            }
+        opts['extractor_args']['youtube'] = {
+            'player_client': client_list
         }
 
     cookie_file = find_valid_cookie_file() if use_cookies else None
@@ -1206,7 +1300,15 @@ def get_youtube_dl_opts(extra_opts=None, client_list=None, use_cookies=True):
         opts['cookiefile'] = cookie_file
 
     if extra_opts:
-        opts.update(extra_opts)
+        extra_copy = dict(extra_opts)
+        if 'extractor_args' in extra_copy:
+            extra_ea = extra_copy.pop('extractor_args')
+            for k, v in extra_ea.items():
+                if k not in opts['extractor_args']:
+                    opts['extractor_args'][k] = v
+                elif isinstance(v, dict) and isinstance(opts['extractor_args'][k], dict):
+                    opts['extractor_args'][k].update(v)
+        opts.update(extra_copy)
     return opts
 
 
@@ -1934,17 +2036,12 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                     
                     resp_payload = {
                         "success": False,
-                        "error_type": "datacenter_blocked" if is_dc_blocked else "download_failed",
-                        "error": f"YouTube bulut sunucusu kısıtlaması ({diag})",
+                        "error_type": "download_failed",
+                        "error": f"YouTube indirme hatası: Doğrudan akış işlenemedi ({diag})",
                         "video_id": v_id,
-                        "title": v_title,
-                        "fallback_urls": {
-                            "primary_mp3": f"https://en.onlymp3.to/converter-v3?v={v_id}" if v_id else "https://onlymp3.to/en5/",
-                            "secondary_mp3": f"https://en.y2mate.sx/v16/?v={v_id}" if v_id else "https://y2mate.is/en/youtube-to-mp3.html",
-                            "mp4_video": f"https://en1.savefrom.net/1-youtube-video/?url=https://www.youtube.com/watch?v={v_id}" if v_id else None
-                        }
+                        "title": v_title
                     }
-                    self.send_json(503 if is_dc_blocked else 500, resp_payload)
+                    self.send_json(500, resp_payload)
                     return
 
                 if not info:
@@ -2256,6 +2353,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
 def run_server(port=None):
     server_port = int(port or os.environ.get('PORT', 3000))
     print(f'Starting Flova Threading Server on port {server_port}...')
+    threading.Thread(target=ensure_pot_server, daemon=True).start()
     server = ThreadingHTTPServer(('0.0.0.0', server_port), FlovaHandler)
     server.serve_forever()
 
