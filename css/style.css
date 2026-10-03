@@ -223,19 +223,23 @@ body {
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-glass);
   box-shadow: var(--shadow-card);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 12px;
+  position: relative;
+  z-index: 50;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .brand-section {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .brand-logo {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -267,25 +271,14 @@ body {
 }
 
 .brand-title {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: #f8fafc;
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.badge-pro {
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #cbd5e1;
-  padding: 2px 6px;
-  border-radius: 4px;
+  white-space: nowrap;
 }
 
 .header-modes {
@@ -296,23 +289,27 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.6);
   gap: 2px;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .mode-tab-btn {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 6px 14px;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
   border-radius: 6px;
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-muted);
   font-family: var(--font-sans);
   font-weight: 600;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   cursor: pointer;
   transition: all 0.15s ease;
   user-select: none;
+  white-space: nowrap;
 }
 
 .mode-tab-btn svg {
@@ -346,7 +343,8 @@ body {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 /* Buttons */
@@ -2710,3 +2708,464 @@ body {
   transform: translateY(-1px);
   box-shadow: 0 0 14px rgba(99, 102, 241, 0.35);
 }
+
+/* ====================================================================
+   COMPREHENSIVE RESPONSIVE DESIGN SYSTEM (ALL RESOLUTIONS)
+   Flexible, Fluid, and Production-Grade DAW Workstation UI
+   ==================================================================== */
+
+/* Global App Container Fluidity */
+@media (max-width: 1024px) {
+  .app-container {
+    padding: 10px 14px 22px;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-container {
+    padding: 6px 8px 16px;
+    gap: 8px;
+  }
+}
+
+/* --------------------------------------------------------------------
+   1. STUDIO HEADER RESPONSIVE BEHAVIOR
+   -------------------------------------------------------------------- */
+
+/* Desktop Narrow & 125% Windows Scaling (1360px down to 1060px) */
+/* Ensures single-line layout remains intact without dropping items */
+@media (max-width: 1360px) {
+  .studio-header {
+    padding: 7px 12px;
+    gap: 8px;
+  }
+  .mode-tab-btn {
+    padding: 5px 10px;
+    font-size: 0.78rem;
+    gap: 5px;
+  }
+  .mode-tab-btn svg {
+    width: 13px;
+    height: 13px;
+  }
+  .header-actions {
+    gap: 5px;
+  }
+  .header-actions .btn-sm {
+    padding: 5px 9px;
+    font-size: 0.77rem;
+  }
+  /* Preserve single-row layout by hiding verbose secondary labels */
+  #hotkeysBtn span {
+    display: none;
+  }
+  #pwaInstallBtn span {
+    display: none;
+  }
+  .theme-select-pill {
+    max-width: 110px;
+    font-size: 0.72rem;
+    padding: 4px 7px;
+  }
+  .server-status-btn {
+    padding: 5px 9px;
+  }
+  .server-status-text {
+    font-size: 0.74rem;
+  }
+}
+
+@media (max-width: 1140px) {
+  .brand-title {
+    font-size: 1.02rem;
+  }
+  .mode-tab-btn {
+    padding: 5px 8px;
+    font-size: 0.75rem;
+  }
+}
+
+/* Tablet & iPad Resolution (1060px down to 680px) */
+/* Deliberate 2-row professional studio layout: Brand + Actions on top, Mode tabs across bottom */
+@media (max-width: 1060px) {
+  .studio-header {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "brand actions"
+      "modes modes";
+    gap: 10px;
+    padding: 10px 14px;
+    flex-wrap: wrap; /* Safety fallback */
+  }
+
+  .brand-section {
+    grid-area: brand;
+    align-self: center;
+  }
+
+  .header-actions {
+    grid-area: actions;
+    justify-self: end;
+    gap: 6px;
+  }
+
+  #hotkeysBtn span {
+    display: inline;
+  }
+  #pwaInstallBtn span {
+    display: inline;
+  }
+
+  .header-modes {
+    grid-area: modes;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 3px;
+  }
+
+  .header-modes::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mode-tab-btn {
+    flex: 1 1 auto;
+    justify-content: center;
+    padding: 7px 10px;
+    font-size: 0.8rem;
+  }
+}
+
+/* Mobile Devices (<= 680px) */
+@media (max-width: 680px) {
+  .studio-header {
+    padding: 8px 10px;
+    gap: 8px;
+    border-radius: var(--radius-md);
+  }
+
+  .brand-logo {
+    width: 28px;
+    height: 28px;
+  }
+
+  .brand-title {
+    font-size: 0.95rem;
+  }
+
+  .header-actions {
+    gap: 4px;
+  }
+
+  #themeSelector {
+    max-width: 82px;
+    font-size: 0.68rem;
+    padding: 4px 6px;
+  }
+
+  .header-actions .btn-sm {
+    padding: 4px 8px;
+    font-size: 0.72rem;
+  }
+
+  #hotkeysBtn span,
+  #pwaInstallBtn span,
+  #openFileBtn span,
+  .server-status-text {
+    display: none !important;
+  }
+
+  #openFileBtn, #hotkeysBtn, #serverStatusBtn {
+    padding: 5px 8px;
+  }
+
+  .mode-tab-btn {
+    padding: 6px 8px;
+    font-size: 0.72rem;
+    gap: 4px;
+  }
+
+  .mode-tab-btn svg {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+/* Compact Mobile (<= 400px) */
+@media (max-width: 400px) {
+  #themeSelector {
+    display: none;
+  }
+  .brand-title span {
+    display: none;
+  }
+  .mode-tab-btn {
+    padding: 5px 6px;
+    font-size: 0.68rem;
+  }
+}
+
+/* --------------------------------------------------------------------
+   2. EDITOR VIEW & WORKSPACE RESPONSIVENESS
+   -------------------------------------------------------------------- */
+
+@media (max-width: 768px) {
+  .track-meta-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .track-info-pill {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .track-specs {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .spec-item {
+    font-size: 0.72rem;
+    padding: 2px 6px;
+  }
+}
+
+/* Waveform Canvas View Scaling */
+@media (max-width: 860px) {
+  .waveform-view-wrapper {
+    height: 160px;
+  }
+}
+
+@media (max-width: 520px) {
+  .waveform-view-wrapper {
+    height: 130px;
+  }
+  .waveform-container {
+    padding: 10px;
+  }
+  .waveform-zoom-bar {
+    gap: 3px;
+  }
+  .zoom-btn {
+    width: 26px;
+    height: 26px;
+    font-size: 0.8rem;
+  }
+  .zoom-badge {
+    min-width: 32px;
+    font-size: 0.68rem;
+  }
+}
+
+/* Transport Controls Panel */
+@media (max-width: 768px) {
+  .transport-panel {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+  }
+  .time-display-group {
+    padding: 4px 8px;
+    order: 1;
+  }
+  .time-current {
+    font-size: 1.25rem;
+  }
+  .time-total {
+    font-size: 0.82rem;
+  }
+  .playback-controls {
+    order: 2;
+  }
+  .transport-panel > div:last-child {
+    order: 3;
+  }
+}
+
+@media (max-width: 500px) {
+  .transport-panel {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .time-display-group {
+    width: 100%;
+    justify-content: center;
+  }
+  .playback-controls {
+    gap: 12px;
+  }
+  .transport-panel > div:last-child {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Selection Toolbar */
+@media (max-width: 600px) {
+  .selection-toolbar {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    padding: 8px 10px;
+  }
+  .selection-toolbar .time-input-box:nth-child(3) {
+    grid-column: span 2;
+  }
+  .time-input-row {
+    padding: 4px 6px;
+  }
+  .time-input-row input {
+    font-size: 0.8rem;
+  }
+}
+
+/* Audio Action Buttons & Creative Tools */
+@media (max-width: 1060px) {
+  .audio-action-buttons > div:last-child {
+    margin-left: 0 !important;
+    width: 100%;
+    justify-content: flex-start;
+    margin-top: 4px;
+  }
+}
+
+@media (max-width: 640px) {
+  .audio-action-buttons {
+    gap: 5px;
+  }
+  .audio-action-buttons .btn {
+    padding: 5px 8px;
+    font-size: 0.74rem;
+    gap: 4px;
+  }
+  .fade-control-pill {
+    padding: 2px 6px;
+    gap: 4px;
+  }
+  .fade-control-pill .studio-slider {
+    width: 45px !important;
+  }
+  .fade-num-input {
+    width: 38px;
+    font-size: 0.7rem;
+    padding: 2px 3px;
+  }
+}
+
+/* --------------------------------------------------------------------
+   3. BOTTOM STUDIO RACK (VISUALIZER & EFFECTS)
+   -------------------------------------------------------------------- */
+
+@media (max-width: 1100px) {
+  .studio-bottom-rack {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .visualizer-wrapper {
+    min-height: 110px;
+    height: 110px;
+  }
+}
+
+@media (max-width: 600px) {
+  .effects-horizontal-rack {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .effect-card {
+    padding: 8px 10px;
+  }
+  .slider-label {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .effects-horizontal-rack {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --------------------------------------------------------------------
+   4. MERGER, STEM SPLITTER, VOCAL SPLITTER & YOUTUBE VIEWS
+   -------------------------------------------------------------------- */
+
+/* Merger View */
+@media (max-width: 860px) {
+  .merger-section > div:first-child {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 10px;
+  }
+  .merger-section > div:first-child > div:last-child {
+    justify-content: flex-end;
+  }
+  .merger-track-card {
+    padding: 10px 12px;
+  }
+}
+
+/* 4-Stem & Vocal Splitter */
+@media (max-width: 768px) {
+  .stem-header-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .stem-lane {
+    padding: 8px 10px;
+  }
+  .stem-lane-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .stem-lane-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .stem-fader-group {
+    flex: 1;
+  }
+  .stem-slider {
+    width: 100% !important;
+    max-width: 120px;
+  }
+  .stem-waveform-box {
+    height: 48px;
+  }
+}
+
+/* --------------------------------------------------------------------
+   5. MODALS & POPUPS RESPONSIVENESS
+   -------------------------------------------------------------------- */
+
+.modal-card {
+  max-width: min(94vw, 520px);
+  max-height: 90vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .modal-card {
+    padding: 16px 18px;
+    border-radius: var(--radius-lg);
+  }
+  .modal-title {
+    font-size: 1.05rem;
+  }
+  .modal-header {
+    margin-bottom: 12px;
+  }
+}
+
