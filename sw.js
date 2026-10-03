@@ -5,7 +5,7 @@
    - Clean cache lifecycle management
    ==================================================================== */
 
-const CACHE_NAME = 'flova-studio-v1.0';
+const CACHE_NAME = 'flova-studio-v2.0';
 
 const PRECACHE_ASSETS = [
   './',
@@ -13,7 +13,7 @@ const PRECACHE_ASSETS = [
   './manifest.json',
   './favicon.ico',
   './logo.png',
-  './css/style.css?v=9.6',
+  './css/style.css?v=12.0',
   './icons/icon-72.png',
   './icons/icon-96.png',
   './icons/icon-128.png',
@@ -24,7 +24,7 @@ const PRECACHE_ASSETS = [
   './icons/icon-512.png',
   './icons/icon-maskable-192.png',
   './icons/icon-maskable-512.png',
-  './js/app.js?v=9.6',
+  './js/app.js?v=12.0',
   './js/audio/audio-engine.js',
   './js/audio/audio-processor.js',
   './js/audio/audio-encoders.js',
@@ -111,25 +111,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. App Shell & Static Assets: Stale-While-Revalidate
+  // 3. App Shell & Static Assets: Network-First with Cache Fallback for instant updates
   event.respondWith(
-    caches.match(req).then((cachedResponse) => {
-      const fetchPromise = fetch(req)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const clone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
-          }
-          return networkResponse;
-        })
-        .catch(() => {
-          // If offline and not in cache, fallback to index.html if navigating
+    fetch(req)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const clone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
+        }
+        return networkResponse;
+      })
+      .catch(() => {
+        return caches.match(req).then((cached) => {
+          if (cached) return cached;
           if (req.mode === 'navigate') {
             return caches.match('./index.html');
           }
         });
-
-      return cachedResponse || fetchPromise;
-    })
+      })
   );
 });
