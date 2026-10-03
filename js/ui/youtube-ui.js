@@ -64,7 +64,7 @@ export class YouTubeUI {
         <!-- Module Header -->
         <div class="youtube-header-bar">
           <div>
-            <h2 class="youtube-title">🎥 YouTube Müzik & Ses İndirici</h2>
+            <h2 class="youtube-title">YouTube Medya Aktarımı & İndirici</h2>
           </div>
         </div>
 
@@ -84,11 +84,12 @@ export class YouTubeUI {
               value="${this.escapeHtml(this.currentUrl)}"
               autocomplete="off"
             />
-            <button id="ytPasteBtn" class="btn btn-secondary btn-sm yt-btn-inline" title="Panodaki linki yapıştır" ${this.isLoading ? 'disabled' : ''}>
-              📋 Yapıştır
+            <button id="ytPasteBtn" class="btn btn-secondary btn-sm yt-btn-inline" title="Panodaki linki yapıştır" ${this.isLoading ? 'disabled' : ''} style="display: inline-flex; align-items: center; gap: 5px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+              Yapıştır
             </button>
-            <button id="ytFetchBtn" class="btn btn-primary btn-sm yt-btn-inline" ${this.isLoading ? 'disabled' : ''}>
-              ${this.isLoading ? '⏳ Getiriliyor...' : '🔍 Ara & Getir'}
+            <button id="ytFetchBtn" class="btn btn-primary btn-sm yt-btn-inline" ${this.isLoading ? 'disabled' : ''} style="display: inline-flex; align-items: center; gap: 5px;">
+              ${this.isLoading ? 'Getiriliyor...' : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Ara & Getir'}
             </button>
           </div>
         </div>
@@ -103,7 +104,7 @@ export class YouTubeUI {
             </div>
             <div style="margin-top: 14px;">
               <button type="button" class="btn btn-secondary btn-sm" onclick="window.flovaYouTube.cancelLoading()" title="Aramayı durdur">
-                ✕ İptal Et
+                İptal Et
               </button>
             </div>
           </div>
@@ -114,11 +115,11 @@ export class YouTubeUI {
           <div class="youtube-search-results-section animate-fadeIn">
             <div class="youtube-search-header">
               <div class="youtube-search-title-text">
-                <span>🔍 Arama Sonuçları: <strong>"${this.escapeHtml(this.searchQuery)}"</strong></span>
+                <span>Arama Sonuçları: <strong>"${this.escapeHtml(this.searchQuery)}"</strong></span>
                 <span class="youtube-search-count-badge">${this.searchResults.length} Parça Bulundu</span>
               </div>
               <button type="button" class="btn btn-secondary btn-sm" onclick="window.flovaYouTube.clearSearchResults()">
-                ✕ Sonuçları Temizle
+                Sonuçları Temizle
               </button>
             </div>
 
@@ -132,25 +133,30 @@ export class YouTubeUI {
                     </div>
                     <div class="yt-card-meta">
                       <div class="yt-card-title" title="${this.escapeHtml(item.title)}">${this.escapeHtml(item.title)}</div>
-                      <div class="yt-card-channel">📺 ${this.escapeHtml(item.uploader)}</div>
+                      <div class="yt-card-channel">${this.escapeHtml(item.uploader)}</div>
                     </div>
                   </div>
 
                   <div class="yt-card-actions">
                     <button type="button" class="btn-yt-card btn-yt-card-editor" onclick="window.flovaYouTube.loadSearchResultToEditor(${idx})" title="Doğrudan Dalga Formu Düzenleyicide aç">
-                      ✂️ Düzenleyicide Aç
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+                      <span>Düzenleyici</span>
                     </button>
                     <button type="button" class="btn-yt-card btn-yt-card-merger" onclick="window.flovaYouTube.loadSearchResultToMerger(${idx})" title="Şarkı Birleştiriciye kanal olarak ekle">
-                      🔗 Birleştirici
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                      <span>Birleştirici</span>
                     </button>
                     <button type="button" class="btn-yt-card btn-yt-card-stem" onclick="window.flovaYouTube.loadSearchResultToStemSplitter(${idx})" title="4/6-Stem Enstrüman Ayırıcıya aktar">
-                      🎸 Stemler
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><circle cx="4" cy="14" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="20" cy="16" r="2"/></svg>
+                      <span>Stemler</span>
                     </button>
                     <button type="button" class="btn-yt-card btn-yt-card-vocal" onclick="window.flovaYouTube.loadSearchResultToVocalSplitter(${idx})" title="AI Vokal / Enstrümantal Ayırıcıya aktar">
-                      🎙️ Vokal
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                      <span>Vokal</span>
                     </button>
                     <button type="button" class="btn-yt-card btn-yt-card-download" onclick="window.flovaYouTube.downloadSearchResultDirect(${idx})" title="MP3 olarak bilgisayara indir">
-                      📥 İndir (MP3)
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      <span>İndir</span>
                     </button>
                   </div>
                 </div>
@@ -166,15 +172,15 @@ export class YouTubeUI {
             <!-- Playlist Top Header -->
             <div class="youtube-playlist-header">
               <div class="playlist-info-meta">
-                <span class="playlist-tag-badge">📑 Oynatma Listesi</span>
+                <span class="playlist-tag-badge">Oynatma Listesi</span>
                 <h3 class="playlist-title">${this.escapeHtml(this.videoInfo.title)}</h3>
                 <div class="playlist-stats-row">
-                  <span>📺 ${this.escapeHtml(this.videoInfo.uploader)}</span>
+                  <span>${this.escapeHtml(this.videoInfo.uploader)}</span>
                   <span>•</span>
-                  <span>📊 <strong>${this.videoInfo.item_count}</strong> Parça</span>
+                  <span><strong>${this.videoInfo.item_count}</strong> Parça</span>
                   ${this.videoInfo.total_duration_formatted ? `
                     <span>•</span>
-                    <span>⏱️ Toplam: ${this.escapeHtml(this.videoInfo.total_duration_formatted)}</span>
+                    <span>Toplam: ${this.escapeHtml(this.videoInfo.total_duration_formatted)}</span>
                   ` : ''}
                 </div>
               </div>
@@ -182,7 +188,7 @@ export class YouTubeUI {
               <!-- MP3 Quality Picker -->
               <div class="youtube-format-switch-bar" style="margin-top: 0; padding-top: 0; border-top: none;">
                 <div class="quality-selector-group">
-                  <span class="quality-label">🎵 MP3 Kalitesi:</span>
+                  <span class="quality-label">MP3 Kalitesi:</span>
                   <button type="button" class="quality-pill ${this.selectedQuality === '320' ? 'active' : ''}" onclick="window.flovaYouTube.setQuality('320')">
                     320 kbps (Ultra)
                   </button>
@@ -215,8 +221,9 @@ export class YouTubeUI {
                   ${this.isBatchDownloading || this.selectedPlaylistIndices.size === 0 ? 'disabled' : ''}
                   onclick="window.flovaYouTube.downloadPlaylistBatch()"
                   title="Seçilen parçaları ZIP paketi olarak bilgisayara indir"
+                  style="display: inline-flex; align-items: center; gap: 5px;"
                 >
-                  ${this.isBatchDownloading ? `<span class="spinner-sm" style="margin-right: 6px;"></span> İndiriliyor...` : `📦 Seçilenleri Toplu İndir (.ZIP)`}
+                  ${this.isBatchDownloading ? `<span class="spinner-sm" style="margin-right: 6px;"></span> İndiriliyor...` : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg> Seçilenleri Toplu İndir (.ZIP)`}
                 </button>
               </div>
             </div>
@@ -229,7 +236,7 @@ export class YouTubeUI {
                   <div style="display: flex; gap: 8px; align-items: center;">
                     <span style="color: var(--accent-cyan); font-weight: 700;">%${this.batchProgressPercent}</span>
                     <button type="button" class="btn btn-secondary btn-sm" style="padding: 2px 8px; font-size: 0.72rem;" onclick="window.flovaYouTube.stopBatchDownload()">
-                      ✕ Durdur
+                      Durdur
                     </button>
                   </div>
                 </div>
@@ -269,7 +276,7 @@ export class YouTubeUI {
                         ${this.escapeHtml(item.title)}
                       </div>
                       <div class="playlist-item-artist">
-                        📺 ${this.escapeHtml(item.uploader)}
+                        ${this.escapeHtml(item.uploader)}
                       </div>
                     </div>
 
@@ -283,7 +290,7 @@ export class YouTubeUI {
                         onclick="window.flovaYouTube.downloadSinglePlaylistItem(${idx})"
                         title="Bu parçayı tek olarak bilgisayara indir"
                       >
-                        ${isItemDownloading ? `<span class="spinner-sm"></span>` : `📥 İndir`}
+                        ${isItemDownloading ? `<span class="spinner-sm"></span>` : `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> <span>İndir</span>`}
                       </button>
 
                       <!-- Open in Editor -->
@@ -294,7 +301,8 @@ export class YouTubeUI {
                         onclick="window.flovaYouTube.loadPlaylistItemToEditor(${idx})"
                         title="Düzenleyicide aç"
                       >
-                        ✂️ Düzenleyici
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+                        <span>Düzenleyici</span>
                       </button>
 
                       <!-- Add to Merger -->
@@ -305,7 +313,8 @@ export class YouTubeUI {
                         onclick="window.flovaYouTube.addPlaylistItemToMerger(${idx})"
                         title="Birleştiriciye kanal olarak ekle"
                       >
-                        🔗 Birleştirici
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                        <span>Birleştirici</span>
                       </button>
 
                       <!-- Send to Vocal Splitter -->
@@ -316,7 +325,8 @@ export class YouTubeUI {
                         onclick="window.flovaYouTube.sendPlaylistItemToVocalSplitter(${idx})"
                         title="Vokal ayırıcıya aktar"
                       >
-                        🎙️ Vokal
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                        <span>Vokal</span>
                       </button>
 
                       <!-- Send to 4/6-Stem Splitter -->
@@ -327,7 +337,8 @@ export class YouTubeUI {
                         onclick="window.flovaYouTube.sendPlaylistItemToStemSplitter(${idx})"
                         title="Demucs 4/6-Stem enstrüman ayırıcıya aktar"
                       >
-                        🎸 Stem
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><circle cx="4" cy="14" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="20" cy="16" r="2"/></svg>
+                        <span>Stem</span>
                       </button>
                     </div>
 
@@ -347,13 +358,13 @@ export class YouTubeUI {
               <!-- Left: Video Thumbnail -->
               <div class="youtube-thumb-wrapper">
                 <img src="${this.escapeHtml(this.videoInfo.thumbnail)}" alt="${this.escapeHtml(this.videoInfo.title)}" class="youtube-thumb-img" onerror="this.src='https://img.youtube.com/vi/${this.videoInfo.id}/hqdefault.jpg'" />
-                <span class="youtube-duration-tag">⏱️ ${this.escapeHtml(this.videoInfo.duration_formatted)}</span>
+                <span class="youtube-duration-tag">${this.escapeHtml(this.videoInfo.duration_formatted)}</span>
               </div>
 
               <!-- Center: Video Info & Format Switcher -->
               <div class="youtube-info-col">
                 <div class="youtube-uploader-badge">
-                  <span>📺 ${this.escapeHtml(this.videoInfo.uploader)}</span>
+                  <span>${this.escapeHtml(this.videoInfo.uploader)}</span>
                 </div>
                 <h3 class="youtube-video-title" title="${this.escapeHtml(this.videoInfo.title)}">
                   ${this.escapeHtml(this.videoInfo.title)}
@@ -361,8 +372,10 @@ export class YouTubeUI {
 
                 <!-- Audio Preview Player -->
                 <div style="margin: 4px 0; display: flex; gap: 8px; align-items: center;">
-                  <button type="button" class="btn btn-secondary btn-sm" onclick="window.flovaYouTube.togglePreview('${this.videoInfo.id}')" title="Ses önizlemesini dinle / durdur">
-                    ${this.previewingItemId === this.videoInfo.id ? '⏹️ Önizlemeyi Durdur' : '▶️ Ses Önizle'}
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="window.flovaYouTube.togglePreview('${this.videoInfo.id}')" title="Ses önizlemesini dinle / durdur" style="display: inline-flex; align-items: center; gap: 5px;">
+                    ${this.previewingItemId === this.videoInfo.id 
+                      ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg> Önizlemeyi Durdur' 
+                      : '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Ses Önizle'}
                   </button>
                   ${this.previewingItemId === this.videoInfo.id ? `
                     <span style="font-size: 0.76rem; color: var(--accent-cyan); display: flex; align-items: center; gap: 6px;">
@@ -374,7 +387,7 @@ export class YouTubeUI {
                 <!-- Quality Selection: Pure MP3 Audio -->
                 <div class="youtube-format-switch-bar">
                   <div class="quality-selector-group">
-                    <span class="quality-label">🎵 MP3 Ses Kalitesi:</span>
+                    <span class="quality-label">MP3 Ses Kalitesi:</span>
                     <button type="button" class="quality-pill ${this.selectedQuality === '320' ? 'active' : ''}" onclick="window.flovaYouTube.setQuality('320')">
                       320 kbps (Ultra)
                     </button>
@@ -400,27 +413,31 @@ export class YouTubeUI {
               <div class="youtube-actions-col">
                 <!-- 1. Open in Studio Waveform Editor -->
                 <button class="btn btn-primary yt-col-btn yt-col-btn-primary" ${this.isDownloading ? 'disabled' : ''} onclick="window.flovaYouTube.loadToEditor()" title="Doğrudan Flova Kesici/Düzenleyici dalga formunda açar">
-                  ✂️ Düzenleyicide Aç
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+                  <span>Düzenleyicide Aç</span>
                 </button>
 
                 <!-- 2. Send to 4-Stem & 6-Stem AI Splitter -->
                 <button class="btn btn-secondary yt-col-btn" ${this.isDownloading ? 'disabled' : ''} onclick="window.flovaYouTube.sendToStemSplitter()" title="Demucs v4 ile Davul, Bas, Gitar, Piyano, Vokal ayrıştırır">
-                  🎸 Stem Ayrıştır (4/6-Stem)
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><circle cx="4" cy="14" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="20" cy="16" r="2"/></svg>
+                  <span>Stem Ayrıştır (4/6-Stem)</span>
                 </button>
 
                 <!-- 3. Send to AI Vocal Splitter -->
                 <button class="btn btn-secondary yt-col-btn" ${this.isDownloading ? 'disabled' : ''} onclick="window.flovaYouTube.sendToVocalSplitter()" title="Şarkıyı AI Vokal / Enstrümantal ayırıcıya aktarır">
-                  🎙️ Vokalleri Ayır
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                  <span>Vokalleri Ayır</span>
                 </button>
 
                 <!-- 4. Add to Merger Track -->
                 <button class="btn btn-secondary yt-col-btn" ${this.isDownloading ? 'disabled' : ''} onclick="window.flovaYouTube.addToMerger()" title="Şarkı Birleştirici parçalarına yeni kanal olarak ekler">
-                  🔗 Birleştiriciye Ekle
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                  <span>Birleştiriciye Ekle</span>
                 </button>
 
                 <!-- 5. Direct Download to PC -->
                 <button id="ytDownloadBtn" class="btn btn-emerald yt-col-btn" ${this.isDownloading ? 'disabled' : ''} onclick="window.flovaYouTube.downloadDirect()" title="MP3 dosyasını doğrudan bilgisayara kaydet">
-                  ${this.isDownloading ? `<span class="spinner-sm" style="margin-right: 6px;"></span> İndiriliyor...` : `📥 Bilgisayara İndir (MP3)`}
+                  ${this.isDownloading ? `<span class="spinner-sm" style="margin-right: 6px;"></span> İndiriliyor...` : `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> <span>Bilgisayara İndir (MP3)</span>`}
                 </button>
               </div>
             </div>
@@ -723,7 +740,7 @@ export class YouTubeUI {
       this.render();
 
       if (window.flovaApp) {
-        window.flovaApp.showToast(`🎉 ${successCount} parça başarıyla ZIP olarak indirildi!`, 'success');
+        window.flovaApp.showToast(`${successCount} parça başarıyla ZIP olarak indirildi!`, 'success');
       }
     } catch (err) {
       console.error('ZIP generation error:', err);
@@ -1270,7 +1287,7 @@ export class YouTubeUI {
         const cookieBtn = this.container.querySelector('.yt-cookie-btn');
         if (cookieBtn) {
           const has = this.cookieStatus && this.cookieStatus.has_cookies;
-          cookieBtn.innerHTML = `🍪 ${has ? 'Çerez Aktif' : 'Bulut Çerezi (Gerekli)'}`;
+          cookieBtn.innerHTML = `${has ? 'Çerez Aktif' : 'Bulut Çerezi Yapılandır'}`;
           cookieBtn.style.color = has ? '#10b981' : '#f59e0b';
           cookieBtn.style.borderColor = has ? 'rgba(16,185,129,0.45)' : 'rgba(245,158,11,0.45)';
           cookieBtn.style.background = has ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)';
@@ -1308,9 +1325,11 @@ export class YouTubeUI {
       <div class="modal-card glass-card server-modal-card" style="max-width: 580px;">
         <div class="modal-header">
           <div class="modal-title-row">
-            <span class="modal-icon">🍪</span>
+            <span class="modal-icon" style="color: var(--accent-cyan); display: inline-flex; align-items: center;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+            </span>
             <div>
-              <h3 class="modal-title">YouTube Çerez Ayarları</h3>
+              <h3 class="modal-title">YouTube Yetkilendirme & Çerez Ayarları</h3>
             </div>
           </div>
           <button class="modal-close-btn" id="closeCookieModalBtn" title="Kapat">✕</button>
@@ -1323,7 +1342,7 @@ export class YouTubeUI {
             <div class="status-indicator-circle ${hasCookies ? 'pulse-green' : 'pulse-red'}"></div>
             <div style="flex: 1;">
               <div style="font-weight: 700; font-size: 0.95rem; color: #fff;">
-                ${hasCookies ? `🟢 Aktif YouTube Çerezi Yüklü (${cookieSizeKb} KB)` : '⚠️ Bulut Sunucusunda Çerez Bulunmuyor'}
+                ${hasCookies ? `Aktif YouTube Yetkilendirme Çerezi Yüklü (${cookieSizeKb} KB)` : 'Bulut Sunucusunda Çerez Bulunmuyor'}
               </div>
               <div style="font-size: 0.82rem; color: #94a3b8; margin-top: 2px;">
                 ${hasCookies 
@@ -1333,7 +1352,7 @@ export class YouTubeUI {
             </div>
             ${hasCookies ? `
               <button id="deleteCookiesBtn" class="btn btn-secondary btn-sm" style="color: #f87171; border-color: rgba(239,68,68,0.35);">
-                🗑️ Çerezi Sil
+                Çerezi Sil
               </button>
             ` : ''}
           </div>
@@ -1341,7 +1360,9 @@ export class YouTubeUI {
           <!-- Drag & Drop File Zone -->
           <div id="cookieDropZone" style="border: 2px dashed rgba(255, 107, 0, 0.45); border-radius: 12px; padding: 22px; text-align: center; background: rgba(255, 107, 0, 0.04); cursor: pointer; transition: all 0.2s ease;">
             <input type="file" id="cookieFileInput" accept=".txt" style="display: none;" />
-            <div style="font-size: 1.8rem; margin-bottom: 6px;">📂</div>
+            <div style="color: var(--accent-primary); margin-bottom: 8px; display: inline-flex;">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            </div>
             <div style="font-weight: 600; font-size: 0.9rem; color: #f8fafc;">
               cookies.txt dosyasını buraya sürükleyin veya tıklayarak seçin
             </div>
@@ -1368,7 +1389,7 @@ export class YouTubeUI {
           <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px;">
             <button id="closeCookieModalActionBtn" class="btn btn-secondary btn-sm">Kapat</button>
             <button id="saveCookiesTextBtn" class="btn btn-primary btn-sm" style="padding: 7px 18px; font-weight: 700;">
-              💾 Çerezi Sunucuya Kaydet
+              Çerezi Sunucuya Kaydet
             </button>
           </div>
 

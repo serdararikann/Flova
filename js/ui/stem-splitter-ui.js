@@ -18,7 +18,7 @@ export const STEM_DEFS = {
     color: '#38bdf8',
     gradientStart: '#38bdf8',
     gradientEnd: '#0284c7',
-    icon: '🎤',
+    icon: '',
     badge: 'VOKAL'
   },
   drums: {
@@ -27,7 +27,7 @@ export const STEM_DEFS = {
     color: '#f59e0b',
     gradientStart: '#fbbf24',
     gradientEnd: '#d97706',
-    icon: '🥁',
+    icon: '',
     badge: 'DAVUL'
   },
   bass: {
@@ -36,7 +36,7 @@ export const STEM_DEFS = {
     color: '#a855f7',
     gradientStart: '#c084fc',
     gradientEnd: '#7e22ce',
-    icon: '🎸',
+    icon: '',
     badge: 'BAS'
   },
   guitar: {
@@ -45,7 +45,7 @@ export const STEM_DEFS = {
     color: '#f97316',
     gradientStart: '#fb923c',
     gradientEnd: '#c2410c',
-    icon: '🎸',
+    icon: '',
     badge: 'GİTAR'
   },
   piano: {
@@ -54,7 +54,7 @@ export const STEM_DEFS = {
     color: '#10b981',
     gradientStart: '#34d399',
     gradientEnd: '#059669',
-    icon: '🎹',
+    icon: '',
     badge: 'PİYANO'
   },
   other: {
@@ -63,7 +63,7 @@ export const STEM_DEFS = {
     color: '#ec4899',
     gradientStart: '#f472b6',
     gradientEnd: '#be185d',
-    icon: '🎻',
+    icon: '',
     badge: 'DİĞER'
   }
 };
@@ -145,8 +145,8 @@ export class StemSplitterUI {
     this.render();
     
     const is6s = this.separationMode === '6s';
-    const modeName = is6s ? '6-Stem Pro (Piyano & Gitar Ayrımı)' : '4-Stem Standart';
-    this.renderProgress(8, `🤖 Demucs ${modeName} Başlatılıyor...`);
+    const modeName = is6s ? '6-Stem Pro' : '4-Stem';
+    this.renderProgress(8, `Demucs ${modeName} başlatılıyor...`);
 
     this.engine.ensureContext();
 
@@ -203,7 +203,7 @@ export class StemSplitterUI {
         if (statusData) {
           if (statusData.status === 'processing' || statusData.status === 'queued') {
             const displayPct = statusData.progress || 15;
-            this.renderProgress(displayPct, `🤖 Demucs: ${statusData.message || 'Sinir ağı işliyor...'}`);
+            this.renderProgress(displayPct, `Demucs: ${statusData.message || 'Ayrıştırma işleniyor...'}`);
           } else if (statusData.status === 'done') {
             jobFinished = true;
             jobResult = statusData;
@@ -237,7 +237,7 @@ export class StemSplitterUI {
       for (let i = 0; i < returnedKeys.length; i++) {
         const key = returnedKeys[i];
         const pct = 90 + Math.floor((i / returnedKeys.length) * 8);
-        this.renderProgress(pct, `Stüdyo izi yükleniyor: ${stemNamesTr[key] || key} (%${pct})...`);
+        this.renderProgress(pct, `Kanal yükleniyor: ${stemNamesTr[key] || key} (%${pct})...`);
 
         const stemUrl = jobResult.stems[key];
         const res = await fetch(ApiClient.getApiUrl(stemUrl));
@@ -261,20 +261,20 @@ export class StemSplitterUI {
       }, 100);
 
       const successMsg = is6s 
-        ? '🎉 6 Enstrüman Kökü (Vokal, Davul, Bas, Gitar, Piyano, Sentetik) Başarıyla Ayrıştırıldı!'
-        : '🎉 4 Enstrüman Kökü Başarıyla Ayrıştırıldı!';
+        ? '6 Enstrüman kökü (Vokal, Davul, Bas, Gitar, Piyano, Sentetik) ayrıştırıldı.'
+        : '4 Enstrüman kökü ayrıştırıldı.';
       if (window.flovaApp) {
         window.flovaApp.showToast(successMsg, 'success');
       }
     } catch (err) {
-      console.error('AI ayrıştırma hatası:', err);
+      console.error('Ayrıştırma hatası:', err);
       this.isProcessing = false;
       this.currentProgress = null;
       this.render();
       if (window.flovaApp) {
         const isNetworkErr = err.message?.includes('Failed to fetch') || err.message?.includes('sunucusundan');
         const userMsg = isNetworkErr
-          ? '⚠️ AI Sunucusuna bağlanılamadı. Sağ üstteki "AI Sunucu" butonundan bağlantınızı ayarlayabilirsiniz.'
+          ? 'Sunucuya bağlanılamadı. Sağ üstteki sunucu durumu butonundan kontrol edebilirsiniz.'
           : `Ayrıştırma Hatası: ${err.message || err}`;
         window.flovaApp.showToast(userMsg, 'error');
       }
@@ -500,12 +500,12 @@ export class StemSplitterUI {
     if (btn) {
       if (this.isComparingOriginal) {
         btn.classList.add('active-ab');
-        btn.innerHTML = '🎧 <b>Orijinal Parça (A)</b>';
-        if (window.flovaApp) window.flovaApp.showToast('🎧 Orijinal parça dinleniyor', 'info');
+        btn.innerHTML = '<b>Orijinal Parça (A)</b>';
+        if (window.flovaApp) window.flovaApp.showToast('Orijinal parça dinleniyor', 'info');
       } else {
         btn.classList.remove('active-ab');
-        btn.innerHTML = '🎛️ <b>Ayrıştırılmış Miks (B)</b>';
-        if (window.flovaApp) window.flovaApp.showToast('🎛️ Ayrıştırılmış stem miksi dinleniyor', 'info');
+        btn.innerHTML = '<b>Ayrıştırılmış Miks (B)</b>';
+        if (window.flovaApp) window.flovaApp.showToast('Ayrıştırılmış stem miksi dinleniyor', 'info');
       }
     }
   }
@@ -655,7 +655,7 @@ export class StemSplitterUI {
 
     try {
       if (window.flovaApp) {
-        window.flovaApp.showToast(`📦 ${activeKeys.length} Stem ZIP arşivi olarak paketleniyor...`, 'info');
+        window.flovaApp.showToast(`${activeKeys.length} Stem ZIP arşivi olarak paketleniyor...`, 'info');
       }
 
       const zip = new window.JSZip();
@@ -679,7 +679,7 @@ export class StemSplitterUI {
       URL.revokeObjectURL(url);
 
       if (window.flovaApp) {
-        window.flovaApp.showToast(`"${baseName}_Stems_Paketi.zip" başarıyla indirildi!`, 'success');
+        window.flovaApp.showToast(`"${baseName}_Stems_Paketi.zip" indirildi.`, 'success');
       }
     } catch (err) {
       console.error('ZIP oluşturma hatası:', err);
@@ -703,7 +703,7 @@ export class StemSplitterUI {
 
     try {
       if (window.flovaApp) {
-        window.flovaApp.showToast('🎚️ Özel miksiniz render ediliyor...', 'info');
+        window.flovaApp.showToast('Özel miksiniz render ediliyor...', 'info');
       }
 
       const anySolo = activeKeys.some(k => this.stems[k].solo);
@@ -940,8 +940,9 @@ export class StemSplitterUI {
         <div class="stem-header-bar">
           <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
             <div style="font-size: 1.15rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
-              🎸 Enstrüman Ayırıcı
-              <span class="badge-pro" style="background: linear-gradient(135deg, #a855f7, #6366f1);">${is6s ? '6-STEM PRO' : '4-STEM'}</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line></svg>
+              Çok Kanallı Kök (Stem) Ayırıcı
+              <span class="badge-pro" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; letter-spacing: 0.05em;">${is6s ? '6-STEM PRO' : '4-STEM'}</span>
             </div>
             ${this.sourceBuffer ? `
               <div class="track-info-pill">
@@ -965,27 +966,32 @@ export class StemSplitterUI {
             </div>
 
             ${this.engine.currentBuffer && this.engine.currentBuffer !== this.sourceBuffer ? `
-              <button id="stemUseEditorTrackBtn" class="btn btn-emerald btn-sm" onclick="window.flovaStemSplitter.loadBuffer(window.flovaApp.engine.currentBuffer, window.flovaApp.engine.currentFileName || 'Duzenleyici_Parcasi')">
-                ✨ Editörden Al
+              <button id="stemUseEditorTrackBtn" class="btn btn-emerald btn-sm" onclick="window.flovaStemSplitter.loadBuffer(window.flovaApp.engine.currentBuffer, window.flovaApp.engine.currentFileName || 'Duzenleyici_Parcasi')" style="display: inline-flex; align-items: center; gap: 5px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                Editörden Al
               </button>
             ` : ''}
             
-            <label class="btn btn-primary btn-sm" style="cursor: pointer;">
-              📂 Dosya Aç
+            <label class="btn btn-primary btn-sm" style="cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+              Dosya Aç
               <input type="file" id="stemFileInput" accept="audio/*" style="display: none;" />
             </label>
 
             ${this.hasAnyStem() ? `
-              <button id="stemABBtn" class="btn btn-secondary btn-sm" onclick="window.flovaStemSplitter.toggleABComparison()" title="Orijinal ile miksi kıyasla">
-                🎛️ A/B: Miks
+              <button id="stemABBtn" class="btn btn-secondary btn-sm" onclick="window.flovaStemSplitter.toggleABComparison()" title="Orijinal ile miksi kıyasla" style="display: inline-flex; align-items: center; gap: 5px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="12 8 8 12 12 16 12 8"></polygon></svg>
+                A/B: Miks
               </button>
 
-              <button class="btn btn-primary btn-sm" onclick="window.flovaStemSplitter.exportCustomMix()" title="Mikser ayarlarına göre miksi kaydet" style="background: linear-gradient(135deg, #6366f1, #a855f7); border: none;">
-                🎚️ Miks İndir
+              <button class="btn btn-primary btn-sm" onclick="window.flovaStemSplitter.exportCustomMix()" title="Mikser ayarlarına göre miksi kaydet" style="background: linear-gradient(135deg, #4f46e5, #7c3aed); border: none; display: inline-flex; align-items: center; gap: 5px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Miks İndir
               </button>
 
-              <button class="btn btn-emerald btn-sm" onclick="window.flovaStemSplitter.downloadStemsAsZip()" title="Tüm kökleri tek bir ZIP dosyasında indir">
-                📦 ZIP İndir
+              <button class="btn btn-emerald btn-sm" onclick="window.flovaStemSplitter.downloadStemsAsZip()" title="Tüm kökleri tek bir ZIP dosyasında indir" style="display: inline-flex; align-items: center; gap: 5px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>
+                ZIP İndir
               </button>
             ` : ''}
           </div>
@@ -1026,7 +1032,10 @@ export class StemSplitterUI {
 
             <!-- Master Output Volume -->
             <div style="display: flex; align-items: center; gap: 8px; border-left: 1px solid rgba(255,255,255,0.08); padding-left: 14px;">
-              <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">🔊 Çıkış:</span>
+              <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                Çıkış:
+              </span>
               <span id="stemMasterVolVal" class="effect-val-pill">100%</span>
               <input type="range" class="studio-slider" min="0" max="1.5" step="0.05" value="${this.masterGain}"
                 oninput="window.flovaStemSplitter.setMasterGain(this.value)" style="width: 85px;" />
@@ -1113,18 +1122,18 @@ export class StemSplitterUI {
             </div>
 
             <!-- Action Buttons -->
-            <button class="btn btn-secondary btn-sm" onclick="window.flovaStemSplitter.sendToEditor('${key}')" title="Editöre aktar">
-              ✂️ Editör
+            <button class="btn btn-secondary btn-sm" onclick="window.flovaStemSplitter.sendToEditor('${key}')" title="Editöre aktar" style="display: inline-flex; align-items: center; gap: 5px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="20" y1="4" x2="8.12" y2="15.88"></line><line x1="14.47" y1="14.48" x2="20" y2="20"></line><line x1="8.12" y1="8.12" x2="12" y2="12"></line></svg>
+              Editör
             </button>
             
-            <button class="btn btn-primary btn-sm" onclick="window.flovaStemSplitter.downloadStem('${key}')" style="background: ${def.color}; border-color: ${def.color};" title="WAV olarak indir">
-              📥 İndir
+            <button class="btn btn-primary btn-sm" onclick="window.flovaStemSplitter.downloadStem('${key}')" style="background: ${def.color}; border-color: ${def.color}; display: inline-flex; align-items: center; gap: 5px;" title="WAV olarak indir">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              İndir
             </button>
 
           </div>
         </div>
-
-        <!-- Waveform Canvas Display -->
 
         <!-- Waveform Canvas Display -->
         <div class="stem-waveform-box" onclick="window.flovaStemSplitter.handleCanvasClick(event, '${key}')">
@@ -1142,7 +1151,7 @@ export class StemSplitterUI {
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
           <div style="display: flex; align-items: center; gap: 10px;">
             <div class="loading-spinner" style="border-top-color: #a855f7;"></div>
-            <span style="font-weight: 700; font-size: 0.92rem; color: #f8fafc;">Yapay Zeka Stem Ayrıştırması</span>
+            <span style="font-weight: 700; font-size: 0.92rem; color: #f8fafc;">Çok Kanallı Stem Ayrıştırma İşlemi</span>
           </div>
           <span style="font-family: var(--font-mono); font-weight: 700; color: #a855f7; font-size: 0.95rem;">%${pct}</span>
         </div>

@@ -671,8 +671,8 @@ export class MergerUI {
       const badge = this.container.querySelector(`#connector_badge_${cur.track.id}`);
       if (badge) {
         const dur = this.getCrossfadeDurationForPair(cur.track, nxt.track);
-        const modeLabel = this.crossfadeMode === 'auto' ? '⚡ Otomatik Fade Eşleme' : '⏱️ Manuel Süre';
-        badge.innerHTML = `🔀 <strong>${dur.toFixed(1)} sn</strong> iç içe geçiş <span style="opacity: 0.7; font-size: 0.72rem; margin-left: 4px;">(${modeLabel})</span>`;
+        const modeLabel = this.crossfadeMode === 'auto' ? 'Otomatik Fade' : 'Manuel';
+        badge.innerHTML = `<strong>${dur.toFixed(1)} sn</strong> geçiş <span style="opacity: 0.75; font-size: 0.72rem; margin-left: 4px;">(${modeLabel})</span>`;
       }
     }
     this.updateTotalDurationBadge();
@@ -708,11 +708,11 @@ export class MergerUI {
     const totalSec = this.calculateTotalMergedDuration();
     const bottomBadge = this.container.querySelector('#mergerTotalDurationBadge');
     if (bottomBadge) {
-      bottomBadge.innerHTML = `⏱️ Toplam Süre: <strong style="color: #fff; font-size: 0.95rem;">${this.formatTime(totalSec)}</strong> <span style="font-size: 0.75rem; opacity: 0.8; color: var(--accent-cyan);">(${totalSec.toFixed(1)} sn)</span>`;
+      bottomBadge.innerHTML = `<span style="color: var(--text-dim); font-size: 0.78rem;">SÜRE:</span> <strong style="color: #fff; font-size: 0.95rem;">${this.formatTime(totalSec)}</strong> <span style="font-size: 0.75rem; opacity: 0.8; color: var(--accent-cyan);">(${totalSec.toFixed(1)} sn)</span>`;
     }
     const headerBadge = this.container.querySelector('#mergerHeaderTotalDuration');
     if (headerBadge) {
-      headerBadge.innerHTML = `⏱️ ${this.formatTime(totalSec)}`;
+      headerBadge.innerHTML = `${this.formatTime(totalSec)}`;
     }
   }
 
@@ -1360,7 +1360,7 @@ export class MergerUI {
               <h3 style="font-size: 1.05rem; font-weight: 700; margin: 0; color: #fff;">Parça Listesi (${this.tracks.length} Parça, ${activeCount} Aktif)</h3>
               ${this.tracks.length > 0 ? `
                 <span id="mergerHeaderTotalDuration" style="font-family: var(--font-mono); font-size: 0.78rem; font-weight: 700; color: #38bdf8; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); padding: 2px 8px; border-radius: 6px;" title="Tüm aktif parçaların geçişler sonrası net toplam süresi">
-                  ⏱️ ${this.formatTime(totalMergedSec)}
+                  ${this.formatTime(totalMergedSec)}
                 </span>
               ` : ''}
             </div>
@@ -1368,19 +1368,19 @@ export class MergerUI {
             ${this.tracks.length > 1 ? `
               <!-- Top-Bar Crossfade Mode Switcher (Always visible without scrolling!) -->
               <div style="display: inline-flex; align-items: center; gap: 8px; background: rgba(0, 0, 0, 0.45); padding: 4px 10px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.3);">
-                <span style="font-size: 0.8rem; font-weight: 700; color: #38bdf8;">🔀 Geçiş Modu:</span>
+                <span style="font-size: 0.78rem; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.04em;">Geçiş Modu:</span>
                 <div style="display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.06); padding: 2px 4px; border-radius: 20px;">
                   <button type="button" class="merger-mode-pill ${this.crossfadeMode === 'auto' ? 'active' : ''}" 
                     style="padding: 3px 10px; font-size: 0.76rem;"
                     onclick="window.flovaMerger.setCrossfadeMode('auto')"
                     title="Parçaların Fade Out ve Fade In süreleri kadar şarkılar kesintisiz ve tam örtüşerek iç içe geçer.">
-                    ⚡ Otomatik Fade
+                    Otomatik Fade
                   </button>
                   <button type="button" class="merger-mode-pill ${this.crossfadeMode === 'manual' ? 'active' : ''}" 
                     style="padding: 3px 10px; font-size: 0.76rem;"
                     onclick="window.flovaMerger.setCrossfadeMode('manual')"
                     title="Belirleyeceğiniz saniye kadar şarkılar iç içe geçer.">
-                    ⏱️ Manuel Süre
+                    Manuel Süre
                   </button>
                 </div>
 
@@ -1430,7 +1430,7 @@ export class MergerUI {
               const isLast = idx === this.tracks.length - 1;
               const nextTrack = !isLast ? this.tracks[idx + 1] : null;
               const overlapSec = nextTrack ? this.getCrossfadeDurationForPair(track, nextTrack) : 0;
-              const modeLabel = this.crossfadeMode === 'auto' ? '⚡ Otomatik Fade Eşleme' : '⏱️ Manuel Süre';
+              const modeLabel = this.crossfadeMode === 'auto' ? 'Otomatik Fade' : 'Manuel Fade';
 
               return `
               <div class="merger-track-card" data-id="${track.id}" style="${!track.enabled ? 'opacity: 0.45; filter: grayscale(0.8);' : ''}">
@@ -1448,20 +1448,22 @@ export class MergerUI {
                   </div>
 
                   <div style="display: flex; align-items: center; gap: 8px;">
-                    <button id="preview_btn_${track.id}" class="btn btn-secondary btn-sm" style="padding: 4px 10px; font-size: 0.78rem;" onclick="window.flovaMerger.playSequentialFromTrack(${idx}, ${track.trimStart})">
-                      ▶ Çal
+                    <button id="preview_btn_${track.id}" class="btn btn-secondary btn-sm" style="padding: 4px 10px; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 4px;" onclick="window.flovaMerger.playSequentialFromTrack(${idx}, ${track.trimStart})">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Çal
                     </button>
                     <button class="btn btn-secondary btn-sm" ${idx === 0 ? 'disabled' : ''} onclick="window.flovaMerger.moveTrack(${idx}, -1)" title="Yukarı">▲</button>
                     <button class="btn btn-secondary btn-sm" ${idx === this.tracks.length - 1 ? 'disabled' : ''} onclick="window.flovaMerger.moveTrack(${idx}, 1)" title="Aşağı">▼</button>
-                    <button class="btn btn-danger btn-sm" onclick="window.flovaMerger.removeTrack('${track.id}')" title="Kaldır">✕</button>
+                    <button class="btn btn-danger btn-sm" onclick="window.flovaMerger.removeTrack('${track.id}')" title="Kaldır" style="padding: 4px 8px; display: inline-flex; align-items: center;">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
                   </div>
                 </div>
 
                 <!-- Per-Track Dedicated Selection & Action Bar -->
                 <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; background: rgba(0,0,0,0.35); padding: 6px 12px; border-radius: 6px; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.05);">
                   <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                    <span style="font-size: 0.78rem; font-weight: 700; color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 0.5px;">
-                      📍 Aralık:
+                    <span style="font-size: 0.76rem; font-weight: 700; color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 0.5px;">
+                      Aralık:
                     </span>
                     
                     <div style="display: flex; align-items: center; gap: 4px;">
@@ -1489,15 +1491,18 @@ export class MergerUI {
                   <div style="display: flex; align-items: center; gap: 6px;">
                     <button class="btn btn-primary btn-sm" style="padding: 3px 8px; font-size: 0.75rem;" 
                       onclick="window.flovaMerger.trimTrack('${track.id}')" title="Seçili alanı sakla, dışındakileri sil">
-                      ✂️ Kırp
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="20" y1="4" x2="8.12" y2="15.88"></line><line x1="14.47" y1="14.48" x2="20" y2="20"></line><line x1="8.12" y1="8.12" x2="12" y2="12"></line></svg>
+                      Kırp
                     </button>
                     <button class="btn btn-secondary btn-sm" style="padding: 3px 8px; font-size: 0.75rem;" 
                       onclick="window.flovaMerger.cutOutTrackSelection('${track.id}')" title="Seçili alanı parçadan çıkarıp sil">
-                      🗑️ Sil
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                      Sil
                     </button>
                     <button class="btn btn-secondary btn-sm" style="padding: 3px 8px; font-size: 0.75rem;" 
                       onclick="window.flovaMerger.silenceTrackSelection('${track.id}')" title="Seçili alanı sessizleştir">
-                      🔇 Sessiz
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path></svg>
+                      Sessiz
                     </button>
                     ${track.history && track.history.length > 0 ? `
                       <button class="btn btn-secondary btn-sm" style="padding: 3px 8px; font-size: 0.75rem;" 
@@ -1536,7 +1541,7 @@ export class MergerUI {
 
                   <!-- Per-Track Fade In (Slider + Typable Number Box) -->
                   <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="color: #10b981; font-weight: 600;">📈 Fade In:</span>
+                    <span style="color: #10b981; font-weight: 600;">Fade In:</span>
                     <input type="range" id="fadein_slider_${track.id}" min="0" max="10.0" step="0.1" value="${track.fadeInSec}" 
                       class="studio-slider" style="width: 75px; height: 4px;"
                       oninput="window.flovaMerger.setFadeIn('${track.id}', this.value)" />
@@ -1548,7 +1553,7 @@ export class MergerUI {
 
                   <!-- Per-Track Fade Out (Slider + Typable Number Box) -->
                   <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="color: #f43f5e; font-weight: 600;">📉 Fade Out:</span>
+                    <span style="color: #f43f5e; font-weight: 600;">Fade Out:</span>
                     <input type="range" id="fadeout_slider_${track.id}" min="0" max="10.0" step="0.1" value="${track.fadeOutSec}" 
                       class="studio-slider" style="width: 75px; height: 4px;"
                       oninput="window.flovaMerger.setFadeOut('${track.id}', this.value)" />
@@ -1569,7 +1574,7 @@ export class MergerUI {
                     title="Geçiş Ayarları: Tıklayarak Otomatik ve Manuel mod arasında geçiş yapabilirsiniz"
                     onclick="window.flovaMerger.toggleCrossfadeMode()"
                     style="cursor: pointer;">
-                    🔀 <strong>${overlapSec.toFixed(1)} sn</strong> iç içe geçiş
+                    <strong>${overlapSec.toFixed(1)} sn</strong> geçiş
                     <span style="opacity: 0.85; font-size: 0.72rem; margin-left: 4px; color: var(--accent-cyan);">(${modeLabel})</span>
                   </div>
                   <div class="merger-transition-line"></div>
@@ -1580,8 +1585,10 @@ export class MergerUI {
 
             <!-- Prominent Add Next Track Drop Zone Card -->
             <div id="mergerAddNextCard" class="merger-add-track-card" onclick="window.flovaMerger.triggerAddTrack()">
-              <div style="font-size: 1.3rem; margin-bottom: 3px;">➕</div>
-              <div style="font-weight: 700; color: #fff; font-size: 0.92rem;">+ Yeni Parça Ekle (${this.tracks.length + 1}. Şarkıyı Seçin veya Sürükleyin)</div>
+              <div style="margin-bottom: 3px; color: var(--accent-cyan);">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              </div>
+              <div style="font-weight: 700; color: #fff; font-size: 0.92rem;">Yeni Parça Ekle (${this.tracks.length + 1}. Şarkıyı Seçin veya Sürükleyin)</div>
               <div style="font-size: 0.76rem; color: var(--text-muted); margin-top: 2px;">Tıklayarak dosya seçebilir veya şarkıyı doğrudan bu alana sürükleyip bırakabilirsiniz</div>
             </div>
           </div>
@@ -1595,12 +1602,12 @@ export class MergerUI {
                 <button type="button" class="merger-mode-pill ${this.crossfadeMode === 'auto' ? 'active' : ''}" 
                   onclick="window.flovaMerger.setCrossfadeMode('auto')"
                   title="Parçaların Fade Out ve Fade In sürelerini otomatik algılayıp şarkıları tam o süre boyunca kesintisiz iç içe geçirir.">
-                  ⚡ Otomatik Fade Eşleme
+                  Otomatik Fade Eşleme
                 </button>
                 <button type="button" class="merger-mode-pill ${this.crossfadeMode === 'manual' ? 'active' : ''}" 
                   onclick="window.flovaMerger.setCrossfadeMode('manual')"
                   title="Tüm parçalar arasında elle belirlediğiniz süre kadar çapraz geçiş (iç içe geçme) uygular.">
-                  ⏱️ Manuel Süre
+                  Manuel Süre
                 </button>
               </div>
 
@@ -1624,15 +1631,17 @@ export class MergerUI {
               <div id="mergerTotalDurationBadge" 
                 style="display: inline-flex; align-items: center; gap: 6px; background: rgba(56, 189, 248, 0.1); border: 1.5px solid rgba(56, 189, 248, 0.4); padding: 7px 16px; border-radius: 8px; font-family: var(--font-mono); font-size: 0.85rem; color: #38bdf8; box-shadow: 0 0 14px rgba(56, 189, 248, 0.18);"
                 title="Geçişler ve kırpmalar dahil birleştirilmiş dosyanın net toplam süresi">
-                ⏱️ Toplam Süre: <strong style="color: #fff; font-size: 0.96rem;">${this.formatTime(totalMergedSec)}</strong>
+                <span style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase;">Toplam:</span> <strong style="color: #fff; font-size: 0.96rem;">${this.formatTime(totalMergedSec)}</strong>
                 <span style="font-size: 0.75rem; opacity: 0.85; color: var(--accent-cyan);">(${totalMergedSec.toFixed(1)} sn)</span>
               </div>
 
               <button class="btn btn-secondary" onclick="window.flovaMerger.exportMergedDirectly()" title="Doğrudan dışa aktar">
-                💾 Dışa Aktar
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                Dışa Aktar
               </button>
               <button class="btn btn-emerald" onclick="window.flovaMerger.performMerge()">
-                🔗 Birleştir (${activeCount} Parça)
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                Birleştir (${activeCount} Parça)
               </button>
             </div>
           </div>

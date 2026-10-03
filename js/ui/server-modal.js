@@ -84,9 +84,11 @@ export class ServerModal {
         <!-- Header -->
         <div class="modal-header">
           <div class="modal-title-row">
-            <span class="modal-icon">🤖</span>
+            <span class="modal-icon" style="color: var(--accent-cyan); display: inline-flex; align-items: center;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+            </span>
             <div>
-              <h3 class="modal-title">Yapay Zeka & Sunucu Ayarları</h3>
+              <h3 class="modal-title">İşlem & Sunucu Yapılandırması</h3>
             </div>
           </div>
           <button class="modal-close-btn" id="closeServerModalBtn" title="Kapat">✕</button>
@@ -100,7 +102,7 @@ export class ServerModal {
             <div class="status-indicator-circle ${isOk ? 'pulse-green' : 'pulse-red'}"></div>
             <div style="flex: 1;">
               <div style="font-weight: 700; font-size: 0.95rem; color: #fff;">
-                ${isOk ? '🟢 AI Sunucusu Bağlantısı Aktif' : '🔴 AI Sunucusu Çevrimdışı / Erişilemiyor'}
+                ${isOk ? 'Sunucu Bağlantısı Aktif' : 'Sunucu Çevrimdışı / Erişilemiyor'}
               </div>
               <div style="font-size: 0.82rem; color: #94a3b8; margin-top: 2px;">
                 ${isOk 
@@ -109,15 +111,15 @@ export class ServerModal {
                 }
               </div>
             </div>
-            <button id="testServerBtn" class="btn btn-secondary btn-sm" ${this.isTesting ? 'disabled' : ''}>
-              ${this.isTesting ? '⏳ Sınanıyor...' : '⚡ Bağlantıyı Sına'}
+            <button id="testServerBtn" class="btn btn-secondary btn-sm" ${this.isTesting ? 'disabled' : ''} style="display: inline-flex; align-items: center; gap: 5px;">
+              ${this.isTesting ? 'Sınanıyor...' : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg> Bağlantıyı Sına'}
             </button>
           </div>
 
           <!-- Backend URL Input -->
           <div class="form-group">
             <label style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px;">
-              <span>AI Sunucu Adresi (Backend URL)</span>
+              <span>Sunucu Adresi (Backend URL)</span>
               <span style="font-size: 0.75rem; color: #64748b;">(Örn: https://xxx.trycloudflare.com veya http://localhost:3000)</span>
             </label>
             <div style="display: flex; gap: 8px;">
@@ -129,14 +131,14 @@ export class ServerModal {
                 placeholder="http://localhost:3000 veya https://sunucunuz.com" 
                 value="${ApiClient.getBaseUrl()}"
               />
-              <button id="saveServerUrlBtn" class="btn btn-primary btn-sm">💾 Kaydet</button>
+              <button id="saveServerUrlBtn" class="btn btn-primary btn-sm">Kaydet</button>
             </div>
           </div>
 
           <!-- Quick Presets -->
           <div class="quick-presets-row" style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <button class="preset-chip" id="presetLocalhost">🏠 Yerel (localhost:3000)</button>
-            <button class="preset-chip" id="presetResetDefault">🔄 Sıfırla (Otomatik Algıla)</button>
+            <button class="preset-chip" id="presetLocalhost">Yerel (localhost:3000)</button>
+            <button class="preset-chip" id="presetResetDefault">Varsayılana Sıfırla</button>
           </div>
 
         </div>

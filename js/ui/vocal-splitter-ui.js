@@ -102,7 +102,7 @@ export class VocalSplitterUI {
   async processSeparationAI() {
     this.isProcessing = true;
     this.render();
-    this.renderProgress(10, '🤖 Demucs Yapay Zeka Modeli Başlatılıyor...');
+    this.renderProgress(10, 'Demucs sinir ağı modeli başlatılıyor...');
 
     this.engine.ensureContext();
     const ctx = this.engine.ctx;
@@ -160,7 +160,7 @@ export class VocalSplitterUI {
         if (statusData) {
           if (statusData.status === 'processing' || statusData.status === 'queued') {
             const displayPct = statusData.progress || 15;
-            this.renderProgress(displayPct, `🤖 Demucs AI: ${statusData.message || 'Sinir ağı işliyor...'}`);
+            this.renderProgress(displayPct, `Demucs: ${statusData.message || 'Sinir ağı işliyor...'}`);
           } else if (statusData.status === 'done') {
             jobFinished = true;
             jobResult = statusData;
@@ -201,12 +201,12 @@ export class VocalSplitterUI {
       }, 80);
 
       if (window.flovaApp) {
-        window.flovaApp.showToast('🤖 Yapay Zeka (Demucs): Vokal ve Müzik kusursuz ayrıştırıldı!', 'success');
+        window.flovaApp.showToast('Vokal ve Müzik ayrıştırma tamamlandı.', 'success');
       }
     } catch (err) {
       console.warn('AI ayrıştırma hatası, yerel DSP motoruna yönlendiriliyor:', err);
       if (window.flovaApp) {
-        window.flovaApp.showToast('⚠️ AI Sunucusu çevrimdışı. Tarayıcı içi Spektral DSP motoruna otomatik geçiliyor...', 'warning');
+        window.flovaApp.showToast('Sunucu çevrimdışı. Spektral DSP motoruna yönlendirildi.', 'info');
       }
       this.engineMode = 'dsp';
       await this.processSeparationDSP();
@@ -676,8 +676,9 @@ export class VocalSplitterUI {
         <!-- Header & Track Load Bar -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
           <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="font-size: 1.15rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">
-              🎙️ Vokal Ayrıştırma
+            <div style="font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="22"></line></svg>
+              Vokal & Enstrüman Ayrıştırma
             </div>
             ${this.sourceBuffer ? `
               <div class="track-info-pill" style="margin-left: 8px;">
@@ -691,21 +692,21 @@ export class VocalSplitterUI {
             <!-- Engine Mode Switcher -->
             <div style="display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.06); padding: 3px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);">
               <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 600;">Motor:</span>
-              <button class="btn ${this.engineMode === 'ai' ? 'btn-primary' : 'btn-secondary'} btn-sm" style="padding: 2px 8px; font-size: 0.74rem;" onclick="window.flovaSplitter.setEngineMode('ai')" title="Yapay Zeka (Demucs)">
-                🤖 Demucs AI
+              <button class="btn ${this.engineMode === 'ai' ? 'btn-primary' : 'btn-secondary'} btn-sm" style="padding: 2px 8px; font-size: 0.74rem;" onclick="window.flovaSplitter.setEngineMode('ai')" title="Demucs Sinir Ağı">
+                Demucs Sinir Ağı
               </button>
-              <button class="btn ${this.engineMode === 'dsp' ? 'btn-primary' : 'btn-secondary'} btn-sm" style="padding: 2px 8px; font-size: 0.74rem;" onclick="window.flovaSplitter.setEngineMode('dsp')" title="Hızlı Spektral DSP Önizleme">
-                ⚡ Hızlı DSP
+              <button class="btn ${this.engineMode === 'dsp' ? 'btn-primary' : 'btn-secondary'} btn-sm" style="padding: 2px 8px; font-size: 0.74rem;" onclick="window.flovaSplitter.setEngineMode('dsp')" title="Hızlı Spektral DSP">
+                Hızlı DSP
               </button>
             </div>
 
             ${this.engine.currentBuffer && this.engine.currentBuffer !== this.sourceBuffer ? `
               <button id="useCurrentTrackBtn" class="btn btn-emerald btn-sm" onclick="window.flovaSplitter.loadBuffer(window.flovaApp.engine.currentBuffer, window.flovaApp.engine.currentFileName || 'Duzenleyici_Parcasi')">
-                ✨ Editörden Al
+                Editörden Al
               </button>
             ` : ''}
             <label class="btn btn-primary btn-sm" style="cursor: pointer;">
-              📂 Dosya Aç
+              Dosya Aç
               <input type="file" id="splitterFileInput" accept="audio/*" style="display: none;" />
             </label>
           </div>
@@ -731,12 +732,12 @@ export class VocalSplitterUI {
           <!-- Main Stems View -->
           <div class="stems-view-container" style="display: flex; flex-direction: column; gap: 14px;">
             
-            <!-- 1. STEM: VOCALS (🎤 Acapella) -->
+            <!-- 1. STEM: VOCALS (Acapella) -->
             <div class="stem-card glass-card" style="border-left: 4px solid var(--accent-cyan); padding: 12px 16px; background: rgba(10, 14, 24, 0.75);">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <span style="font-size: 1rem; font-weight: 700; color: var(--accent-cyan);">🎤 Vokal</span>
-                  <span class="badge-pro" style="font-size: 0.7rem; padding: 1px 6px;">${this.engineMode === 'ai' ? 'AI' : 'DSP'}</span>
+                  <span style="font-size: 0.95rem; font-weight: 700; color: var(--accent-cyan);">Vokal (Acapella)</span>
+                  <span class="badge-pro" style="font-size: 0.7rem; padding: 1px 6px;">${this.engineMode === 'ai' ? 'Demucs' : 'DSP'}</span>
                 </div>
 
                 <!-- Stem Controls -->
@@ -757,7 +758,7 @@ export class VocalSplitterUI {
                     <span id="vocalGainVal" style="font-family: var(--font-mono); color: var(--accent-cyan); font-weight: 700; font-size: 0.8rem; width: 42px;">${Math.round(this.vocalGain * 100)}%</span>
                   </div>
                   <button class="btn btn-emerald btn-sm" style="padding: 3px 8px; font-size: 0.75rem;" onclick="window.flovaSplitter.exportStem('vocal')">
-                    💾 İndir
+                    İndir
                   </button>
                 </div>
               </div>
@@ -769,12 +770,12 @@ export class VocalSplitterUI {
               </div>
             </div>
 
-            <!-- 2. STEM: INSTRUMENTAL (🎸 Karaoke / Music) -->
+            <!-- 2. STEM: INSTRUMENTAL (Karaoke / Music) -->
             <div class="stem-card glass-card" style="border-left: 4px solid var(--accent-primary); padding: 12px 16px; background: rgba(10, 14, 24, 0.75);">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <span style="font-size: 1rem; font-weight: 700; color: #ec4899;">🎸 Enstrümantal</span>
-                  <span class="badge-pro" style="font-size: 0.7rem; padding: 1px 6px; background: rgba(236,72,153,0.2); color: #ec4899; border-color: rgba(236,72,153,0.3);">${this.engineMode === 'ai' ? 'AI' : 'DSP'}</span>
+                  <span style="font-size: 0.95rem; font-weight: 700; color: #ec4899;">Enstrümantal (Karaoke)</span>
+                  <span class="badge-pro" style="font-size: 0.7rem; padding: 1px 6px; background: rgba(236,72,153,0.2); color: #ec4899; border-color: rgba(236,72,153,0.3);">${this.engineMode === 'ai' ? 'Demucs' : 'DSP'}</span>
                 </div>
 
                 <!-- Stem Controls -->
@@ -795,7 +796,7 @@ export class VocalSplitterUI {
                     <span id="instGainVal" style="font-family: var(--font-mono); color: #ec4899; font-weight: 700; font-size: 0.8rem; width: 42px;">${Math.round(this.instGain * 100)}%</span>
                   </div>
                   <button class="btn btn-emerald btn-sm" style="padding: 3px 8px; font-size: 0.75rem;" onclick="window.flovaSplitter.exportStem('inst')">
-                    💾 İndir
+                    İndir
                   </button>
                 </div>
               </div>
@@ -835,41 +836,40 @@ export class VocalSplitterUI {
                 ${this.engineMode === 'dsp' ? `
                   <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                     <button class="btn ${this.preset === 'studio-stereo' ? 'btn-primary' : 'btn-secondary'} btn-sm" style="font-size: 0.75rem; padding: 4px 9px;" onclick="window.flovaSplitter.applyPreset('studio-stereo')">
-                      🌟 Stereo Pro
+                      Stereo Pro
                     </button>
                     <button class="btn ${this.preset === 'acapella-master' ? 'btn-primary' : 'btn-secondary'} btn-sm" style="font-size: 0.75rem; padding: 4px 9px;" onclick="window.flovaSplitter.applyPreset('acapella-master')">
-                      🎤 Acapella
+                      Acapella
                     </button>
                     <button class="btn ${this.preset === 'karaoke-master' ? 'btn-primary' : 'btn-secondary'} btn-sm" style="font-size: 0.75rem; padding: 4px 9px;" onclick="window.flovaSplitter.applyPreset('karaoke-master')">
-                      🎸 Karaoke
+                      Karaoke
                     </button>
                     <button class="btn ${this.preset === 'aggressive' ? 'btn-primary' : 'btn-secondary'} btn-sm" style="font-size: 0.75rem; padding: 4px 9px;" onclick="window.flovaSplitter.applyPreset('aggressive')">
-                      ⚡ Agresif
+                      Agresif
                     </button>
                   </div>
                 ` : `
                   <div style="display: flex; align-items: center; gap: 8px; background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.25); border-radius: 6px; padding: 4px 10px;">
-                    <span style="font-size: 0.85rem;">🤖</span>
-                    <span style="font-size: 0.78rem; font-weight: 600; color: var(--accent-cyan);">Demucs v4 Neural Net</span>
+                    <span style="font-size: 0.78rem; font-weight: 600; color: var(--accent-cyan);">Demucs v4 Sinir Ağı</span>
                   </div>
                 `}
 
                 <!-- Quick Actions -->
                 <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                   <button class="btn btn-emerald btn-sm" onclick="window.flovaSplitter.downloadStemDirect('vocal')" title="Vokali WAV olarak indir">
-                    📥 Vokal
+                    Vokal İndir
                   </button>
                   <button class="btn btn-primary btn-sm" onclick="window.flovaSplitter.downloadStemDirect('inst')" title="Müziği WAV olarak indir">
-                    📥 Müzik
+                    Müzik İndir
                   </button>
                   <button class="btn btn-secondary btn-sm" onclick="window.flovaSplitter.sendToEditor('vocal')" title="Vokali düzenle">
-                    ✂️ Vokal
+                    Vokal Düzenle
                   </button>
                   <button class="btn btn-secondary btn-sm" onclick="window.flovaSplitter.sendToEditor('inst')" title="Müziği düzenle">
-                    ✂️ Müzik
+                    Müzik Düzenle
                   </button>
                   <button class="btn btn-secondary btn-sm" onclick="window.flovaSplitter.exportMixedStems()" title="Mikslenmiş sesi dışa aktar">
-                    💾 Miks
+                    Miks İndir
                   </button>
                 </div>
 
@@ -880,7 +880,7 @@ export class VocalSplitterUI {
                 ${this.engineMode === 'dsp' ? `
                   <!-- 1. Vocal Sensitivity -->
                   <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="font-size: 0.78rem; color: var(--text-muted);">🎯 Vokal:</span>
+                    <span style="font-size: 0.78rem; color: var(--text-muted);">Hassasiyet:</span>
                     <input type="range" min="0.5" max="2.5" step="0.1" value="${this.vocalSensitivity}" 
                       class="studio-slider" style="width: 60px; height: 4px;"
                       onchange="window.flovaSplitter.setVocalSensitivity(this.value)" />
@@ -889,7 +889,7 @@ export class VocalSplitterUI {
 
                   <!-- 2. Stereo Width -->
                   <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="font-size: 0.78rem; color: var(--text-muted);">🎧 Stereo:</span>
+                    <span style="font-size: 0.78rem; color: var(--text-muted);">Stereo:</span>
                     <input type="range" min="0.2" max="1.5" step="0.1" value="${this.stereoWidth}" 
                       class="studio-slider" style="width: 60px; height: 4px;"
                       onchange="window.flovaSplitter.setStereoWidth(this.value)" />
@@ -898,7 +898,7 @@ export class VocalSplitterUI {
 
                   <!-- 3. VAD Silence Gate -->
                   <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="font-size: 0.78rem; color: var(--text-muted);">🤫 VAD Kapısı:</span>
+                    <span style="font-size: 0.78rem; color: var(--text-muted);">VAD Eşiği:</span>
                     <input type="range" min="0.0" max="2.0" step="0.2" value="${this.vadGateStrength}" 
                       class="studio-slider" style="width: 60px; height: 4px;"
                       onchange="window.flovaSplitter.setVadGateStrength(this.value)" />
@@ -907,7 +907,7 @@ export class VocalSplitterUI {
 
                   <!-- 4. Sibilance & High Freq Air -->
                   <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="font-size: 0.78rem; color: var(--text-muted);">✨ Sibilans:</span>
+                    <span style="font-size: 0.78rem; color: var(--text-muted);">Sibilans:</span>
                     <input type="range" min="0.5" max="2.0" step="0.1" value="${this.sibilanceAir}" 
                       class="studio-slider" style="width: 60px; height: 4px;"
                       onchange="window.flovaSplitter.setSibilanceAir(this.value)" />
@@ -916,7 +916,7 @@ export class VocalSplitterUI {
 
                   <!-- 5. Bass Shield Crossover -->
                   <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="font-size: 0.78rem; color: var(--text-muted);">🥁 Bas Filtresi:</span>
+                    <span style="font-size: 0.78rem; color: var(--text-muted);">Bas Filtresi:</span>
                     <input type="range" min="80" max="260" step="10" value="${this.bassCutoffHz}" 
                       class="studio-slider" style="width: 60px; height: 4px;"
                       onchange="window.flovaSplitter.setBassCutoff(this.value)" />
@@ -928,7 +928,7 @@ export class VocalSplitterUI {
 
                 <!-- Re-process button -->
                 <button class="btn btn-primary btn-sm" style="font-size: 0.8rem; padding: 4px 14px; margin-left: auto;" onclick="window.flovaSplitter.processSeparation()" title="Parçayı yeniden ayrıştır">
-                  🔄 Yeniden Ayrıştır
+                  Yeniden İşle
                 </button>
 
               </div>

@@ -447,7 +447,7 @@ class FlovaStudioApp {
         this.beatGridToggleBtn.style.background = 'rgba(0, 242, 254, 0.2)';
         this.beatGridToggleBtn.style.borderColor = '#00f2fe';
         this.beatGridToggleBtn.style.color = '#00f2fe';
-        this.showToast('⚡ Ritim Izgarası Açıldı', 'info');
+        this.showToast('Ritim Izgarası Açıldı', 'info');
       } else {
         this.beatGridToggleBtn.style.background = '';
         this.beatGridToggleBtn.style.borderColor = '';
@@ -739,8 +739,8 @@ class FlovaStudioApp {
       <span class="spec-item">${channels}</span>
       <span class="spec-item">${buffer.sampleRate} Hz</span>
       <span class="spec-item">${this.formatTime(buffer.duration)}</span>
-      <span class="spec-item spec-bpm" id="trackBpmBadge" style="cursor: pointer; background: rgba(0, 242, 254, 0.12); border: 1px solid rgba(0, 242, 254, 0.3); color: #00f2fe; font-weight: 700;" title="Ritim Izgarasını Aç/Kapat">🥁 ... BPM</span>
-      <span class="spec-item spec-key" id="trackKeyBadge" style="background: rgba(168, 85, 247, 0.12); border: 1px solid rgba(168, 85, 247, 0.3); color: #c084fc; font-weight: 700;">🎼 ...</span>
+      <span class="spec-item spec-bpm" id="trackBpmBadge" style="cursor: pointer; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); color: #38bdf8; font-weight: 600;" title="Ritim Izgarasını Aç/Kapat"><span style="opacity: 0.7; font-size: 0.75rem; margin-right: 4px;">BPM</span> ...</span>
+      <span class="spec-item spec-key" id="trackKeyBadge" style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.25); color: #c084fc; font-weight: 600;"><span style="opacity: 0.7; font-size: 0.75rem; margin-right: 4px;">KEY</span> ...</span>
     `;
 
     // Asynchronously detect BPM and Musical Key
@@ -748,13 +748,13 @@ class FlovaStudioApp {
       const bpmEl = document.getElementById('trackBpmBadge');
       const keyEl = document.getElementById('trackKeyBadge');
       if (bpmEl) {
-        bpmEl.textContent = `🥁 ${analysis.bpm} BPM`;
+        bpmEl.innerHTML = `<span style="opacity: 0.7; font-size: 0.75rem; margin-right: 4px;">BPM</span> ${analysis.bpm}`;
         bpmEl.onclick = () => {
           document.getElementById('beatGridToggleBtn')?.click();
         };
       }
       if (keyEl) {
-        keyEl.textContent = `🎼 ${analysis.key}`;
+        keyEl.innerHTML = `<span style="opacity: 0.7; font-size: 0.75rem; margin-right: 4px;">KEY</span> ${analysis.key}`;
       }
       this.waveform.setBeats(analysis.beats, analysis.bpm);
     }).catch(err => {
