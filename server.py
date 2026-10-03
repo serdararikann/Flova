@@ -1907,8 +1907,44 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                             last_stream_err = f"id={fid}: {err_detail}"
 
                 if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
+                    v_id = ''
+                    if target and target.get('id'):
+                        v_id = target.get('id')
+                    elif info and info.get('id'):
+                        v_id = info.get('id')
+                    elif 'watch?v=' in yt_url:
+                        try:
+                            v_id = yt_url.split('watch?v=')[1].split('&')[0]
+                        except Exception:
+                            pass
+                    elif 'youtu.be/' in yt_url:
+                        try:
+                            v_id = yt_url.split('youtu.be/')[1].split('?')[0]
+                        except Exception:
+                            pass
+                    
+                    v_title = 'YouTube Parça'
+                    if info and info.get('title'):
+                        v_title = info.get('title')
+                    elif target and target.get('query'):
+                        v_title = target.get('query')
+
                     diag = f"FFMPEG={FFMPEG_EXE} | DL_Err={str(dl_err)[:70] if dl_err else 'Yok'} | Adaylar={len(candidates)}/{len(formats)} | Akış={last_stream_err}"
-                    self.send_error_json(500, f"İndirilen medya dosyası oluşturulamadı. ({diag})")
+                    is_dc_blocked = ('No video formats found' in str(dl_err) or len(candidates) == 0 or '403' in str(dl_err))
+                    
+                    resp_payload = {
+                        "success": False,
+                        "error_type": "datacenter_blocked" if is_dc_blocked else "download_failed",
+                        "error": f"YouTube bulut sunucusu kısıtlaması ({diag})",
+                        "video_id": v_id,
+                        "title": v_title,
+                        "fallback_urls": {
+                            "primary_mp3": f"https://en.onlymp3.to/converter-v3?v={v_id}" if v_id else "https://onlymp3.to/en5/",
+                            "secondary_mp3": f"https://en.y2mate.sx/v16/?v={v_id}" if v_id else "https://y2mate.is/en/youtube-to-mp3.html",
+                            "mp4_video": f"https://en1.savefrom.net/1-youtube-video/?url=https://www.youtube.com/watch?v={v_id}" if v_id else None
+                        }
+                    }
+                    self.send_json(503 if is_dc_blocked else 500, resp_payload)
                     return
 
                 if not info:
