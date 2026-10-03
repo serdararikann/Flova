@@ -33,6 +33,8 @@ class FlovaStudioApp {
     this.initComponents();
     this.bindEvents();
     this.bindKeyboardShortcuts();
+    this.initPWA();
+    this.handleHashNavigation();
   }
 
   initDOM() {
@@ -109,6 +111,7 @@ class FlovaStudioApp {
     this.addMarkerBtn = document.getElementById('addMarkerBtn');
     this.hotkeysBtn = document.getElementById('hotkeysBtn');
     this.themeSelector = document.getElementById('themeSelector');
+    this.pwaInstallBtn = document.getElementById('pwaInstallBtn');
   }
 
   initComponents() {
@@ -782,6 +785,68 @@ class FlovaStudioApp {
       if (this.tabYoutube) this.tabYoutube.classList.add('active');
       if (this.youtubeView) this.youtubeView.style.display = 'block';
       if (this.youtubeUI) this.youtubeUI.render();
+    }
+
+    try {
+      if (window.location.hash !== '#' + mode && window.history.replaceState) {
+        window.history.replaceState(null, '', '#' + mode);
+      }
+    } catch (e) {}
+  }
+
+  initPWA() {
+    // 1. Register Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then((reg) => {
+            console.log('[Flova PWA] Service Worker aktif:', reg.scope);
+          })
+          .catch((err) => {
+            console.warn('[Flova PWA] Service Worker kaydedilemedi:', err);
+          });
+      });
+    }
+
+    // 2. Install Prompt Handling
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (this.pwaInstallBtn) {
+        this.pwaInstallBtn.style.display = 'inline-flex';
+      }
+    });
+
+    if (this.pwaInstallBtn) {
+      this.pwaInstallBtn.addEventListener('click', async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          this.showToast('Flova Audio Studio kuruluyor...', 'success');
+        }
+        deferredPrompt = null;
+        this.pwaInstallBtn.style.display = 'none';
+      });
+    }
+
+    window.addEventListener('appinstalled', () => {
+      if (this.pwaInstallBtn) this.pwaInstallBtn.style.display = 'none';
+      this.showToast('Flova başarıyla cihazınıza yüklendi!', 'success');
+    });
+
+    // 3. Listen to Hash Navigation
+    window.addEventListener('hashchange', () => {
+      this.handleHashNavigation();
+    });
+  }
+
+  handleHashNavigation() {
+    const rawHash = window.location.hash.replace(/^#/, '').toLowerCase();
+    const validModes = ['editor', 'merger', 'vocal-splitter', 'stem-splitter', 'youtube'];
+    if (validModes.includes(rawHash) && rawHash !== this.activeMode) {
+      this.switchMode(rawHash);
     }
   }
 

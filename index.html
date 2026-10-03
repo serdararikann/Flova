@@ -2,13 +2,27 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
   <title>Flova Audio Studio</title>
+  <meta name="description" content="Flova Audio Studio - Profesyonel Web Ses Kesici, Düzenleyici, Birleştirici ve Yapay Zeka Kök Ayırıcı." />
+  
+  <!-- Progressive Web App (PWA) -->
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="theme-color" content="#090a0f" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Flova" />
+  <meta name="msapplication-TileColor" content="#090a0f" />
+  <meta name="msapplication-TileImage" content="./icons/icon-144.png" />
   
   <!-- Favicon / App Icon -->
-  <link rel="icon" type="image/png" href="./logo.png" />
-  <link rel="shortcut icon" href="./logo.png" />
-  <link rel="apple-touch-icon" href="./logo.png" />
+  <link rel="icon" type="image/png" href="./icons/icon-192.png" />
+  <link rel="shortcut icon" href="./favicon.ico" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="152x152" href="./icons/icon-152.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png" />
   
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -75,6 +89,12 @@
         <button id="hotkeysBtn" class="btn btn-secondary btn-sm" title="Klavye Kısayolları Haritası (?)">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"></rect><line x1="6" y1="8" x2="6" y2="8.01"></line><line x1="10" y1="8" x2="10" y2="8.01"></line><line x1="14" y1="8" x2="14" y2="8.01"></line><line x1="18" y1="8" x2="18" y2="8.01"></line><line x1="6" y1="12" x2="6" y2="12.01"></line><line x1="18" y1="12" x2="18" y2="12.01"></line><line x1="8" y1="16" x2="16" y2="16"></line></svg>
           <span>Kısayollar</span>
+        </button>
+
+        <!-- PWA Install Button -->
+        <button id="pwaInstallBtn" class="btn btn-secondary btn-sm" style="display: none; align-items: center; gap: 5px;" title="Flova'yı Uygulama Olarak Cihazınıza Yükleyin">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <span>Uygulamayı Yükle</span>
         </button>
 
         <button id="openFileBtn" class="btn btn-secondary btn-sm">

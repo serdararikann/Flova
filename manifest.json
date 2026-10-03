@@ -1,0 +1,107 @@
+{
+  "name": "Flova Audio Studio",
+  "short_name": "Flova",
+  "description": "Profesyonel Ses Kesici, Düzenleyici, Birleştirici ve Yapay Zeka Çok Kanallı Kök Ayırıcı Stüdyo",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#090a0f",
+  "theme_color": "#4f46e5",
+  "lang": "tr",
+  "dir": "ltr",
+  "categories": ["music", "audio", "utilities", "productivity"],
+  "icons": [
+    {
+      "src": "./icons/icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    },
+    {
+      "src": "./icons/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "./icons/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    },
+    {
+      "src": "./icons/icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png"
+    },
+    {
+      "src": "./icons/icon-152.png",
+      "sizes": "152x152",
+      "type": "image/png"
+    },
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-384.png",
+      "sizes": "384x384",
+      "type": "image/png"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Ses Düzenleyici",
+      "short_name": "Düzenleyici",
+      "description": "Ses parçalarını hassas şekilde kırpın ve efektler ekleyin",
+      "url": "./index.html#editor",
+      "icons": [{ "src": "./icons/icon-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Kök (Stem) Ayırıcı",
+      "short_name": "Stem Ayırıcı",
+      "description": "Yapay zeka ile vokal, davul, bas ve enstrümanları ayırın",
+      "url": "./index.html#stem-splitter",
+      "icons": [{ "src": "./icons/icon-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Ses Birleştirici",
+      "short_name": "Birleştirici",
+      "description": "Birden fazla parçayı crossfade ile birleştirin",
+      "url": "./index.html#merger",
+      "icons": [{ "src": "./icons/icon-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Vokal & Altyapı",
+      "short_name": "Vokal",
+      "description": "Hızlı vokal ve enstrümantal karaoke ayrımı",
+      "url": "./index.html#vocal-splitter",
+      "icons": [{ "src": "./icons/icon-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "YouTube İndirici",
+      "short_name": "İndirici",
+      "description": "Stüdyo kalitesinde MP3 indirin",
+      "url": "./index.html#youtube",
+      "icons": [{ "src": "./icons/icon-96.png", "sizes": "96x96" }]
+    }
+  ]
+}
