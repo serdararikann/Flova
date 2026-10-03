@@ -65,6 +65,20 @@ except Exception as e:
     FFMPEG_EXE = None
 
 try:
+    import yt_dlp_ejs
+except ImportError:
+    try:
+        subprocess.run([sys.executable, '-m', 'pip', 'install', 'yt-dlp-ejs>=0.8.0', '--quiet'], check=False, timeout=30)
+        import yt_dlp_ejs
+    except Exception:
+        pass
+
+try:
+    from yt_dlp_plugins.extractor import getpot_bgutil_cli, getpot_bgutil_http
+except Exception:
+    pass
+
+try:
     import noisereduce as nr
 except ImportError:
     nr = None
@@ -1323,6 +1337,10 @@ def get_youtube_dl_opts(extra_opts=None, client_list=None, use_cookies=True):
     except Exception:
         pass
 
+    is_windows = (os.name == 'nt')
+    bin_name = 'bgutil-pot.exe' if is_windows else 'bgutil-pot'
+    pot_bin = os.path.join(BASE_DIR, 'bin', bin_name)
+
     opts = {
         'quiet': True,
         'no_warnings': True,
@@ -1332,12 +1350,15 @@ def get_youtube_dl_opts(extra_opts=None, client_list=None, use_cookies=True):
         'js_runtimes': get_js_runtime_config(),
         'check_formats': False,
         'ignore_no_formats_error': True,
-        'format': 'bestaudio/ba/best[height<=720]/best/b',
+        'format': '18/bestaudio/ba/140/251/best[height<=720]/best/b',
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
             'Accept-Language': 'en-US,en;q=0.9',
         },
         'extractor_args': {
+            'youtubepot-bgutilcli': {
+                'cli_path': [pot_bin]
+            } if os.path.exists(pot_bin) else {},
             'youtubepot-bgutilhttp': {
                 'base_url': ['http://127.0.0.1:4416']
             }
@@ -1368,79 +1389,78 @@ def get_youtube_dl_opts(extra_opts=None, client_list=None, use_cookies=True):
 def run_resilient_ytdlp_action(yt_url, base_opts=None, is_download=False):
     """
     Executes yt-dlp with automatic multi-tier fallback optimized for both local and datacenter cloud environments:
-    1. VisionOS Client API (Modern JS-less - bypasses cloud datacenter bot filters, 45 full formats)
-    2. TV Embedded Client API (Çerezsiz - 45 tam format & doğrudan yüksek hızlı ses akışı)
-    3. Pure Android Mobil API (Çerezsiz - Hızlı & Güvenli)
-    4. Android + VisionOS Hibrit (Çerezsiz)
-    5. Web Embedded Alternatif / mweb (Çerezsiz)
-    6. TV Downgraded (Çerezsiz)
-    7. iOS Mobil API (Çerezsiz)
-    8. Web Standart (Çerezsiz)
-    9. VisionOS + Cookies Fallback (Çerez dosyası mevcutsa)
-    10. Web + Cookies Fallback (Özel / Yaş Kısıtlamalı içerikler için)
+    1. Android Mobil API (Evrensel Doğrudan İndirme - Hızlı & Kararlı, Format 18 AAC)
+    2. MWEB Mobil API (BotGuard PO Token & EJS Destekli, 140/251/18)
+    3. Web Embedded API (BotGuard Destekli)
+    4. Web Standart API (BotGuard Destekli)
+    5. VisionOS API (Modern JS-siz API)
+    6. TV Client API (Yüksek Uyumluluk & Doğrudan Ses)
+    7. Android VR API (Kısıtlamasız)
+    8. iOS Mobil API
+    9. Authenticated Cookies Fallback (Oturum / Yaş Kısıtlamalı içerikler için)
     """
     cookie_file = find_valid_cookie_file()
     strategies = [
         {
-            'name': 'VisionOS API (Modern JS-siz - Cloud Datacenter & Sansürsüz)',
-            'clients': ['visionos'],
-            'use_cookies': False
-        },
-        {
-            'name': 'TV Client API (Çerezsiz - Yüksek Uyumluluk & Doğrudan Ses)',
-            'clients': ['tv'],
-            'use_cookies': False
-        },
-        {
-            'name': 'Pure Android Mobil API (Çerezsiz - Hızlı)',
+            'name': 'Android Mobil API (Evrensel Doğrudan İndirme - Hızlı & Kararlı)',
             'clients': ['android'],
             'use_cookies': False
         },
         {
-            'name': 'Android VR API (Çerezsiz - Kısıtlamasız)',
+            'name': 'MWEB Mobil API (BotGuard PO Token & EJS Destekli)',
+            'clients': ['mweb'],
+            'use_cookies': False
+        },
+        {
+            'name': 'Web Embedded API (BotGuard Destekli)',
+            'clients': ['web_embedded'],
+            'use_cookies': False
+        },
+        {
+            'name': 'Web Standart API (BotGuard Destekli)',
+            'clients': ['web'],
+            'use_cookies': False
+        },
+        {
+            'name': 'VisionOS API (Modern Datacenter)',
+            'clients': ['visionos'],
+            'use_cookies': False
+        },
+        {
+            'name': 'TV Client API (Yüksek Uyumluluk & Doğrudan Ses)',
+            'clients': ['tv'],
+            'use_cookies': False
+        },
+        {
+            'name': 'Android VR API (Kısıtlamasız)',
             'clients': ['android_vr'],
-            'use_cookies': False
-        },
-        {
-            'name': 'Web Embedded Alternatif (Çerezsiz)',
-            'clients': ['web_embedded', 'mweb'],
-            'use_cookies': False
-        },
-        {
-            'name': 'TV Downgraded (Çerezsiz)',
-            'clients': ['tv_downgraded'],
             'use_cookies': False
         },
         {
             'name': 'iOS Mobil API (Çerezsiz)',
             'clients': ['ios'],
             'use_cookies': False
-        },
-        {
-            'name': 'Web Standart (Çerezsiz)',
-            'clients': ['web'],
-            'use_cookies': False
         }
     ]
     if cookie_file:
         strategies.append({
-            'name': 'VisionOS + Cookies (Gelişmiş Doğrulama)',
-            'clients': ['visionos'],
-            'use_cookies': True
-        })
-        strategies.append({
-            'name': 'TV + Cookies (Doğrulanmış TV Oturumu)',
-            'clients': ['tv'],
-            'use_cookies': True
-        })
-        strategies.append({
-            'name': 'Android + Cookies Fallback',
+            'name': 'Android + Cookies (Gelişmiş Doğrulama)',
             'clients': ['android'],
+            'use_cookies': True
+        })
+        strategies.append({
+            'name': 'MWEB + Cookies (Doğrulanmış Oturum)',
+            'clients': ['mweb'],
             'use_cookies': True
         })
         strategies.append({
             'name': 'Web + Cookies Fallback (Özel / Yaş Kısıtlamalı)',
             'clients': ['web'],
+            'use_cookies': True
+        })
+        strategies.append({
+            'name': 'VisionOS + Cookies (Gelişmiş Doğrulama)',
+            'clients': ['visionos'],
             'use_cookies': True
         })
 
@@ -1456,17 +1476,32 @@ def run_resilient_ytdlp_action(yt_url, base_opts=None, is_download=False):
             ydl_opts['check_formats'] = False
             ydl_opts['ignore_no_formats_error'] = True
             if 'format' not in ydl_opts:
-                ydl_opts['format'] = 'bestaudio/ba/best[height<=720]/best/b'
+                ydl_opts['format'] = '18/bestaudio/ba/140/251/best[height<=720]/best/b'
 
             print(f"[YouTube Engine] Strateji {idx}/{len(strategies)} deneniyor: {strat['name']} -> {yt_url}", flush=True)
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(yt_url, download=is_download)
                 if info:
                     formats = info.get('formats', []) or []
-                    has_media = any(f.get('vcodec') != 'none' or f.get('acodec') != 'none' or f.get('url') for f in formats if not f.get('format_id', '').startswith('sb'))
-                    if formats and not has_media and not is_download:
-                        print(f"[YouTube Engine] Strateji {idx} yalnızca görsel/storyboard döndürdü, sonraki strateji deneniyor...", flush=True)
+                    has_media = any(
+                        (f.get('vcodec') != 'none' or f.get('acodec') != 'none') and
+                        bool(f.get('url')) and
+                        not str(f.get('format_id', '')).startswith('sb')
+                        for f in formats
+                    )
+                    if formats and not has_media:
+                        print(f"[YouTube Engine] Strateji {idx} yalnızca görsel/storyboard döndürdü ({strat['name']}), sonraki strateji deneniyor...", flush=True)
                         continue
+
+                    if is_download:
+                        outtmpl_pattern = base_opts.get('outtmpl') if base_opts else None
+                        if outtmpl_pattern and isinstance(outtmpl_pattern, str):
+                            prefix = os.path.basename(outtmpl_pattern).split('.%')[0]
+                            matched = [f for f in os.listdir(YT_TEMP_DIR) if f.startswith(prefix) and os.path.getsize(os.path.join(YT_TEMP_DIR, f)) > 1024]
+                            if not matched:
+                                print(f"[YouTube Engine] Strateji {idx} ({strat['name']}) indirme dosyası üretemedi, sonraki strateji deneniyor...", flush=True)
+                                continue
+
                     print(f"[YouTube Engine] BAŞARILI! ({strat['name']})", flush=True)
                     return info
         except Exception as e:
@@ -1605,13 +1640,15 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                 except Exception as ce:
                     cli_test_err = str(ce)
 
-            # Test actual format extraction with visionos + js_runtimes
+            # Test actual format extraction (default to android, customizable via ?client=mweb)
             extract_formats = []
             extract_err = ''
+            query = parse_qs(parsed.query)
+            test_client = query.get('client', ['android'])[0]
             try:
                 test_opts = get_youtube_dl_opts(
                     extra_opts={'skip_download': True},
-                    client_list=['visionos'],
+                    client_list=[test_client],
                     use_cookies=False
                 )
                 with yt_dlp.YoutubeDL(test_opts) as ydl:
@@ -1633,12 +1670,14 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                 'cwd': os.getcwd(),
                 'node_path': node_path,
                 'deno_path': deno_path,
+                'ejs_installed': ('yt_dlp_ejs' in sys.modules),
                 'ffmpeg_path': FFMPEG_EXE,
                 'pot_status': POT_STATUS,
                 'cli_test_out': cli_test_out,
                 'cli_test_err': cli_test_err,
                 'pot_ping_ok': pot_ping,
                 'pot_ping_response': pot_ping_text,
+                'tested_client': test_client,
                 'formats_found': len(extract_formats),
                 'formats': extract_formats,
                 'extract_error': extract_err
@@ -2025,7 +2064,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                 if fmt == 'mp3':
                     preferred_quality = quality_raw if quality_raw in ['320', '192', '128'] else '192'
                     base_opts = {
-                        'format': 'bestaudio/ba/best[height<=720]/best/b',
+                        'format': '18/bestaudio/ba/140/251/best[height<=720]/best/b',
                         'outtmpl': out_tmpl,
                         'noplaylist': True,
                         'playlist_items': '1',
@@ -2042,7 +2081,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                 else:
                     max_height = int(quality_raw) if quality_raw.isdigit() else 720
                     base_opts = {
-                        'format': f'bestvideo[height<={max_height}]+bestaudio/best[height<={max_height}]/best',
+                        'format': f'bestvideo[height<={max_height}]+bestaudio/best[height<={max_height}]/18/best/b',
                         'outtmpl': out_tmpl,
                         'merge_output_format': 'mp4',
                         'noplaylist': True,
@@ -2092,15 +2131,15 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                         fid = str(f.get('format_id', ''))
                         
                         priority = 0
-                        if fid == '140': # 128k AAC M4A
+                        if fid == '18': # 360p combined MP4 (universally accessible & non-throttled)
                             priority = 100
-                        elif fid == '251': # 160k Opus WebM
-                            priority = 90
-                        elif acodec and acodec != 'none' and vcodec == 'none':
-                            priority = 80
-                        elif fid == '18': # 360p combined MP4 (universally present)
-                            priority = 70
                         elif fid == '22': # 720p combined MP4
+                            priority = 90
+                        elif fid == '140': # 128k AAC M4A
+                            priority = 80
+                        elif fid == '251': # 160k Opus WebM
+                            priority = 70
+                        elif acodec and acodec != 'none' and vcodec == 'none':
                             priority = 60
                         elif acodec and acodec != 'none':
                             priority = 50
