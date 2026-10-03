@@ -167,6 +167,9 @@ export class YouTubeUI {
                     <button type="button" class="btn-yt-card btn-yt-card-editor" onclick="window.flovaYouTube.loadSearchResultToEditor(${idx})" title="Doğrudan Dalga Formu Düzenleyicide aç">
                       ✂️ Düzenleyicide Aç
                     </button>
+                    <button type="button" class="btn-yt-card btn-yt-card-merger" onclick="window.flovaYouTube.loadSearchResultToMerger(${idx})" title="Şarkı Birleştiriciye kanal olarak ekle">
+                      🔗 Birleştirici
+                    </button>
                     <button type="button" class="btn-yt-card btn-yt-card-stem" onclick="window.flovaYouTube.loadSearchResultToStemSplitter(${idx})" title="4/6-Stem Enstrüman Ayırıcıya aktar">
                       🎸 Stemler
                     </button>
@@ -890,10 +893,12 @@ export class YouTubeUI {
     const audioBuffer = await this.fetchItemAudioBuffer(item);
     if (!audioBuffer) return;
 
+    if (window.flovaApp) {
+      window.flovaApp.switchMode('merger');
+    }
     if (window.flovaMerger) {
       window.flovaMerger.addTrackFromBuffer(audioBuffer, `${item.title}.mp3`);
       if (window.flovaApp) {
-        window.flovaApp.switchMode('merger');
         window.flovaApp.showToast(`"${item.title}" birleştiriciye eklendi!`, 'success');
       }
     }
@@ -908,11 +913,13 @@ export class YouTubeUI {
     const audioBuffer = await this.fetchItemAudioBuffer(item);
     if (!audioBuffer) return;
 
+    if (window.flovaApp) {
+      window.flovaApp.switchMode('vocal-splitter');
+    }
     if (window.flovaSplitter) {
       window.flovaSplitter.loadBuffer(audioBuffer, `${item.title}.mp3`);
       if (window.flovaApp) {
-        window.flovaApp.switchMode('vocal-splitter');
-        window.flovaApp.showToast(`"${item.title}" vokal ayırıcıya aktarıldı!`, 'success');
+        window.flovaApp.showToast(`"${item.title}" vokal ayrıştırması başlatıldı!`, 'success');
       }
     }
   }
@@ -936,10 +943,12 @@ export class YouTubeUI {
     const audioBuffer = await this.fetchAudioBuffer();
     if (!audioBuffer) return;
 
+    if (window.flovaApp) {
+      window.flovaApp.switchMode('merger');
+    }
     if (window.flovaMerger) {
       window.flovaMerger.addTrackFromBuffer(audioBuffer, `${this.videoInfo.title}.mp3`);
       if (window.flovaApp) {
-        window.flovaApp.switchMode('merger');
         window.flovaApp.showToast(`"${this.videoInfo.title}" birleştiriciye eklendi!`, 'success');
       }
     }
@@ -950,11 +959,13 @@ export class YouTubeUI {
     const audioBuffer = await this.fetchAudioBuffer();
     if (!audioBuffer) return;
 
+    if (window.flovaApp) {
+      window.flovaApp.switchMode('vocal-splitter');
+    }
     if (window.flovaSplitter) {
       window.flovaSplitter.loadBuffer(audioBuffer, `${this.videoInfo.title}.mp3`);
       if (window.flovaApp) {
-        window.flovaApp.switchMode('vocal-splitter');
-        window.flovaApp.showToast(`"${this.videoInfo.title}" vokal ayırıcıya aktarıldı!`, 'success');
+        window.flovaApp.showToast(`"${this.videoInfo.title}" vokal ayrıştırması başlatıldı!`, 'success');
       }
     }
   }
@@ -964,11 +975,13 @@ export class YouTubeUI {
     const audioBuffer = await this.fetchAudioBuffer();
     if (!audioBuffer) return;
 
+    if (window.flovaApp) {
+      window.flovaApp.switchMode('stem-splitter');
+    }
     if (window.flovaStemSplitter) {
       window.flovaStemSplitter.loadBuffer(audioBuffer, `${this.videoInfo.title}.mp3`);
       if (window.flovaApp) {
-        window.flovaApp.switchMode('stem-splitter');
-        window.flovaApp.showToast(`"${this.videoInfo.title}" 4-Stem & 6-Stem enstrüman ayrıştırıcıya aktarıldı!`, 'success');
+        window.flovaApp.showToast(`"${this.videoInfo.title}" 4-Stem & 6-Stem ayrıştırması başlatıldı!`, 'success');
       }
     }
   }
@@ -979,11 +992,13 @@ export class YouTubeUI {
     const audioBuffer = await this.fetchItemAudioBuffer(item);
     if (!audioBuffer) return;
 
+    if (window.flovaApp) {
+      window.flovaApp.switchMode('stem-splitter');
+    }
     if (window.flovaStemSplitter) {
       window.flovaStemSplitter.loadBuffer(audioBuffer, `${item.title}.mp3`);
       if (window.flovaApp) {
-        window.flovaApp.switchMode('stem-splitter');
-        window.flovaApp.showToast(`"${item.title}" 4-Stem & 6-Stem ayrıştırıcıya aktarıldı!`, 'success');
+        window.flovaApp.showToast(`"${item.title}" 4-Stem & 6-Stem ayrıştırması başlatıldı!`, 'success');
       }
     }
   }
@@ -1068,17 +1083,36 @@ export class YouTubeUI {
     }
   }
 
+  async loadSearchResultToMerger(idx) {
+    if (!this.searchResults || !this.searchResults[idx]) return;
+    const item = this.searchResults[idx];
+    const audioBuffer = await this.fetchItemAudioBuffer(item);
+    if (!audioBuffer) return;
+
+    if (window.flovaApp) {
+      window.flovaApp.switchMode('merger');
+    }
+    if (window.flovaMerger) {
+      window.flovaMerger.addTrackFromBuffer(audioBuffer, `${item.title}.mp3`);
+      if (window.flovaApp) {
+        window.flovaApp.showToast(`"${item.title}" birleştiriciye eklendi!`, 'success');
+      }
+    }
+  }
+
   async loadSearchResultToStemSplitter(idx) {
     if (!this.searchResults || !this.searchResults[idx]) return;
     const item = this.searchResults[idx];
     const audioBuffer = await this.fetchItemAudioBuffer(item);
     if (!audioBuffer) return;
 
+    if (window.flovaApp) {
+      window.flovaApp.switchMode('stem-splitter');
+    }
     if (window.flovaStemSplitter) {
       window.flovaStemSplitter.loadBuffer(audioBuffer, `${item.title}.mp3`);
       if (window.flovaApp) {
-        window.flovaApp.switchMode('stem-splitter');
-        window.flovaApp.showToast(`"${item.title}" 4-Stem & 6-Stem ayrıştırıcıya aktarıldı!`, 'success');
+        window.flovaApp.showToast(`"${item.title}" 4-Stem & 6-Stem ayrıştırması başlatıldı!`, 'success');
       }
     }
   }
@@ -1089,11 +1123,13 @@ export class YouTubeUI {
     const audioBuffer = await this.fetchItemAudioBuffer(item);
     if (!audioBuffer) return;
 
+    if (window.flovaApp) {
+      window.flovaApp.switchMode('vocal-splitter');
+    }
     if (window.flovaSplitter) {
       window.flovaSplitter.loadBuffer(audioBuffer, `${item.title}.mp3`);
       if (window.flovaApp) {
-        window.flovaApp.switchMode('vocal-splitter');
-        window.flovaApp.showToast(`"${item.title}" vokal ayırıcıya aktarıldı!`, 'success');
+        window.flovaApp.showToast(`"${item.title}" vokal ayrıştırması başlatıldı!`, 'success');
       }
     }
   }

@@ -716,10 +716,15 @@ export class MergerUI {
     }
   }
 
-  addTrack(file, buffer) {
+  addTrackFromBuffer(buffer, name = 'Parça') {
+    if (!buffer) return null;
+    const trackName = (typeof name === 'string' && name.trim()) 
+      ? name.trim() 
+      : ((name && name.name) || 'Parça ' + (this.tracks.length + 1));
+
     const track = {
       id: 'track_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-      name: file.name || 'Parça ' + (this.tracks.length + 1),
+      name: trackName,
       buffer: buffer,
       volume: 1.0,
       duration: buffer.duration,
@@ -731,6 +736,23 @@ export class MergerUI {
     };
     this.tracks.push(track);
     this.render();
+    this.updateTotalDurationBadge();
+    this.updateAllTransitionBridges();
+    return track;
+  }
+
+  addTrack(fileOrBuffer, bufferOrName) {
+    if (!fileOrBuffer) return null;
+    // Check if called as addTrack(buffer, name)
+    if (fileOrBuffer instanceof AudioBuffer || (fileOrBuffer.numberOfChannels && fileOrBuffer.sampleRate)) {
+      return this.addTrackFromBuffer(fileOrBuffer, bufferOrName);
+    }
+    // Check if called as addTrack(file, buffer)
+    const file = fileOrBuffer;
+    const buffer = bufferOrName;
+    if (!buffer) return null;
+    const trackName = (file && file.name) || (typeof file === 'string' ? file : 'Parça ' + (this.tracks.length + 1));
+    return this.addTrackFromBuffer(buffer, trackName);
   }
 
   removeTrack(id) {

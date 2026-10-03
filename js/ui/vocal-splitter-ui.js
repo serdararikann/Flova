@@ -192,6 +192,7 @@ export class VocalSplitterUI {
       this.currentTime = 0;
       this.pausedOffset = 0;
       this.isProcessing = false;
+      this.currentProgress = null;
 
       this.render();
       this.updateTimeDisplays();
@@ -241,6 +242,7 @@ export class VocalSplitterUI {
       this.vocalBuffer = vocalBuffer;
       this.instBuffer = instrumentalBuffer;
       this.isProcessing = false;
+      this.currentProgress = null;
 
       this.render();
       this.drawWaveforms();
@@ -250,6 +252,7 @@ export class VocalSplitterUI {
     } catch (err) {
       console.error(err);
       this.isProcessing = false;
+      this.currentProgress = null;
       this.render();
       if (window.flovaApp) {
         window.flovaApp.showToast('Ayrıştırma işlemi sırasında hata oluştu.', 'error');
@@ -257,23 +260,28 @@ export class VocalSplitterUI {
     }
   }
 
+  getProgressHtml(pct, text) {
+    return `
+      <div style="background: rgba(10, 14, 24, 0.9); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 16px 20px; margin-bottom: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.88rem; margin-bottom: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="loading-spinner" style="width: 16px; height: 16px;"></div>
+            <span style="font-weight: 700; color: var(--accent-cyan);">${text}</span>
+          </div>
+          <span style="font-family: var(--font-mono); font-weight: 700; color: #fff;">%${pct}</span>
+        </div>
+        <div class="progress-bar-bg" style="height: 7px;">
+          <div class="progress-bar-fill" style="width: ${pct}%;"></div>
+        </div>
+      </div>
+    `;
+  }
+
   renderProgress(pct, text) {
+    this.currentProgress = { pct, text };
     const statusBox = this.container.querySelector('#splitterStatusBox');
     if (statusBox) {
-      statusBox.innerHTML = `
-        <div style="background: rgba(10, 14, 24, 0.9); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 16px 20px; margin-bottom: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
-          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.88rem; margin-bottom: 8px;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <div class="loading-spinner" style="width: 16px; height: 16px;"></div>
-              <span style="font-weight: 700; color: var(--accent-cyan);">${text}</span>
-            </div>
-            <span style="font-family: var(--font-mono); font-weight: 700; color: #fff;">%${pct}</span>
-          </div>
-          <div class="progress-bar-bg" style="height: 7px;">
-            <div class="progress-bar-fill" style="width: ${pct}%;"></div>
-          </div>
-        </div>
-      `;
+      statusBox.innerHTML = this.getProgressHtml(pct, text);
     }
   }
 
@@ -703,7 +711,9 @@ export class VocalSplitterUI {
           </div>
         </div>
 
-        <div id="splitterStatusBox"></div>
+        <div id="splitterStatusBox">
+          ${this.isProcessing && this.currentProgress ? this.getProgressHtml(this.currentProgress.pct, this.currentProgress.text) : ''}
+        </div>
 
         ${!this.sourceBuffer ? `
           <div id="vocalDropZone" class="drop-zone" style="margin-top: 10px;">

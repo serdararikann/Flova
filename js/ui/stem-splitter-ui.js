@@ -252,6 +252,7 @@ export class StemSplitterUI {
       this.currentTime = 0;
       this.pausedOffset = 0;
       this.isProcessing = false;
+      this.currentProgress = null;
 
       this.render();
       this.updateTimeDisplays();
@@ -268,6 +269,7 @@ export class StemSplitterUI {
     } catch (err) {
       console.error('AI ayrıştırma hatası:', err);
       this.isProcessing = false;
+      this.currentProgress = null;
       this.render();
       if (window.flovaApp) {
         const isNetworkErr = err.message?.includes('Failed to fetch') || err.message?.includes('sunucusundan');
@@ -991,7 +993,7 @@ export class StemSplitterUI {
 
         <!-- AI Progress Container -->
         <div id="stemProgressBox" style="${this.isProcessing ? 'display: block;' : 'display: none;'} margin-bottom: 16px;">
-          <!-- Injected via renderProgress -->
+          ${this.isProcessing && this.currentProgress ? this.getProgressHtml(this.currentProgress.pct, this.currentProgress.statusText) : ''}
         </div>
 
         <!-- Master Transport & Time Bar -->
@@ -1134,11 +1136,8 @@ export class StemSplitterUI {
     `;
   }
 
-  renderProgress(pct, statusText) {
-    const box = document.getElementById('stemProgressBox');
-    if (!box) return;
-    box.style.display = 'block';
-    box.innerHTML = `
+  getProgressHtml(pct, statusText) {
+    return `
       <div class="glass-card" style="padding: 16px 20px; border-left: 4px solid #a855f7; background: rgba(18, 23, 38, 0.9);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
           <div style="display: flex; align-items: center; gap: 10px;">
@@ -1155,6 +1154,14 @@ export class StemSplitterUI {
         </div>
       </div>
     `;
+  }
+
+  renderProgress(pct, statusText) {
+    this.currentProgress = { pct, statusText };
+    const box = document.getElementById('stemProgressBox');
+    if (!box) return;
+    box.style.display = 'block';
+    box.innerHTML = this.getProgressHtml(pct, statusText);
   }
 
   bindEvents() {
