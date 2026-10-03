@@ -794,6 +794,10 @@ class FlovaStudioApp {
       this.tabVocalSplitter.classList.add('active');
       this.vocalSplitterView.style.display = 'block';
       this.vocalSplitter.render();
+      if (this.vocalSplitter.sourceBuffer) {
+        requestAnimationFrame(() => this.vocalSplitter.drawWaveforms());
+        setTimeout(() => this.vocalSplitter.drawWaveforms(), 50);
+      }
 
       // If a song is already loaded in editor, offer/auto-load into vocal splitter if not already loaded
       if (this.engine.currentBuffer && !this.vocalSplitter.sourceBuffer) {
@@ -803,6 +807,10 @@ class FlovaStudioApp {
       this.tabStemSplitter.classList.add('active');
       this.stemSplitterView.style.display = 'block';
       this.stemSplitter.render();
+      if (this.stemSplitter.hasAnyStem()) {
+        requestAnimationFrame(() => this.stemSplitter.drawAllWaveforms());
+        setTimeout(() => this.stemSplitter.drawAllWaveforms(), 50);
+      }
 
       // If a song is already loaded in editor, offer/auto-load into 4-stem splitter if not already loaded
       if (this.engine.currentBuffer && !this.stemSplitter.sourceBuffer) {

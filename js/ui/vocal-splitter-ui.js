@@ -60,6 +60,17 @@ export class VocalSplitterUI {
     window.addEventListener('resize', () => {
       this.drawWaveforms();
     });
+
+    if (window.ResizeObserver && this.container) {
+      this._resizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.contentRect && entry.contentRect.width > 0 && this.sourceBuffer && !this.isProcessing) {
+            this.drawWaveforms();
+          }
+        }
+      });
+      this._resizeObserver.observe(this.container);
+    }
   }
 
   async handleUserFile(file) {

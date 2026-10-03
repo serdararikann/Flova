@@ -116,6 +116,17 @@ export class StemSplitterUI {
     window.addEventListener('resize', () => {
       this.drawAllWaveforms();
     });
+
+    if (window.ResizeObserver && this.container) {
+      this._resizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.contentRect && entry.contentRect.width > 0 && this.hasAnyStem() && !this.isProcessing) {
+            this.drawAllWaveforms();
+          }
+        }
+      });
+      this._resizeObserver.observe(this.container);
+    }
   }
 
   setSeparationMode(mode) {
@@ -880,7 +891,17 @@ export class StemSplitterUI {
 
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return;
+    if (rect.width === 0 || rect.height === 0) {
+      if (!this._pendingDraws) this._pendingDraws = new Set();
+      if (!this._pendingDraws.has(key)) {
+        this._pendingDraws.add(key);
+        setTimeout(() => {
+          this._pendingDraws.delete(key);
+          this.drawStemWaveform(key);
+        }, 50);
+      }
+      return;
+    }
 
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
@@ -1135,6 +1156,15 @@ export class StemSplitterUI {
     `;
 
     this.bindEvents();
+
+    if (this.hasAnyStem() && !this.isProcessing) {
+      requestAnimationFrame(() => {
+        this.drawAllWaveforms();
+      });
+      setTimeout(() => {
+        this.drawAllWaveforms();
+      }, 50);
+    }
   }
 
   renderStemLane(key) {
