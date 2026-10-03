@@ -2050,7 +2050,6 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                         'item_count': len(parsed_items),
                         'total_duration_formatted': total_time_str,
                         'items': parsed_items,
-                        'video_resolutions': ['1080p', '720p', '480p', '360p'],
                         'audio_qualities': ['320 kbps (Ultra)', '192 kbps (Önerilen)', '128 kbps (Kompakt)'],
                     }
                     print(f"[YouTube Info] Çalma Listesi Başarılı ({time.time() - t_start:.2f}s): {resp_data['title']} ({len(parsed_items)} parça)")
@@ -2060,22 +2059,6 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                 # Single video handling
                 if 'entries' in info and info['entries']:
                     info = info['entries'][0]
-
-                formats = info.get('formats', []) or []
-                available_heights = set()
-                for f in formats:
-                    h = f.get('height')
-                    vcodec = f.get('vcodec', 'none')
-                    if h and vcodec != 'none':
-                        available_heights.add(h)
-
-                standard_resolutions = []
-                for res in [1080, 720, 480, 360]:
-                    if any(h >= res for h in available_heights) or res == 360:
-                        standard_resolutions.append(f"{res}p")
-
-                if not standard_resolutions:
-                    standard_resolutions = ["720p", "360p"]
 
                 duration = info.get('duration', 0) or 0
                 mins = duration // 60
@@ -2091,8 +2074,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                     'duration': duration,
                     'duration_formatted': duration_str,
                     'thumbnail': info.get('thumbnail') or f"https://img.youtube.com/vi/{info.get('id', '')}/hqdefault.jpg",
-                    'video_resolutions': standard_resolutions,
-                    'audio_qualities': ['320 kbps (En Yüksek)', '192 kbps (Önerilen)', '128 kbps (Hızlı)'],
+                    'audio_qualities': ['320 kbps (Ultra)', '192 kbps (Önerilen)', '128 kbps (Kompakt)'],
                 }
                 print(f"[YouTube Info] Başarılı ({time.time() - t_start:.2f}s): {resp_data['title']}")
                 self.send_json(200, resp_data)
@@ -2111,8 +2093,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                         'duration': 0,
                         'duration_formatted': "Hazır",
                         'thumbnail': oembed_data.get('thumbnail') or (f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg" if video_id else ''),
-                        'video_resolutions': ['1080p', '720p', '480p', '360p'],
-                        'audio_qualities': ['320 kbps (En Yüksek)', '192 kbps (Önerilen)', '128 kbps (Hızlı)'],
+                        'audio_qualities': ['320 kbps (Ultra)', '192 kbps (Önerilen)', '128 kbps (Kompakt)'],
                     }
                     print(f"[YouTube Info] oEmbed ile başarıyla kurtarıldı: {resp_data['title']}")
                     self.send_json(200, resp_data)
@@ -2134,50 +2115,37 @@ class FlovaHandler(SimpleHTTPRequestHandler):
             else:
                 yt_url = target.get('url') or target.get('clean_url')
 
-            fmt = query.get('format', ['mp3'])[0].lower() # 'mp3' or 'mp4'
-            quality_raw = query.get('quality', ['192'])[0].replace('p', '').split()[0]
+            # Flova is exclusively an Audio Studio: all downloads are processed as MP3
+            fmt = 'mp3'
+            quality_raw = query.get('quality', ['320'])[0].replace('p', '').split()[0]
+            preferred_quality = quality_raw if quality_raw in ['320', '192', '128'] else '320'
 
             if not yt_dlp or not FFMPEG_EXE:
                 self.send_error_json(500, "Sunucuda yt-dlp veya FFmpeg motoru hazır değil.")
                 return
 
             t_start = time.time()
-            print(f"[YouTube Download] İndirme başladı: {yt_url} | Format: {fmt} | Kalite: {quality_raw}")
+            print(f"[YouTube Download] İndirme başladı: {yt_url} | Format: MP3 | Kalite: {preferred_quality}k")
 
             try:
                 dl_id = str(uuid.uuid4())[:10]
                 out_tmpl = os.path.join(YT_TEMP_DIR, f'{dl_id}.%(ext)s')
 
-                if fmt == 'mp3':
-                    preferred_quality = quality_raw if quality_raw in ['320', '192', '128'] else '192'
-                    base_opts = {
-                        'format': '18/bestaudio/ba/140/251/best[height<=720]/best/b',
-                        'outtmpl': out_tmpl,
-                        'noplaylist': True,
-                        'playlist_items': '1',
-                        'check_formats': False,
-                        'ignore_no_formats_error': True,
-                        'postprocessors': [{
-                            'key': 'FFmpegExtractAudio',
-                            'preferredcodec': 'mp3',
-                            'preferredquality': preferred_quality,
-                        }],
-                    }
-                    target_ext = 'mp3'
-                    mime_type = 'audio/mpeg'
-                else:
-                    max_height = int(quality_raw) if quality_raw.isdigit() else 720
-                    base_opts = {
-                        'format': f'bestvideo[height<={max_height}]+bestaudio/best[height<={max_height}]/18/best/b',
-                        'outtmpl': out_tmpl,
-                        'merge_output_format': 'mp4',
-                        'noplaylist': True,
-                        'playlist_items': '1',
-                        'check_formats': False,
-                        'ignore_no_formats_error': True,
-                    }
-                    target_ext = 'mp4'
-                    mime_type = 'video/mp4'
+                base_opts = {
+                    'format': '18/bestaudio/ba/140/251/best[height<=720]/best/b',
+                    'outtmpl': out_tmpl,
+                    'noplaylist': True,
+                    'playlist_items': '1',
+                    'check_formats': False,
+                    'ignore_no_formats_error': True,
+                    'postprocessors': [{
+                        'key': 'FFmpegExtractAudio',
+                        'preferredcodec': 'mp3',
+                        'preferredquality': preferred_quality,
+                    }],
+                }
+                target_ext = 'mp3'
+                mime_type = 'audio/mpeg'
 
                 info = None
                 dl_err = None
@@ -2247,8 +2215,8 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                         ok, err_detail = download_stream_and_convert(
                             stream_url=s_url,
                             target_path=filepath,
-                            media_format=fmt,
-                            quality=preferred_quality if fmt == 'mp3' else '720',
+                            media_format='mp3',
+                            quality=preferred_quality,
                             headers=best_fmt.get('http_headers')
                         )
                         if ok:

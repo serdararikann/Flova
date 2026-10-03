@@ -1,6 +1,6 @@
 /* ====================================================================
    FLOVA AUDIO STUDIO - YOUTUBE DOWNLOADER & STUDIO INTEGRATION MODULE
-   Fetches YouTube video & playlist metadata, downloads MP3 / MP4 via Python backend,
+   Fetches YouTube video & playlist metadata, downloads high-fidelity MP3 via Python backend,
    supports batch ZIP downloading and integrates directly with Flova's Editor, Merger & Splitters!
    ==================================================================== */
 
@@ -14,8 +14,8 @@ export class YouTubeUI {
 
     this.videoInfo = null;
     this.currentUrl = '';
-    this.selectedFormat = 'mp3'; // 'mp3' | 'mp4'
-    this.selectedQuality = '320'; // '320' | '192' | '128' or '1080' | '720' | '480' | '360'
+    this.selectedFormat = 'mp3'; // Flova is exclusively an Audio Studio (MP3)
+    this.selectedQuality = '320'; // '320' | '192' | '128' kbps
     this.isLoading = false;
     this.loadingStage = '';
     this.isDownloading = false;
@@ -203,39 +203,19 @@ export class YouTubeUI {
                 </div>
               </div>
 
-              <!-- Format & Quality Picker -->
+              <!-- MP3 Quality Picker -->
               <div class="youtube-format-switch-bar" style="margin-top: 0; padding-top: 0; border-top: none;">
-                <div class="format-toggle-group">
-                  <button type="button" class="format-toggle-btn ${this.selectedFormat === 'mp3' ? 'active' : ''}" onclick="window.flovaYouTube.setFormat('mp3')">
-                    🎵 MP3 (Ses)
-                  </button>
-                  <button type="button" class="format-toggle-btn ${this.selectedFormat === 'mp4' ? 'active' : ''}" onclick="window.flovaYouTube.setFormat('mp4')">
-                    🎬 MP4 (Video)
-                  </button>
-                </div>
-
                 <div class="quality-selector-group">
-                  <span class="quality-label">Kalite:</span>
-                  ${this.selectedFormat === 'mp3' ? `
-                    <button type="button" class="quality-pill ${this.selectedQuality === '320' ? 'active' : ''}" onclick="window.flovaYouTube.setQuality('320')">
-                      320 kbps (Ultra)
-                    </button>
-                    <button type="button" class="quality-pill ${this.selectedQuality === '192' ? 'active' : ''}" onclick="window.flovaYouTube.setQuality('192')">
-                      192 kbps (Önerilen)
-                    </button>
-                    <button type="button" class="quality-pill ${this.selectedQuality === '128' ? 'active' : ''}" onclick="window.flovaYouTube.setQuality('128')">
-                      128 kbps (Kompakt)
-                    </button>
-                  ` : `
-                    ${(this.videoInfo.video_resolutions || ['1080p', '720p', '480p', '360p']).map(res => {
-                      const val = res.replace('p', '');
-                      return `
-                        <button type="button" class="quality-pill ${this.selectedQuality === val ? 'active' : ''}" onclick="window.flovaYouTube.setQuality('${val}')">
-                          ${res}
-                        </button>
-                      `;
-                    }).join('')}
-                  `}
+                  <span class="quality-label">🎵 MP3 Kalitesi:</span>
+                  <button type="button" class="quality-pill ${this.selectedQuality === '320' ? 'active' : ''}" onclick="window.flovaYouTube.setQuality('320')">
+                    320 kbps (Ultra)
+                  </button>
+                  <button type="button" class="quality-pill ${this.selectedQuality === '192' ? 'active' : ''}" onclick="window.flovaYouTube.setQuality('192')">
+                    192 kbps (Önerilen)
+                  </button>
+                  <button type="button" class="quality-pill ${this.selectedQuality === '128' ? 'active' : ''}" onclick="window.flovaYouTube.setQuality('128')">
+                    128 kbps (Kompakt)
+                  </button>
                 </div>
               </div>
             </div>
@@ -415,40 +395,19 @@ export class YouTubeUI {
                   ` : ''}
                 </div>
 
-                <!-- Format Selection Tabs: MP3 (Audio) vs MP4 (Video) -->
+                <!-- Quality Selection: Pure MP3 Audio -->
                 <div class="youtube-format-switch-bar">
-                  <div class="format-toggle-group">
-                    <button type="button" class="format-toggle-btn ${this.selectedFormat === 'mp3' ? 'active' : ''}" onclick="window.flovaYouTube.setFormat('mp3')">
-                      🎵 MP3 (Ses)
-                    </button>
-                    <button type="button" class="format-toggle-btn ${this.selectedFormat === 'mp4' ? 'active' : ''}" onclick="window.flovaYouTube.setFormat('mp4')">
-                      🎬 MP4 (Video)
-                    </button>
-                  </div>
-
-                  <!-- Quality Option Pills -->
                   <div class="quality-selector-group">
-                    <span class="quality-label">Kalite:</span>
-                    ${this.selectedFormat === 'mp3' ? `
-                      <button type="button" class="quality-pill ${this.selectedQuality === '320' ? 'active' : ''}" onclick="window.flovaYouTube.setQuality('320')">
-                        320 kbps (Ultra)
-                      </button>
-                      <button type="button" class="quality-pill ${this.selectedQuality === '192' ? 'active' : ''}" onclick="window.flovaYouTube.setQuality('192')">
-                        192 kbps (Önerilen)
-                      </button>
-                      <button type="button" class="quality-pill ${this.selectedQuality === '128' ? 'active' : ''}" onclick="window.flovaYouTube.setQuality('128')">
-                        128 kbps (Kompakt)
-                      </button>
-                    ` : `
-                      ${(this.videoInfo.video_resolutions || ['1080p', '720p', '480p', '360p']).map(res => {
-                        const val = res.replace('p', '');
-                        return `
-                          <button type="button" class="quality-pill ${this.selectedQuality === val ? 'active' : ''}" onclick="window.flovaYouTube.setQuality('${val}')">
-                            ${res}
-                          </button>
-                        `;
-                      }).join('')}
-                    `}
+                    <span class="quality-label">🎵 MP3 Ses Kalitesi:</span>
+                    <button type="button" class="quality-pill ${this.selectedQuality === '320' ? 'active' : ''}" onclick="window.flovaYouTube.setQuality('320')">
+                      320 kbps (Ultra)
+                    </button>
+                    <button type="button" class="quality-pill ${this.selectedQuality === '192' ? 'active' : ''}" onclick="window.flovaYouTube.setQuality('192')">
+                      192 kbps (Önerilen)
+                    </button>
+                    <button type="button" class="quality-pill ${this.selectedQuality === '128' ? 'active' : ''}" onclick="window.flovaYouTube.setQuality('128')">
+                      128 kbps (Kompakt)
+                    </button>
                   </div>
                 </div>
 
@@ -484,8 +443,8 @@ export class YouTubeUI {
                 </button>
 
                 <!-- 5. Direct Download to PC -->
-                <button id="ytDownloadBtn" class="btn btn-emerald yt-col-btn" ${this.isDownloading ? 'disabled' : ''} onclick="window.flovaYouTube.downloadDirect()" title="Dosyayı doğrudan bilgisayara kaydet">
-                  ${this.isDownloading ? `<span class="spinner-sm" style="margin-right: 6px;"></span> İndiriliyor...` : `📥 Bilgisayara İndir (.${this.selectedFormat})`}
+                <button id="ytDownloadBtn" class="btn btn-emerald yt-col-btn" ${this.isDownloading ? 'disabled' : ''} onclick="window.flovaYouTube.downloadDirect()" title="MP3 dosyasını doğrudan bilgisayara kaydet">
+                  ${this.isDownloading ? `<span class="spinner-sm" style="margin-right: 6px;"></span> İndiriliyor...` : `📥 Bilgisayara İndir (MP3)`}
                 </button>
               </div>
             </div>
@@ -546,13 +505,7 @@ export class YouTubeUI {
   }
 
   setFormat(fmt) {
-    this.selectedFormat = fmt;
-    if (fmt === 'mp3') {
-      this.selectedQuality = '320';
-    } else {
-      const defaultRes = (this.videoInfo && this.videoInfo.video_resolutions && this.videoInfo.video_resolutions[0]) || '720p';
-      this.selectedQuality = defaultRes.replace('p', '');
-    }
+    this.selectedFormat = 'mp3';
     this.render();
   }
 
@@ -735,7 +688,7 @@ export class YouTubeUI {
 
       try {
         const itemUrl = item.url || `https://www.youtube.com/watch?v=${item.id}`;
-        const downloadUrl = `${this.getApiBase()}/api/youtube/download?url=${encodeURIComponent(itemUrl)}&format=${this.selectedFormat}&quality=${this.selectedQuality}`;
+        const downloadUrl = `${this.getApiBase()}/api/youtube/download?url=${encodeURIComponent(itemUrl)}&format=mp3&quality=${this.selectedQuality}`;
         
         const resp = await fetch(downloadUrl);
         if (!resp.ok) {
@@ -744,8 +697,8 @@ export class YouTubeUI {
         }
 
         const arrayBuffer = await resp.arrayBuffer();
-        const cleanTitle = (item.title || f`parca_${item.index}`).replace(/[\\/:*?"<>|]/g, '_').trim();
-        const filename = `${String(item.index).padStart(2, '0')} - ${cleanTitle}.${this.selectedFormat}`;
+        const cleanTitle = (item.title || `parca_${item.index}`).replace(/[\\/:*?"<>|]/g, '_').trim();
+        const filename = `${String(item.index).padStart(2, '0')} - ${cleanTitle}.mp3`;
         
         zip.file(filename, arrayBuffer);
         successCount++;
@@ -781,7 +734,7 @@ export class YouTubeUI {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(zipBlob);
       const cleanPlTitle = (this.videoInfo.title || 'flova_playlist').replace(/[\\/:*?"<>|]/g, '_').trim();
-      a.download = `${cleanPlTitle}_Flova_${this.selectedFormat.toUpperCase()}.zip`;
+      a.download = `${cleanPlTitle}_Flova_MP3.zip`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -822,7 +775,7 @@ export class YouTubeUI {
 
     try {
       const itemUrl = item.url || `https://www.youtube.com/watch?v=${item.id}`;
-      const downloadUrl = `${this.getApiBase()}/api/youtube/download?url=${encodeURIComponent(itemUrl)}&format=${this.selectedFormat}&quality=${this.selectedQuality}`;
+      const downloadUrl = `${this.getApiBase()}/api/youtube/download?url=${encodeURIComponent(itemUrl)}&format=mp3&quality=${this.selectedQuality}`;
       
       const resp = await fetch(downloadUrl);
       if (!resp.ok) {
@@ -833,7 +786,7 @@ export class YouTubeUI {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       const safeTitle = (item.title || 'flova_track').replace(/[\\/:*?"<>|]/g, '_');
-      a.download = `${safeTitle}.${this.selectedFormat}`;
+      a.download = `${safeTitle}.mp3`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -857,7 +810,7 @@ export class YouTubeUI {
   }
 
   /**
-   * Directly downloads single video
+   * Directly downloads single track as MP3
    */
   async downloadDirect() {
     if (!this.videoInfo) return;
@@ -866,11 +819,11 @@ export class YouTubeUI {
     if (!ytUrl) return;
 
     this.isDownloading = true;
-    this.downloadProgressText = `YouTube'dan ${this.selectedFormat.toUpperCase()} (${this.selectedQuality}) indiriliyor ve dönüştürülüyor... Lütfen bekleyin.`;
+    this.downloadProgressText = `YouTube'dan MP3 (${this.selectedQuality} kbps) indiriliyor ve dönüştürülüyor... Lütfen bekleyin.`;
     this.render();
 
     try {
-      const downloadUrl = `${this.getApiBase()}/api/youtube/download?url=${encodeURIComponent(ytUrl)}&format=${this.selectedFormat}&quality=${this.selectedQuality}`;
+      const downloadUrl = `${this.getApiBase()}/api/youtube/download?url=${encodeURIComponent(ytUrl)}&format=mp3&quality=${this.selectedQuality}`;
       const resp = await fetch(downloadUrl);
       if (!resp.ok) {
         const errData = await resp.json().catch(() => null);
@@ -885,7 +838,7 @@ export class YouTubeUI {
       const a = document.createElement('a');
       a.href = blobUrl;
       const safeTitle = (this.videoInfo.title || 'flova_youtube').replace(/[\\/:*?"<>|]/g, '_');
-      a.download = `${safeTitle}.${this.selectedFormat}`;
+      a.download = `${safeTitle}.mp3`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
