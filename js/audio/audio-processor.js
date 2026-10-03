@@ -29,22 +29,34 @@ export class AudioProcessor {
   }
 
   /**
-   * Cuts out (removes) the range [startTime, endTime] and joins the rest
+   * Cuts out (removes) the range [startTime, endTime] and joins the rest seamlessly
+   * with a micro-crossfade to eliminate any pop/click at the splice point
    */
-  static cutOutRange(audioCtx, buffer, startTime, endTime) {
+  static cutOutRange(audioCtx, buffer, startTime, endTime, crossfadeMs = 8) {
     const sampleRate = buffer.sampleRate;
     const channels = buffer.numberOfChannels;
 
     const startSample = Math.max(0, Math.floor(startTime * sampleRate));
     const endSample = Math.min(buffer.length, Math.floor(endTime * sampleRate));
     const cutLength = endSample - startSample;
-    const newLength = buffer.length - cutLength;
 
+    if (cutLength <= 0) {
+      return buffer;
+    }
+
+    const newLength = buffer.length - cutLength;
     if (newLength <= 0) {
       return audioCtx.createBuffer(channels, sampleRate, sampleRate);
     }
 
     const newBuffer = audioCtx.createBuffer(channels, newLength, sampleRate);
+
+    // Micro-crossfade around splice point (prevents DC offset or phase pop)
+    const isInteriorCut = startSample > 0 && endSample < buffer.length;
+    const maxPossibleXfade = isInteriorCut
+      ? Math.min(startSample, buffer.length - endSample, Math.floor(cutLength / 2))
+      : 0;
+    const xfadeSamples = Math.min(Math.floor((crossfadeMs / 1000) * sampleRate), maxPossibleXfade);
 
     for (let c = 0; c < channels; c++) {
       const srcData = buffer.getChannelData(c);
@@ -57,6 +69,20 @@ export class AudioProcessor {
       // Copy after cut
       for (let i = endSample; i < buffer.length; i++) {
         destData[startSample + (i - endSample)] = srcData[i];
+      }
+
+      // Smooth equal-power micro-crossfade at the splice point
+      if (xfadeSamples > 2) {
+        for (let j = 0; j < xfadeSamples; j++) {
+          const ratio = j / xfadeSamples;
+          const fadeIn = Math.sin(ratio * Math.PI * 0.5);
+          const fadeOut = Math.cos(ratio * Math.PI * 0.5);
+
+          const destIdx = startSample - xfadeSamples + j;
+          const preVal = srcData[destIdx];
+          const postVal = srcData[endSample + j];
+          destData[destIdx] = preVal * fadeOut + postVal * fadeIn;
+        }
       }
     }
 

@@ -67,7 +67,7 @@ export class HotkeysModal {
               </tr>
               <tr>
                 <td><kbd>Delete</kbd> / <kbd>Backspace</kbd></td>
-                <td>Seçili Dalga Formu Alanını Sil (Cut out)</td>
+                <td>Seçili Alanı Sil & Birleştir (Ripple Delete)</td>
               </tr>
               <tr>
                 <td><kbd>S</kbd></td>

@@ -323,16 +323,43 @@ class FlovaStudioApp {
     });
 
     this.cutBtn.addEventListener('click', () => {
-      if (!this.engine.currentBuffer) return;
-      if (this.selectionEnd <= this.selectionStart || (this.selectionStart === 0 && this.selectionEnd === 0)) {
-        this.showToast('Lütfen önce silmek istediğiniz alanı dalga formu üzerinden seçin.', 'info');
+      if (!this.engine.currentBuffer) {
+        this.showToast('Lütfen önce bir ses dosyası açın.', 'info');
         return;
       }
+
+      // Sync manual typed inputs if user entered values directly
+      if (this.selStartInput && this.selEndInput) {
+        const inpStart = this.parseTimeString(this.selStartInput.value);
+        const inpEnd = this.parseTimeString(this.selEndInput.value);
+        if (inpEnd > inpStart && (this.selectionEnd <= this.selectionStart)) {
+          this.selectionStart = inpStart;
+          this.selectionEnd = inpEnd;
+          this.waveform.setSelection(inpStart, inpEnd);
+        }
+      }
+
+      if (this.selectionEnd <= this.selectionStart || (this.selectionStart === 0 && this.selectionEnd === 0)) {
+        this.showToast('Lütfen silmek istediğiniz aralığı (örn. ortadaki 20 saniyeyi) dalga formu üzerinden seçin.', 'info');
+        return;
+      }
+
+      const cutDuration = (this.selectionEnd - this.selectionStart).toFixed(1);
+      const startAt = this.selectionStart;
+
       this.engine.cutOutCurrent(this.selectionStart, this.selectionEnd);
+
       this.selectionStart = 0;
       this.selectionEnd = 0;
       this.waveform.setSelection(0, 0);
-      this.showToast('Seçili alan başarıyla silindi!', 'success');
+      if (this.selStartInput) this.selStartInput.value = '00:00.000';
+      if (this.selEndInput) this.selEndInput.value = '00:00.000';
+      if (this.selDurationInput) this.selDurationInput.value = '00:00.000';
+
+      // Move playhead to cut junction so user can audition the splice immediately
+      this.engine.seek(startAt);
+
+      this.showToast(`Seçili ${cutDuration} sn silindi, kalan parçalar birleştirildi!`, 'success');
     });
 
     this.silenceBtn.addEventListener('click', () => {

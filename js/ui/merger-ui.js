@@ -936,20 +936,51 @@ export class MergerUI {
   cutOutTrackSelection(id) {
     const track = this.tracks.find(t => t.id === id);
     if (!track || !track.buffer) return;
+
+    // Check if user manually typed start/end times in the input boxes
+    const startInput = this.container.querySelector(`#trim_start_input_${track.id}`);
+    const endInput = this.container.querySelector(`#trim_end_input_${track.id}`);
+    if (startInput && endInput) {
+      const pStart = this.parseTimeInput(startInput.value, track.trimStart);
+      const pEnd = this.parseTimeInput(endInput.value, track.trimEnd);
+      if (pEnd > pStart) {
+        track.trimStart = pStart;
+        track.trimEnd = pEnd;
+      }
+    }
+
     if (track.trimEnd <= track.trimStart || (track.trimStart === 0 && track.trimEnd >= track.duration - 0.05)) {
-      if (window.flovaApp) window.flovaApp.showToast('Lütfen önce dalga formundan silmek istediğiniz alanı seçin/daraltın.', 'info');
+      if (window.flovaApp) {
+        window.flovaApp.showToast('Lütfen önce silmek istediğiniz aralığı (örn. ortadaki 20 saniyeyi) dalga formundan seçin.', 'info');
+      }
       return;
     }
+
     this.stopPlayback(true);
     this.pushTrackHistory(track);
 
+    const deletedSec = (track.trimEnd - track.trimStart).toFixed(1);
     this.engine.ensureContext();
     track.buffer = AudioProcessor.cutOutRange(this.engine.ctx, track.buffer, track.trimStart, track.trimEnd);
     track.duration = track.buffer.duration;
     track.trimStart = 0;
     track.trimEnd = track.duration;
     this.render();
-    if (window.flovaApp) window.flovaApp.showToast(`"${track.name}" parçasından seçili alan silindi!`, 'success');
+    if (window.flovaApp) {
+      window.flovaApp.showToast(`"${track.name}" parçasından seçili ${deletedSec} sn silindi, kalan kısımlar birleştirildi!`, 'success');
+    }
+  }
+
+  openInEditor(id) {
+    const track = this.tracks.find(t => t.id === id);
+    if (!track || !track.buffer) return;
+    this.stopPlayback(true);
+    this.engine.currentFileName = track.name;
+    this.engine.setBuffer(track.buffer, true);
+    if (window.flovaApp) {
+      window.flovaApp.switchMode('editor');
+      window.flovaApp.showToast(`"${track.name}" düzenleyiciye aktarıldı.`, 'info');
+    }
   }
 
   silenceTrackSelection(id) {
@@ -1511,21 +1542,26 @@ export class MergerUI {
                   </div>
 
                   <!-- Per-Track Action Buttons -->
-                  <div style="display: flex; align-items: center; gap: 6px;">
+                  <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                     <button class="btn btn-primary btn-sm" style="padding: 3px 8px; font-size: 0.75rem;" 
-                      onclick="window.flovaMerger.trimTrack('${track.id}')" title="Seçili alanı sakla, dışındakileri sil">
+                      onclick="window.flovaMerger.trimTrack('${track.id}')" title="Yalnızca seçili aralığı koru, dışındakileri sil">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="20" y1="4" x2="8.12" y2="15.88"></line><line x1="14.47" y1="14.48" x2="20" y2="20"></line><line x1="8.12" y1="8.12" x2="12" y2="12"></line></svg>
                       Kırp
                     </button>
-                    <button class="btn btn-secondary btn-sm" style="padding: 3px 8px; font-size: 0.75rem;" 
-                      onclick="window.flovaMerger.cutOutTrackSelection('${track.id}')" title="Seçili alanı parçadan çıkarıp sil">
+                    <button class="btn btn-secondary btn-sm" style="padding: 3px 9px; font-size: 0.75rem; font-weight: 600; color: #f87171; border-color: rgba(248, 113, 113, 0.35);" 
+                      onclick="window.flovaMerger.cutOutTrackSelection('${track.id}')" title="Seçili aralığı (örn. ortadaki 20 saniyeyi) parçadan siler, başı ve sonu pürüzsüzce birleştirir">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                      Sil
+                      Seçimi Sil & Birleştir
                     </button>
                     <button class="btn btn-secondary btn-sm" style="padding: 3px 8px; font-size: 0.75rem;" 
                       onclick="window.flovaMerger.silenceTrackSelection('${track.id}')" title="Seçili alanı sessizleştir">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path></svg>
                       Sessiz
+                    </button>
+                    <button class="btn btn-secondary btn-sm" style="padding: 3px 8px; font-size: 0.75rem;" 
+                      onclick="window.flovaMerger.openInEditor('${track.id}')" title="Bu parçayı Düzenleyici sekmesinde açıp hassas dalga formunda düzenleyin">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                      Düzenle
                     </button>
                     ${track.history && track.history.length > 0 ? `
                       <button class="btn btn-secondary btn-sm" style="padding: 3px 8px; font-size: 0.75rem;" 
