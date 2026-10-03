@@ -1118,6 +1118,19 @@ def download_stream_and_convert(stream_url, target_path, media_format='mp3', qua
                 if k.lower() in ('user-agent', 'accept-language', 'range'):
                     req_headers[k] = v
 
+        proxy = (
+            os.environ.get('YOUTUBE_PROXY') or 
+            os.environ.get('PROXY_URL') or 
+            os.environ.get('HTTPS_PROXY') or 
+            os.environ.get('HTTP_PROXY')
+        )
+        if proxy and proxy.strip():
+            proxy_clean = proxy.strip()
+            proxy_handler = urllib.request.ProxyHandler({'http': proxy_clean, 'https': proxy_clean})
+            opener = urllib.request.build_opener(proxy_handler)
+        else:
+            opener = urllib.request.build_opener()
+
         downloaded = 0
         total_size = None
         max_retries = 3
@@ -1136,7 +1149,7 @@ def download_stream_and_convert(stream_url, target_path, media_format='mp3', qua
                 last_http_err = None
                 for attempt in range(max_retries):
                     try:
-                        with urllib.request.urlopen(req, timeout=12) as resp:
+                        with opener.open(req, timeout=12) as resp:
                             cr = resp.headers.get('Content-Range')
                             if cr and '/' in cr:
                                 total_size = int(cr.split('/')[1])
@@ -1372,6 +1385,15 @@ def get_youtube_dl_opts(extra_opts=None, client_list=None, use_cookies=True):
     cookie_file = find_valid_cookie_file() if use_cookies else None
     if cookie_file:
         opts['cookiefile'] = cookie_file
+
+    proxy = (
+        os.environ.get('YOUTUBE_PROXY') or 
+        os.environ.get('PROXY_URL') or 
+        os.environ.get('HTTPS_PROXY') or 
+        os.environ.get('HTTP_PROXY')
+    )
+    if proxy and proxy.strip():
+        opts['proxy'] = proxy.strip()
 
     if extra_opts:
         extra_copy = dict(extra_opts)
@@ -1642,18 +1664,54 @@ class FlovaHandler(SimpleHTTPRequestHandler):
 
             # Test actual format extraction (default to android, customizable via ?client=mweb)
             extract_formats = []
+            raw_formats = []
             extract_err = ''
+            ydl_logs = []
+            
+            class MemoryLogger:
+                def debug(self, msg):
+                    if 'error' in msg.lower() or 'warn' in msg.lower() or 'pot' in msg.lower() or 'client' in msg.lower() or 'format' in msg.lower():
+                        ydl_logs.append(f"[debug] {msg[:150]}")
+                def info(self, msg):
+                    ydl_logs.append(f"[info] {msg[:150]}")
+                def warning(self, msg):
+                    ydl_logs.append(f"[warning] {msg[:150]}")
+                def error(self, msg):
+                    ydl_logs.append(f"[error] {msg[:150]}")
+
             query = parse_qs(parsed.query)
             test_client = query.get('client', ['android'])[0]
+            cli_token_out = ''
+            cli_token_err = ''
+            if pot_bin and os.path.exists(pot_bin):
+                try:
+                    cp = subprocess.run([pot_bin, '-c', 'zrS2wKWVWzI'], capture_output=True, text=True, timeout=5)
+                    cli_token_out = cp.stdout.strip()[:100]
+                    cli_token_err = cp.stderr.strip()[:100]
+                except Exception as cpe:
+                    cli_token_err = str(cpe)
+
             try:
                 test_opts = get_youtube_dl_opts(
-                    extra_opts={'skip_download': True},
+                    extra_opts={
+                        'skip_download': True,
+                        'logger': MemoryLogger(),
+                        'verbose': True,
+                    },
                     client_list=[test_client],
                     use_cookies=False
                 )
                 with yt_dlp.YoutubeDL(test_opts) as ydl:
                     inf = ydl.extract_info('https://www.youtube.com/watch?v=zrS2wKWVWzI', download=False)
-                    for f in inf.get('formats', []):
+                    all_f = inf.get('formats', []) or []
+                    for f in all_f:
+                        raw_formats.append({
+                            'id': f.get('format_id'),
+                            'vcodec': f.get('vcodec'),
+                            'acodec': f.get('acodec'),
+                            'has_url': bool(f.get('url')),
+                            'proto': f.get('protocol')
+                        })
                         if f.get('acodec') != 'none' and f.get('url'):
                             extract_formats.append({
                                 'id': f.get('format_id'),
@@ -1663,6 +1721,13 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                             })
             except Exception as ee:
                 extract_err = str(ee)
+
+            proxy_val = (
+                os.environ.get('YOUTUBE_PROXY') or 
+                os.environ.get('PROXY_URL') or 
+                os.environ.get('HTTPS_PROXY') or 
+                os.environ.get('HTTP_PROXY')
+            )
 
             self.send_json(200, {
                 'platform': platform.platform(),
@@ -1674,13 +1739,16 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                 'ffmpeg_path': FFMPEG_EXE,
                 'pot_status': POT_STATUS,
                 'cli_test_out': cli_test_out,
-                'cli_test_err': cli_test_err,
+                'cli_token_test': cli_token_out or cli_token_err,
                 'pot_ping_ok': pot_ping,
-                'pot_ping_response': pot_ping_text,
+                'proxy_configured': bool(proxy_val),
+                'proxy_masked': (proxy_val.split('@')[-1] if '@' in proxy_val else (proxy_val[:12] + '...')) if proxy_val else None,
                 'tested_client': test_client,
                 'formats_found': len(extract_formats),
                 'formats': extract_formats,
-                'extract_error': extract_err
+                'raw_formats': raw_formats,
+                'extract_error': extract_err,
+                'ydl_logs': ydl_logs
             })
             return
 
