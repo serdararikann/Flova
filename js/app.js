@@ -319,6 +319,8 @@ class FlovaStudioApp {
     this.trimBtn.addEventListener('click', () => {
       if (!this.engine.currentBuffer) return;
       this.engine.trimCurrent(this.selectionStart, this.selectionEnd);
+      this.trimBtn.blur();
+      if (document.activeElement) document.activeElement.blur();
       this.showToast('Seçili alan kırpıldı!', 'success');
     });
 
@@ -351,10 +353,15 @@ class FlovaStudioApp {
 
       this.selectionStart = 0;
       this.selectionEnd = 0;
+      this.engine.loopStart = 0;
+      this.engine.loopEnd = this.engine.currentBuffer ? this.engine.currentBuffer.duration : 0;
       this.waveform.setSelection(0, 0);
       if (this.selStartInput) this.selStartInput.value = '00:00.000';
       if (this.selEndInput) this.selEndInput.value = '00:00.000';
       if (this.selDurationInput) this.selDurationInput.value = '00:00.000';
+
+      this.cutBtn.blur();
+      if (document.activeElement) document.activeElement.blur();
 
       // Move playhead to cut junction so user can audition the splice immediately
       this.engine.seek(startAt);
@@ -365,12 +372,16 @@ class FlovaStudioApp {
     this.silenceBtn.addEventListener('click', () => {
       if (!this.engine.currentBuffer) return;
       this.engine.silenceCurrent(this.selectionStart, this.selectionEnd);
+      this.silenceBtn.blur();
+      if (document.activeElement) document.activeElement.blur();
       this.showToast('Seçili alan sessize alındı!', 'success');
     });
 
     this.reverseBtn.addEventListener('click', () => {
       if (!this.engine.currentBuffer) return;
       this.engine.reverseCurrent();
+      this.reverseBtn.blur();
+      if (document.activeElement) document.activeElement.blur();
       this.showToast('Ses ters çevrildi!', 'success');
     });
 
@@ -1058,6 +1069,11 @@ class FlovaStudioApp {
 
       if (e.code === 'Space') {
         e.preventDefault();
+        e.stopPropagation();
+
+        if (document.activeElement && (document.activeElement.tagName === 'BUTTON' || document.activeElement.tagName === 'A')) {
+          document.activeElement.blur();
+        }
         
         if (this.activeMode === 'merger') {
           if (this.merger) {

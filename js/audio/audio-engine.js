@@ -188,10 +188,10 @@ export class AudioEngine {
       this.stopSource();
     }
 
-    const hasCustomBounds = this.loopEnd > this.loopStart && (this.loopStart > 0.05 || this.loopEnd < this.currentBuffer.duration - 0.05);
+    const isRegionLoop = this.isLooping && this.loopEnd > this.loopStart && (this.loopStart > 0.05 || this.loopEnd < this.currentBuffer.duration - 0.05);
 
     let startPos = offset !== null ? offset : this.pauseOffset;
-    if (hasCustomBounds) {
+    if (isRegionLoop) {
       if (startPos < this.loopStart || startPos >= this.loopEnd - 0.05) {
         startPos = this.loopStart;
       }
@@ -202,27 +202,22 @@ export class AudioEngine {
     this.sourceNode.buffer = this.currentBuffer;
     this.sourceNode.playbackRate.value = this.effectsRack.params.playbackRate;
 
-    if (this.isLooping || (this.useLoopRegion && this.isLooping)) {
+    if (this.isLooping) {
       this.sourceNode.loop = true;
-      this.sourceNode.loopStart = hasCustomBounds ? this.loopStart : 0;
-      this.sourceNode.loopEnd = hasCustomBounds ? this.loopEnd : this.currentBuffer.duration;
+      this.sourceNode.loopStart = isRegionLoop ? this.loopStart : 0;
+      this.sourceNode.loopEnd = isRegionLoop ? this.loopEnd : this.currentBuffer.duration;
     }
 
     this.sourceNode.connect(this.effectsRack.inputNode);
 
     this.startTime = this.ctx.currentTime - (this.pauseOffset / this.effectsRack.params.playbackRate);
 
-    if (hasCustomBounds && !this.isLooping) {
-      const playDuration = Math.max(0, (this.loopEnd - this.pauseOffset) / this.effectsRack.params.playbackRate);
-      this.sourceNode.start(0, this.pauseOffset, playDuration);
-    } else {
-      this.sourceNode.start(0, this.pauseOffset);
-    }
+    this.sourceNode.start(0, this.pauseOffset);
     this.isPlaying = true;
 
     this.sourceNode.onended = () => {
       if (this.isPlaying) {
-        this.pauseOffset = hasCustomBounds ? this.loopStart : 0;
+        this.pauseOffset = isRegionLoop ? this.loopStart : 0;
         this.isPlaying = false;
         if (this.onEnded) this.onEnded();
         if (this.onPlayStateChange) this.onPlayStateChange(false);
@@ -241,8 +236,8 @@ export class AudioEngine {
   pause() {
     if (!this.isPlaying) return;
     this.pauseOffset = this.getCurrentTime();
-    this.stopSource();
     this.isPlaying = false;
+    this.stopSource();
     this.stopTimer();
 
     if (this.onPlayStateChange) {
@@ -251,10 +246,10 @@ export class AudioEngine {
   }
 
   stop() {
-    this.stopSource();
     this.isPlaying = false;
-    const hasCustomBounds = this.loopEnd > this.loopStart && (this.loopStart > 0.05 || this.loopEnd < (this.currentBuffer ? this.currentBuffer.duration - 0.05 : 0));
-    this.pauseOffset = hasCustomBounds ? this.loopStart : 0;
+    this.stopSource();
+    const isRegionLoop = this.isLooping && this.loopEnd > this.loopStart && (this.loopStart > 0.05 || this.loopEnd < (this.currentBuffer ? this.currentBuffer.duration - 0.05 : 0));
+    this.pauseOffset = isRegionLoop ? this.loopStart : 0;
     this.stopTimer();
 
     if (this.onPlayStateChange) {
@@ -267,9 +262,8 @@ export class AudioEngine {
 
   seek(timeInSeconds) {
     if (!this.currentBuffer) return;
-    const hasCustomBounds = this.loopEnd > this.loopStart && (this.loopStart > 0.05 || this.loopEnd < this.currentBuffer.duration - 0.05);
     let targetTime = timeInSeconds;
-    if (hasCustomBounds) {
+    if (this.isLooping && this.loopEnd > this.loopStart && (this.loopStart > 0.05 || this.loopEnd < this.currentBuffer.duration - 0.05)) {
       if (targetTime < this.loopStart || targetTime > this.loopEnd) {
         targetTime = this.loopStart;
       }
@@ -313,6 +307,7 @@ export class AudioEngine {
   stopSource() {
     if (this.sourceNode) {
       try {
+        this.sourceNode.onended = null;
         this.sourceNode.stop();
         this.sourceNode.disconnect();
       } catch (e) {

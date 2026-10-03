@@ -688,20 +688,20 @@ export class WaveformCanvas {
         }
       }
 
-      if (Math.abs(x - startX) <= handleRadius) {
+      const hasSelection = this.selectionEnd > this.selectionStart && (this.selectionEnd - this.selectionStart) > 0.05;
+
+      if (hasSelection && Math.abs(x - startX) <= handleRadius) {
         this.isDragging = true;
         this.dragTarget = 'start';
-      } else if (Math.abs(x - endX) <= handleRadius) {
+      } else if (hasSelection && Math.abs(x - endX) <= handleRadius) {
         this.isDragging = true;
         this.dragTarget = 'end';
-      } else if (time >= this.selectionStart && time <= this.selectionEnd) {
+      } else if (hasSelection && time >= this.selectionStart && time <= this.selectionEnd) {
         this.isDragging = true;
         this.dragTarget = e.shiftKey ? 'region' : 'seek';
       } else {
-        // Clicked in the dimmed / excluded portion of the track outside selection
-        // DO NOT reset selection! Keep selection bounds strictly intact.
         this.isDragging = true;
-        this.dragTarget = 'outsideClick';
+        this.dragTarget = hasSelection ? 'outsideClick' : 'seek';
       }
     });
 
@@ -719,13 +719,14 @@ export class WaveformCanvas {
         const startX = this.timeToPixel(this.selectionStart);
         const endX = this.timeToPixel(this.selectionEnd);
         const handleRadius = 12;
+        const hasSelection = this.selectionEnd > this.selectionStart && (this.selectionEnd - this.selectionStart) > 0.05;
 
-        if (Math.abs(x - startX) <= handleRadius || Math.abs(x - endX) <= handleRadius) {
+        if (hasSelection && (Math.abs(x - startX) <= handleRadius || Math.abs(x - endX) <= handleRadius)) {
           overlay.style.cursor = 'ew-resize';
-        } else if (x > startX && x < endX) {
+        } else if (hasSelection && x > startX && x < endX) {
           overlay.style.cursor = 'crosshair';
         } else {
-          overlay.style.cursor = 'default';
+          overlay.style.cursor = 'pointer';
         }
         return;
       }
@@ -796,25 +797,24 @@ export class WaveformCanvas {
         const curX = e.clientX - overlay.getBoundingClientRect().left;
         const dragDist = Math.abs(curX - this.dragStartX);
 
-        if (this.dragTarget === 'seek' && dragDist <= 8) {
-          // Clicked inside active selected area: seek playhead inside active selection
-          const clickedTime = Math.max(this.selectionStart, Math.min(this.selectionEnd, mouseDownTime));
-          this.currentTime = clickedTime;
-          if (this.onSeek) this.onSeek(clickedTime);
-        } else if (this.dragTarget === 'outsideClick' && dragDist <= 8) {
-          // Clicked in the excluded/shortened portion:
-          // DO NOT reset selection! Keep selection bounds intact!
-          // Place playhead at the start of the active part (selectionStart)
-          this.currentTime = this.selectionStart;
-          if (this.onSeek) this.onSeek(this.selectionStart);
+        if ((this.dragTarget === 'seek' || this.dragTarget === 'outsideClick') && dragDist <= 8) {
+          // Clicked anywhere on the waveform: seek playhead directly to clicked time
+          const targetTime = Math.max(0, Math.min(this.duration, mouseDownTime));
+          this.currentTime = targetTime;
+          if (this.onSeek) this.onSeek(targetTime);
+          this.drawOverlay();
         } else if (this.dragTarget === 'newSelection') {
           const s = Math.min(this.selectionStart, this.selectionEnd);
           const en = Math.max(this.selectionStart, this.selectionEnd);
 
           if (Math.abs(s - en) < 0.08) {
-            // Barely moved: restore previous selection! Never wipe out to full track!
+            // Barely moved: restore previous selection and seek to clicked time
             this.selectionStart = this.dragStartSelection.start;
             this.selectionEnd = this.dragStartSelection.end;
+            const targetTime = Math.max(0, Math.min(this.duration, mouseDownTime));
+            this.currentTime = targetTime;
+            if (this.onSeek) this.onSeek(targetTime);
+            this.drawOverlay();
           } else {
             this.selectionStart = s;
             this.selectionEnd = en;
