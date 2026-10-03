@@ -176,9 +176,6 @@ export class YouTubeUI {
                     <button type="button" class="btn-yt-card btn-yt-card-download" onclick="window.flovaYouTube.downloadSearchResultDirect(${idx})" title="MP3 olarak bilgisayara indir">
                       📥 İndir (MP3)
                     </button>
-                    <a href="https://en.onlymp3.to/converter-v3?v=${item.id}" target="_blank" rel="noopener noreferrer" class="btn-yt-card" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); text-decoration: none; display: flex; align-items: center; justify-content: center;" title="Doğrudan 1 tıkla MP3 indir">
-                      ⚡ Hızlı MP3
-                    </a>
                   </div>
                 </div>
               `).join('')}
@@ -489,11 +486,6 @@ export class YouTubeUI {
                 <!-- 5. Direct Download to PC -->
                 <button id="ytDownloadBtn" class="btn btn-emerald yt-col-btn" ${this.isDownloading ? 'disabled' : ''} onclick="window.flovaYouTube.downloadDirect()" title="Dosyayı doğrudan bilgisayara kaydet">
                   ${this.isDownloading ? `<span class="spinner-sm" style="margin-right: 6px;"></span> İndiriliyor...` : `📥 Bilgisayara İndir (.${this.selectedFormat})`}
-                </button>
-
-                <!-- 6. Seamless Direct Fallback Link (Always accessible) -->
-                <button type="button" class="btn btn-secondary yt-col-btn" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);" onclick="window.flovaYouTube.openSeamlessDownloadModal({ videoId: '${this.videoInfo.id}', title: '${this.escapeHtml(this.videoInfo.title)}', thumbnail: '${this.escapeHtml(this.videoInfo.thumbnail)}', format: '${this.selectedFormat}' })" title="Bulut kısıtlamalarını atlayarak harici yüksek hızlı motordan doğrudan MP3 indir">
-                  ⚡ Hızlı MP3 İndir (Yedek Hat)
                 </button>
               </div>
             </div>
@@ -834,20 +826,7 @@ export class YouTubeUI {
       
       const resp = await fetch(downloadUrl);
       if (!resp.ok) {
-        const errData = await resp.json().catch(() => null);
-        const isDcBlocked = resp.status === 503 || (errData && (errData.error_type === 'datacenter_blocked' || errData.fallback_urls || (errData.error && errData.error.includes('No video formats found'))));
-        if (isDcBlocked) {
-          this.activeDownloadingItemId = null;
-          this.render();
-          this.openSeamlessDownloadModal({
-            videoId: (errData && errData.video_id) || item.id,
-            title: (errData && errData.title) || item.title,
-            thumbnail: item.thumbnail,
-            format: this.selectedFormat
-          });
-          return;
-        }
-        throw new Error((errData && errData.error) || `Sunucu hatası (${resp.status})`);
+        throw new Error(`Sunucu hatası (${resp.status})`);
       }
 
       const blob = await resp.blob();
@@ -868,17 +847,10 @@ export class YouTubeUI {
         window.flovaApp.showToast(`"${item.title}" başarıyla indirildi!`, 'success');
       }
     } catch (err) {
-      console.warn('Item download error fallback check:', err);
+      console.error('Item download error:', err);
       this.activeDownloadingItemId = null;
       this.render();
-      if (item && item.id) {
-        this.openSeamlessDownloadModal({
-          videoId: item.id,
-          title: item.title,
-          thumbnail: item.thumbnail,
-          format: this.selectedFormat
-        });
-      } else if (window.flovaApp) {
+      if (window.flovaApp) {
         window.flovaApp.showToast(`İndirme başarısız: ${err.message || err}`, 'error');
       }
     }
@@ -894,7 +866,7 @@ export class YouTubeUI {
     if (!ytUrl) return;
 
     this.isDownloading = true;
-    this.downloadProgressText = `YouTube'dan ${this.selectedFormat.toUpperCase()} (${this.selectedQuality}) hazırlanıyor... Lütfen bekleyin.`;
+    this.downloadProgressText = `YouTube'dan ${this.selectedFormat.toUpperCase()} (${this.selectedQuality}) indiriliyor ve dönüştürülüyor... Lütfen bekleyin.`;
     this.render();
 
     try {
@@ -902,20 +874,6 @@ export class YouTubeUI {
       const resp = await fetch(downloadUrl);
       if (!resp.ok) {
         const errData = await resp.json().catch(() => null);
-        const isDcBlocked = resp.status === 503 || (errData && (errData.error_type === 'datacenter_blocked' || errData.fallback_urls || (errData.error && errData.error.includes('No video formats found'))));
-        
-        if (isDcBlocked) {
-          this.isDownloading = false;
-          this.downloadProgressText = '';
-          this.render();
-          this.openSeamlessDownloadModal({
-            videoId: (errData && errData.video_id) || this.videoInfo.id,
-            title: (errData && errData.title) || this.videoInfo.title,
-            thumbnail: this.videoInfo.thumbnail,
-            format: this.selectedFormat
-          });
-          return;
-        }
         throw new Error((errData && errData.error) || `Sunucu hatası (${resp.status})`);
       }
 
@@ -942,18 +900,11 @@ export class YouTubeUI {
         window.flovaApp.showToast(`"${this.videoInfo.title}" başarıyla indirildi!`, 'success');
       }
     } catch (err) {
-      console.warn('Download error fallback check:', err);
+      console.error('Download error:', err);
       this.isDownloading = false;
       this.downloadProgressText = '';
       this.render();
-      if (this.videoInfo && this.videoInfo.id) {
-        this.openSeamlessDownloadModal({
-          videoId: this.videoInfo.id,
-          title: this.videoInfo.title,
-          thumbnail: this.videoInfo.thumbnail,
-          format: this.selectedFormat
-        });
-      } else if (window.flovaApp) {
+      if (window.flovaApp) {
         window.flovaApp.showToast(`İndirme başarısız: ${err.message || err}`, 'error');
       }
     }
@@ -964,7 +915,6 @@ export class YouTubeUI {
    */
   async loadPlaylistItemToEditor(idx) {
     if (!this.videoInfo || !this.videoInfo.items || !this.videoInfo.items[idx]) return;
-    this._pendingStudioTarget = 'editor';
     const item = this.videoInfo.items[idx];
     const audioBuffer = await this.fetchItemAudioBuffer(item);
     if (!audioBuffer) return;
@@ -983,7 +933,6 @@ export class YouTubeUI {
    */
   async addPlaylistItemToMerger(idx) {
     if (!this.videoInfo || !this.videoInfo.items || !this.videoInfo.items[idx]) return;
-    this._pendingStudioTarget = 'merger';
     const item = this.videoInfo.items[idx];
     const audioBuffer = await this.fetchItemAudioBuffer(item);
     if (!audioBuffer) return;
@@ -1002,7 +951,6 @@ export class YouTubeUI {
    */
   async sendPlaylistItemToVocalSplitter(idx) {
     if (!this.videoInfo || !this.videoInfo.items || !this.videoInfo.items[idx]) return;
-    this._pendingStudioTarget = 'vocal';
     const item = this.videoInfo.items[idx];
     const audioBuffer = await this.fetchItemAudioBuffer(item);
     if (!audioBuffer) return;
@@ -1018,7 +966,6 @@ export class YouTubeUI {
 
   async loadToEditor() {
     if (!this.videoInfo) return;
-    this._pendingStudioTarget = 'editor';
     const audioBuffer = await this.fetchAudioBuffer();
     if (!audioBuffer) return;
 
@@ -1033,7 +980,6 @@ export class YouTubeUI {
 
   async addToMerger() {
     if (!this.videoInfo) return;
-    this._pendingStudioTarget = 'merger';
     const audioBuffer = await this.fetchAudioBuffer();
     if (!audioBuffer) return;
 
@@ -1048,7 +994,6 @@ export class YouTubeUI {
 
   async sendToVocalSplitter() {
     if (!this.videoInfo) return;
-    this._pendingStudioTarget = 'vocal';
     const audioBuffer = await this.fetchAudioBuffer();
     if (!audioBuffer) return;
 
@@ -1063,7 +1008,6 @@ export class YouTubeUI {
 
   async sendToStemSplitter() {
     if (!this.videoInfo) return;
-    this._pendingStudioTarget = 'stem';
     const audioBuffer = await this.fetchAudioBuffer();
     if (!audioBuffer) return;
 
@@ -1078,7 +1022,6 @@ export class YouTubeUI {
 
   async sendPlaylistItemToStemSplitter(idx) {
     if (!this.videoInfo || !this.videoInfo.items || !this.videoInfo.items[idx]) return;
-    this._pendingStudioTarget = 'stem';
     const item = this.videoInfo.items[idx];
     const audioBuffer = await this.fetchItemAudioBuffer(item);
     if (!audioBuffer) return;
@@ -1159,7 +1102,6 @@ export class YouTubeUI {
 
   async loadSearchResultToEditor(idx) {
     if (!this.searchResults || !this.searchResults[idx]) return;
-    this._pendingStudioTarget = 'editor';
     const item = this.searchResults[idx];
     const audioBuffer = await this.fetchItemAudioBuffer(item);
     if (!audioBuffer) return;
@@ -1175,7 +1117,6 @@ export class YouTubeUI {
 
   async loadSearchResultToStemSplitter(idx) {
     if (!this.searchResults || !this.searchResults[idx]) return;
-    this._pendingStudioTarget = 'stem';
     const item = this.searchResults[idx];
     const audioBuffer = await this.fetchItemAudioBuffer(item);
     if (!audioBuffer) return;
@@ -1191,7 +1132,6 @@ export class YouTubeUI {
 
   async loadSearchResultToVocalSplitter(idx) {
     if (!this.searchResults || !this.searchResults[idx]) return;
-    this._pendingStudioTarget = 'vocal';
     const item = this.searchResults[idx];
     const audioBuffer = await this.fetchItemAudioBuffer(item);
     if (!audioBuffer) return;
@@ -1216,20 +1156,7 @@ export class YouTubeUI {
       const downloadUrl = `${this.getApiBase()}/api/youtube/download?url=${encodeURIComponent(itemUrl)}&format=mp3&quality=320`;
       const resp = await fetch(downloadUrl);
       if (!resp.ok) {
-        const errData = await resp.json().catch(() => null);
-        const isDcBlocked = resp.status === 503 || (errData && (errData.error_type === 'datacenter_blocked' || errData.fallback_urls || (errData.error && errData.error.includes('No video formats found'))));
-        if (isDcBlocked) {
-          this.activeDownloadingItemId = null;
-          this.render();
-          this.openSeamlessDownloadModal({
-            videoId: (errData && errData.video_id) || item.id,
-            title: (errData && errData.title) || item.title,
-            thumbnail: item.thumbnail,
-            format: 'mp3'
-          });
-          return;
-        }
-        throw new Error((errData && errData.error) || `İndirme başarısız (${resp.status})`);
+        throw new Error(`İndirme başarısız (${resp.status})`);
       }
       const blob = await resp.blob();
       const a = document.createElement('a');
@@ -1247,16 +1174,7 @@ export class YouTubeUI {
     } catch (err) {
       this.activeDownloadingItemId = null;
       this.render();
-      if (item && item.id) {
-        this.openSeamlessDownloadModal({
-          videoId: item.id,
-          title: item.title,
-          thumbnail: item.thumbnail,
-          format: 'mp3'
-        });
-      } else if (window.flovaApp) {
-        window.flovaApp.showToast(`İndirme hatası: ${err.message || err}`, 'error');
-      }
+      if (window.flovaApp) window.flovaApp.showToast(`İndirme hatası: ${err.message || err}`, 'error');
     }
   }
 
@@ -1301,7 +1219,7 @@ export class YouTubeUI {
     this.render();
 
     if (window.flovaApp) {
-      window.flovaApp.showToast(`"${item.title}" stüdyoya aktarılmak üzere hazırlanıyor...`, 'info');
+      window.flovaApp.showToast(`"${item.title}" stüdyoya aktarılmak üzere indiriliyor...`, 'info');
     }
 
     try {
@@ -1309,20 +1227,7 @@ export class YouTubeUI {
       const downloadUrl = `${this.getApiBase()}/api/youtube/download?url=${encodeURIComponent(itemUrl)}&format=mp3&quality=320`;
       const resp = await fetch(downloadUrl);
       if (!resp.ok) {
-        const errData = await resp.json().catch(() => null);
-        const isDcBlocked = resp.status === 503 || (errData && (errData.error_type === 'datacenter_blocked' || errData.fallback_urls || (errData.error && errData.error.includes('No video formats found'))));
-        if (isDcBlocked) {
-          this.activeDownloadingItemId = null;
-          this.render();
-          this.openSeamlessDownloadModal({
-            videoId: (errData && errData.video_id) || item.id,
-            title: (errData && errData.title) || item.title,
-            thumbnail: item.thumbnail,
-            targetMode: this._pendingStudioTarget || 'vocal'
-          });
-          return null;
-        }
-        throw new Error((errData && errData.error) || `İndirme başarısız (${resp.status})`);
+        throw new Error(`İndirme başarısız (${resp.status})`);
       }
 
       const arrayBuffer = await resp.arrayBuffer();
@@ -1333,17 +1238,10 @@ export class YouTubeUI {
       this.render();
       return decodedBuffer;
     } catch (err) {
-      console.warn('Audio fetch fallback check:', err);
+      console.error('Audio fetch/decode error:', err);
       this.activeDownloadingItemId = null;
       this.render();
-      if (item && item.id) {
-        this.openSeamlessDownloadModal({
-          videoId: item.id,
-          title: item.title,
-          thumbnail: item.thumbnail,
-          targetMode: this._pendingStudioTarget || 'vocal'
-        });
-      } else if (window.flovaApp) {
+      if (window.flovaApp) {
         window.flovaApp.showToast(`Stüdyoya aktarma hatası: ${err.message || err}`, 'error');
       }
       return null;
@@ -1372,19 +1270,6 @@ export class YouTubeUI {
       const resp = await fetch(downloadUrl);
       if (!resp.ok) {
         const errData = await resp.json().catch(() => null);
-        const isDcBlocked = resp.status === 503 || (errData && (errData.error_type === 'datacenter_blocked' || errData.fallback_urls || (errData.error && errData.error.includes('No video formats found'))));
-        if (isDcBlocked) {
-          this.isDownloading = false;
-          this.downloadProgressText = '';
-          this.render();
-          this.openSeamlessDownloadModal({
-            videoId: (errData && errData.video_id) || (this.videoInfo && this.videoInfo.id),
-            title: (errData && errData.title) || (this.videoInfo && this.videoInfo.title),
-            thumbnail: this.videoInfo && this.videoInfo.thumbnail,
-            targetMode: this._pendingStudioTarget || 'editor'
-          });
-          return null;
-        }
         throw new Error((errData && errData.error) || `İndirme başarısız (${resp.status})`);
       }
 
@@ -1400,19 +1285,16 @@ export class YouTubeUI {
       this.render();
       return decodedBuffer;
     } catch (err) {
-      console.warn('Audio fetch fallback check:', err);
+      console.error('Audio fetch/decode error:', err);
       this.isDownloading = false;
       this.downloadProgressText = '';
       this.render();
-      if (this.videoInfo && this.videoInfo.id) {
-        this.openSeamlessDownloadModal({
-          videoId: this.videoInfo.id,
-          title: this.videoInfo.title,
-          thumbnail: this.videoInfo.thumbnail,
-          targetMode: this._pendingStudioTarget || 'editor'
-        });
-      } else if (window.flovaApp) {
-        window.flovaApp.showToast(`Stüdyoya aktarma hatası: ${err.message || err}`, 'error');
+      let errText = err.message || String(err);
+      if (errText.includes('not a bot') || errText.includes('Sign in') || errText.includes('cookies')) {
+        errText = 'Bu parça YouTube erişim kısıtlamasına sahip. Lütfen başka bir şarkı deneyin veya ses dosyasını sürükleyin.';
+      }
+      if (window.flovaApp) {
+        window.flovaApp.showToast(`Stüdyoya aktarma hatası: ${errText}`, 'error');
       }
       return null;
     }
@@ -1433,237 +1315,6 @@ export class YouTubeUI {
         }
       }
     } catch (_) {}
-  }
-
-  openSeamlessDownloadModal({ videoId, title, thumbnail, targetMode = 'download', format = 'mp3' }) {
-    let modalContainer = document.getElementById('youtubeSeamlessModalContainer');
-    if (!modalContainer) {
-      modalContainer = document.createElement('div');
-      modalContainer.id = 'youtubeSeamlessModalContainer';
-      document.body.appendChild(modalContainer);
-    }
-    modalContainer.className = 'modal-backdrop active';
-    modalContainer.style.display = 'flex';
-    this.renderSeamlessModalContent(modalContainer, { videoId, title, thumbnail, targetMode, format });
-  }
-
-  closeSeamlessModal() {
-    const modalContainer = document.getElementById('youtubeSeamlessModalContainer');
-    if (!modalContainer) return;
-    modalContainer.className = 'modal-backdrop';
-    modalContainer.style.display = 'none';
-  }
-
-  renderSeamlessModalContent(container, { videoId, title, thumbnail, targetMode, format }) {
-    const safeTitle = this.escapeHtml(title || (this.videoInfo && this.videoInfo.title) || 'YouTube Parça');
-    const safeId = encodeURIComponent(videoId || (this.videoInfo && this.videoInfo.id) || '');
-    const thumbUrl = thumbnail || (safeId ? `https://img.youtube.com/vi/${safeId}/hqdefault.jpg` : '');
-    
-    // High-speed direct fallback endpoints:
-    const onlyMp3Url = safeId ? `https://en.onlymp3.to/converter-v3?v=${safeId}` : `https://onlymp3.to/en5/`;
-    const y2mateUrl = safeId ? `https://en.y2mate.sx/v16/?v=${safeId}` : `https://y2mate.is/en/youtube-to-mp3.html`;
-    const saveFromUrl = safeId ? `https://en1.savefrom.net/1-youtube-video/?url=https://www.youtube.com/watch?v=${safeId}` : `https://ssyoutube.com/`;
-
-    let modeTitle = 'Hızlı MP3 İndir';
-    let modeBadge = '⚡ Doğrudan Çözücü';
-
-    if (targetMode === 'vocal') {
-      modeTitle = 'AI Vokal / Enstrümantal Ayırıcıya Aktar';
-      modeBadge = '🎙️ Vokal Ayrıştırma';
-    } else if (targetMode === 'stem') {
-      modeTitle = '4/6-Stem Enstrüman Ayırıcıya Aktar';
-      modeBadge = '🎸 Stem Splitter';
-    } else if (targetMode === 'editor') {
-      modeTitle = 'Stüdyo Düzenleyiciye Aktar';
-      modeBadge = '✂️ Dalga Formu';
-    } else if (targetMode === 'merger') {
-      modeTitle = 'Şarkı Birleştiriciye Aktar';
-      modeBadge = '🔗 Birleştirici';
-    }
-
-    container.innerHTML = `
-      <div class="modal-card glass-card server-modal-card" style="max-width: 580px; border-color: rgba(56, 189, 248, 0.35); box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);">
-        <div class="modal-header" style="border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding-bottom: 14px;">
-          <div class="modal-title-row">
-            <span class="modal-icon" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border-radius: 10px; padding: 6px;">⚡</span>
-            <div>
-              <h3 class="modal-title" style="color: #f8fafc; font-size: 1.15rem; font-weight: 700;">Kesintisiz MP3 İndirme & Stüdyo Köprüsü</h3>
-              <p class="modal-subtitle" style="color: #94a3b8; font-size: 0.82rem;">Bulut kısıtlamalarını atlayarak parçanızı anında indirin ve stüdyoya aktarın.</p>
-            </div>
-          </div>
-          <button class="modal-close-btn" id="closeSeamlessModalBtn" title="Kapat">✕</button>
-        </div>
-
-        <div class="modal-body" style="display: flex; flex-direction: column; gap: 16px; padding: 18px 0;">
-          
-          <!-- Selected Video Preview Row -->
-          <div style="display: flex; gap: 14px; align-items: center; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 12px;">
-            ${thumbUrl ? `
-              <img src="${this.escapeHtml(thumbUrl)}" alt="${safeTitle}" style="width: 80px; height: 52px; object-fit: cover; border-radius: 8px; flex-shrink: 0;" />
-            ` : ''}
-            <div style="flex: 1; min-width: 0;">
-              <span class="badge" style="font-size: 0.72rem; padding: 2px 8px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border-radius: 6px; font-weight: 600;">
-                ${modeBadge}
-              </span>
-              <div style="font-weight: 700; color: #fff; font-size: 0.95rem; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                ${safeTitle}
-              </div>
-            </div>
-          </div>
-
-          <!-- Step 1: 1-Click High-Speed Download Buttons -->
-          <div>
-            <div style="font-size: 0.84rem; font-weight: 700; color: #cbd5e1; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-              <span>1. Adım:</span> <span style="color: #fff;">Tek Tıkla Doğrudan İndirin</span>
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-              <a 
-                href="${onlyMp3Url}" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                class="btn btn-emerald" 
-                style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 20px; font-size: 0.96rem; font-weight: 700; text-decoration: none; border-radius: 10px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);"
-                onclick="window.flovaApp && window.flovaApp.showToast('İndirme motoru yeni sekmede açıldı! İndirilen dosyayı aşağıdaki alana bırakabilirsiniz.', 'info');"
-              >
-                <span>⚡ Tek Tıkla MP3 İndir (.mp3 - 320kbps)</span>
-                <span style="font-size: 0.8rem; opacity: 0.85;">(Ultra Hızlı) ↗</span>
-              </a>
-
-              <div style="display: flex; gap: 8px;">
-                <a 
-                  href="${y2mateUrl}" 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  class="btn btn-secondary" 
-                  style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.82rem; text-decoration: none; padding: 8px 12px;"
-                >
-                  <span>🚀 Sunucu 2 (Y2Mate) ↗</span>
-                </a>
-                <a 
-                  href="${saveFromUrl}" 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  class="btn btn-secondary" 
-                  style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.82rem; text-decoration: none; padding: 8px 12px;"
-                >
-                  <span>🎬 Video Olarak İndir (MP4) ↗</span>
-                </a>
-              </div>
-            </div>
-          </div>
-
-          <!-- Step 2: Instant Studio Drag & Drop Loader -->
-          <div style="border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 14px;">
-            <div style="font-size: 0.84rem; font-weight: 700; color: #cbd5e1; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-              <span>2. Adım:</span> <span style="color: #38bdf8;">Flova Stüdyosu'nda Aç / Vokal Ayır</span>
-            </div>
-            
-            <div 
-              id="seamlessStudioDropZone" 
-              style="border: 2px dashed rgba(56, 189, 248, 0.45); border-radius: 12px; padding: 20px; text-align: center; background: rgba(56, 189, 248, 0.04); cursor: pointer; transition: all 0.2s ease;"
-              title="İndirdiğiniz MP3'ü buraya bırakın veya tıklayın"
-            >
-              <input type="file" id="seamlessFileInput" accept="audio/*" style="display: none;" />
-              <div style="font-size: 1.8rem; margin-bottom: 4px;">🎛️</div>
-              <div style="font-weight: 600; font-size: 0.9rem; color: #f8fafc;">
-                İndirdiğiniz MP3'ü buraya bırakın veya tıklayarak seçin
-              </div>
-              <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 4px;">
-                Dosya seçildiğinde otomatik olarak <strong>${modeTitle}</strong> başlatılacaktır.
-              </div>
-            </div>
-          </div>
-
-          <!-- Footer Info -->
-          <div style="font-size: 0.76rem; color: #64748b; line-height: 1.5; text-align: center;">
-            💡 <em>Bulut sunucularında YouTube bot koruması engellerine takılmamak için yedek köprü kullanılmaktadır. Bilgisayarınıza doğrudan indirilir.</em>
-          </div>
-
-        </div>
-      </div>
-    `;
-
-    // Hook listeners
-    const closeBtn = container.querySelector('#closeSeamlessModalBtn');
-    const dropZone = container.querySelector('#seamlessStudioDropZone');
-    const fileInput = container.querySelector('#seamlessFileInput');
-
-    if (closeBtn) closeBtn.onclick = () => this.closeSeamlessModal();
-    container.onclick = (e) => {
-      if (e.target === container) this.closeSeamlessModal();
-    };
-
-    if (dropZone && fileInput) {
-      dropZone.onclick = () => fileInput.click();
-      dropZone.ondragover = (e) => {
-        e.preventDefault();
-        dropZone.style.borderColor = 'var(--accent-cyan)';
-        dropZone.style.background = 'rgba(56, 189, 248, 0.12)';
-      };
-      dropZone.ondragleave = () => {
-        dropZone.style.borderColor = 'rgba(56, 189, 248, 0.45)';
-        dropZone.style.background = 'rgba(56, 189, 248, 0.04)';
-      };
-      dropZone.ondrop = (e) => {
-        e.preventDefault();
-        dropZone.style.borderColor = 'rgba(56, 189, 248, 0.45)';
-        dropZone.style.background = 'rgba(56, 189, 248, 0.04)';
-        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
-          this.handleSeamlessAudioFile(e.dataTransfer.files[0], title, targetMode);
-        }
-      };
-      fileInput.onchange = (e) => {
-        if (e.target.files && e.target.files[0]) {
-          this.handleSeamlessAudioFile(e.target.files[0], title, targetMode);
-        }
-      };
-    }
-  }
-
-  async handleSeamlessAudioFile(file, title, targetMode) {
-    if (!file) return;
-    try {
-      this.closeSeamlessModal();
-      if (window.flovaApp) {
-        window.flovaApp.showToast(`"${file.name}" stüdyoya yükleniyor ve dalga formuna dönüştürülüyor...`, 'info');
-      }
-      this.engine.ensureContext();
-      const arrayBuffer = await file.arrayBuffer();
-      const audioBuffer = await this.engine.ctx.decodeAudioData(arrayBuffer);
-      const safeName = `${title || file.name.replace(/\.[^/.]+$/, '')}.mp3`;
-
-      if (targetMode === 'vocal' && window.flovaSplitter) {
-        window.flovaSplitter.loadBuffer(audioBuffer, safeName);
-        if (window.flovaApp) {
-          window.flovaApp.switchMode('vocal-splitter');
-          window.flovaApp.showToast(`"${safeName}" AI Vokal Ayırıcıya yüklendi!`, 'success');
-        }
-      } else if (targetMode === 'stem' && window.flovaStemSplitter) {
-        window.flovaStemSplitter.loadBuffer(audioBuffer, safeName);
-        if (window.flovaApp) {
-          window.flovaApp.switchMode('stem-splitter');
-          window.flovaApp.showToast(`"${safeName}" Demucs 4/6-Stem Ayırıcıya yüklendi!`, 'success');
-        }
-      } else if (targetMode === 'merger' && window.flovaMerger) {
-        window.flovaMerger.addTrackFromBuffer(audioBuffer, safeName);
-        if (window.flovaApp) {
-          window.flovaApp.switchMode('merger');
-          window.flovaApp.showToast(`"${safeName}" Birleştiriciye eklendi!`, 'success');
-        }
-      } else {
-        this.engine.currentFileName = safeName;
-        this.engine.setBuffer(audioBuffer, true);
-        if (window.flovaApp) {
-          window.flovaApp.switchMode('editor');
-          window.flovaApp.showToast(`"${safeName}" Düzenleyicide açıldı!`, 'success');
-        }
-      }
-    } catch (err) {
-      console.error('Seamless audio loading error:', err);
-      if (window.flovaApp) {
-        window.flovaApp.showToast(`Ses dosyası işlenemedi: ${err.message || err}`, 'error');
-      }
-    }
   }
 
   openCookieModal() {
