@@ -173,6 +173,17 @@ export class ExportModal {
 
         <div class="export-options-grid">
           
+          <!-- Quick Presets -->
+          <div class="option-group">
+            <label class="option-label">Hazır Ayarlar (Presets)</label>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+              <button type="button" class="preset-chip active" id="presetStudioMaster">Master WAV (24-bit)</button>
+              <button type="button" class="preset-chip" id="presetStreaming">Spotify / Streaming (320k)</button>
+              <button type="button" class="preset-chip" id="presetPodcast">Podcast / Ses (192k)</button>
+              <button type="button" class="preset-chip" id="presetCompact">Kompakt MP3 (128k)</button>
+            </div>
+          </div>
+
           <!-- Custom File Name Input -->
           <div class="option-group">
             <label class="option-label">Dosya Adı</label>
@@ -302,6 +313,33 @@ export class ExportModal {
     scopeSel.addEventListener('click', () => {
       scopeSel.classList.add('checked');
       scopeAll.classList.remove('checked');
+    });
+
+    // Preset chips
+    const presets = [
+      { id: 'presetStudioMaster', format: 'wav', depth: '24', kbps: '320' },
+      { id: 'presetStreaming', format: 'mp3', depth: '16', kbps: '320' },
+      { id: 'presetPodcast', format: 'mp3', depth: '16', kbps: '192' },
+      { id: 'presetCompact', format: 'mp3', depth: '16', kbps: '128' }
+    ];
+
+    presets.forEach(p => {
+      const chip = this.container.querySelector(`#${p.id}`);
+      if (!chip) return;
+      chip.addEventListener('click', () => {
+        this.container.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+
+        if (p.format === 'wav') {
+          wavLabel.click();
+          const depthSelect = this.container.querySelector('#wavBitDepthSelect');
+          if (depthSelect) depthSelect.value = p.depth;
+        } else {
+          mp3Label.click();
+          const kbpsSelect = this.container.querySelector('#mp3BitrateSelect');
+          if (kbpsSelect) kbpsSelect.value = p.kbps;
+        }
+      });
     });
   }
 }

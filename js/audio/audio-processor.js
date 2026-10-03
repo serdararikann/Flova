@@ -180,10 +180,72 @@ export class AudioProcessor {
   }
 
   /**
+   * Normalizes an AudioBuffer to target peak dBFS (default -0.1 dBFS, studio safe peak)
+   */
+  static normalizeBuffer(audioCtx, buffer, targetPeakDb = -0.1) {
+    const channels = buffer.numberOfChannels;
+    const totalSamples = buffer.length;
+    let maxAmp = 0;
+
+    for (let c = 0; c < channels; c++) {
+      const data = buffer.getChannelData(c);
+      for (let i = 0; i < totalSamples; i++) {
+        const abs = Math.abs(data[i]);
+        if (abs > maxAmp) maxAmp = abs;
+      }
+    }
+
+    if (maxAmp < 0.00001) {
+      return { buffer, originalPeakDb: -100, gainDb: 0 };
+    }
+
+    const targetAmp = Math.pow(10, targetPeakDb / 20);
+    const multiplier = targetAmp / maxAmp;
+    const originalPeakDb = 20 * Math.log10(maxAmp);
+    const gainDb = 20 * Math.log10(multiplier);
+
+    const newBuffer = audioCtx.createBuffer(channels, totalSamples, buffer.sampleRate);
+    for (let c = 0; c < channels; c++) {
+      const src = buffer.getChannelData(c);
+      const dest = newBuffer.getChannelData(c);
+      for (let i = 0; i < totalSamples; i++) {
+        dest[i] = src[i] * multiplier;
+      }
+    }
+
+    return {
+      buffer: newBuffer,
+      originalPeakDb,
+      gainDb
+    };
+  }
+
+  /**
+   * Generates mathematical crossfade curves:
+   * - 'equal-power': sin/cos DJ curve (keeps energy constant at overlap)
+   * - 'exponential': smooth S-curve
+   * - 'linear': standard linear slope
+   */
+  static createFadeCurve(type = 'equal-power', isFadeIn = true, steps = 128) {
+    const curve = new Float32Array(steps);
+    for (let i = 0; i < steps; i++) {
+      const p = i / (steps - 1);
+      if (type === 'equal-power') {
+        curve[i] = isFadeIn ? Math.sin(p * 0.5 * Math.PI) : Math.cos(p * 0.5 * Math.PI);
+      } else if (type === 'exponential') {
+        curve[i] = isFadeIn ? 0.5 * (1 - Math.cos(Math.PI * p)) : 0.5 * (1 + Math.cos(Math.PI * p));
+      } else {
+        curve[i] = isFadeIn ? p : (1 - p);
+      }
+    }
+    return curve;
+  }
+
+  /**
    * Merges multiple audio tracks into one single AudioBuffer with seamless crossfading & gapless overlapping
-   * Supports both 'auto' (matching individual Fade In / Fade Out envelopes) and 'manual' (fixed duration) modes
+   * Supports 'auto' and 'manual' modes, and 'equal-power' | 'exponential' | 'linear' crossfade curves
    * @param {Array<{ buffer: AudioBuffer, volume?: number, fadeInSec?: number, fadeOutSec?: number }>} trackList
-   * @param {number|{ mode?: 'auto'|'manual', crossfadeSec?: number }} options
+   * @param {number|{ mode?: 'auto'|'manual', crossfadeSec?: number, curve?: 'equal-power'|'linear'|'exponential' }} options
    * @returns {Promise<AudioBuffer>}
    */
   static async mergeTracks(trackList, options = {}) {
@@ -201,6 +263,7 @@ export class AudioProcessor {
       ? options 
       : (options.crossfadeSec !== undefined ? options.crossfadeSec : 1.0);
     const mode = typeof options === 'object' && options.mode ? options.mode : 'auto';
+    const curveType = typeof options === 'object' && options.curve ? options.curve : 'equal-power';
 
     const sampleRate = trackList[0].buffer.sampleRate;
     const channels = 2; // Standardize to stereo
@@ -284,18 +347,24 @@ export class AudioProcessor {
       }
       fadeOutDuration = Math.min(fadeOutDuration, duration * 0.48);
 
-      // Schedule Gain Envelope
+      // Schedule Gain Envelope using curves
       if (fadeInDuration > 0.01) {
-        gainNode.gain.setValueAtTime(0.0001, startTime);
-        gainNode.gain.linearRampToValueAtTime(volume, startTime + fadeInDuration);
+        const inCurve = AudioProcessor.createFadeCurve(curveType, true, 128);
+        if (volume !== 1.0) {
+          for (let k = 0; k < inCurve.length; k++) inCurve[k] *= volume;
+        }
+        gainNode.gain.setValueCurveAtTime(inCurve, startTime, fadeInDuration);
       } else {
         gainNode.gain.setValueAtTime(volume, startTime);
       }
 
       if (fadeOutDuration > 0.01) {
         const fadeOutStartTime = Math.max(startTime + fadeInDuration, endTime - fadeOutDuration);
-        gainNode.gain.setValueAtTime(volume, fadeOutStartTime);
-        gainNode.gain.linearRampToValueAtTime(0.0001, endTime);
+        const outCurve = AudioProcessor.createFadeCurve(curveType, false, 128);
+        if (volume !== 1.0) {
+          for (let k = 0; k < outCurve.length; k++) outCurve[k] *= volume;
+        }
+        gainNode.gain.setValueCurveAtTime(outCurve, fadeOutStartTime, fadeOutDuration);
       } else {
         gainNode.gain.setValueAtTime(volume, endTime);
       }

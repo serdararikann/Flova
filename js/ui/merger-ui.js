@@ -7,6 +7,7 @@
    ==================================================================== */
 
 import { AudioProcessor } from '../audio/audio-processor.js';
+import { BPMKeyDetector } from '../audio/bpm-key-detector.js';
 
 /**
  * Interactive waveform canvas for an individual track in the Merger
@@ -579,6 +580,7 @@ export class MergerUI {
     this.tracks = []; // Array of { id, name, buffer, volume, duration, trimStart, trimEnd, fadeInSec, fadeOutSec, enabled }
     this.trackWaveforms = new Map();
     this.crossfadeMode = 'auto'; // 'auto' (fade-matching envelope) | 'manual' (fixed seconds)
+    this.crossfadeCurve = 'equal-power'; // 'equal-power' | 'exponential' | 'linear'
     this.crossfadeSec = 2.0;
     this.onMerged = options.onMerged || null;
 
@@ -628,6 +630,11 @@ export class MergerUI {
 
   setCrossfadeMode(mode) {
     this.crossfadeMode = mode === 'manual' ? 'manual' : 'auto';
+    this.render();
+  }
+
+  setCrossfadeCurve(curve) {
+    this.crossfadeCurve = curve;
     this.render();
   }
 
@@ -732,12 +739,24 @@ export class MergerUI {
       trimEnd: buffer.duration,
       fadeInSec: 0,
       fadeOutSec: 0,
-      enabled: true
+      enabled: true,
+      bpm: null
     };
     this.tracks.push(track);
     this.render();
     this.updateTotalDurationBadge();
     this.updateAllTransitionBridges();
+
+    // Asynchronously detect BPM for BPM matching
+    BPMKeyDetector.analyze(buffer).then(analysis => {
+      track.bpm = analysis.bpm;
+      const bpmBadge = this.container.querySelector(`#bpm_badge_${track.id}`);
+      if (bpmBadge) {
+        bpmBadge.textContent = `${analysis.bpm} BPM`;
+        bpmBadge.style.display = 'inline-block';
+      }
+    }).catch(() => {});
+
     return track;
   }
 
@@ -1322,7 +1341,8 @@ export class MergerUI {
 
     return await AudioProcessor.mergeTracks(processedTracks, {
       mode: this.crossfadeMode || 'auto',
-      crossfadeSec: this.crossfadeSec !== undefined ? this.crossfadeSec : 2.0
+      crossfadeSec: this.crossfadeSec !== undefined ? this.crossfadeSec : 2.0,
+      curve: this.crossfadeCurve || 'equal-power'
     });
   }
 
@@ -1445,6 +1465,9 @@ export class MergerUI {
                     <div class="track-order-badge">${idx + 1}</div>
                     <div class="merger-track-title">${track.name}</div>
                     <div class="merger-track-meta">${this.formatTime(track.duration)}</div>
+                    <span id="bpm_badge_${track.id}" style="${track.bpm ? '' : 'display: none;'} font-size: 0.72rem; padding: 1px 6px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 4px; font-weight: 600;">
+                      ${track.bpm ? `${track.bpm} BPM` : ''}
+                    </span>
                   </div>
 
                   <div style="display: flex; align-items: center; gap: 8px;">
@@ -1609,6 +1632,16 @@ export class MergerUI {
                   title="Tüm parçalar arasında elle belirlediğiniz süre kadar çapraz geçiş (iç içe geçme) uygular.">
                   Manuel Süre
                 </button>
+              </div>
+
+              <!-- Crossfade Curve Selector -->
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 0.78rem; font-weight: 600; color: var(--text-dim);">Eğri:</span>
+                <select class="theme-select-pill" onchange="window.flovaMerger.setCrossfadeCurve(this.value)" title="Crossfade Geçiş Eğrisi">
+                  <option value="equal-power" ${this.crossfadeCurve === 'equal-power' ? 'selected' : ''}>Eşit Güç (DJ Miks)</option>
+                  <option value="exponential" ${this.crossfadeCurve === 'exponential' ? 'selected' : ''}>S-Eğrisi (Yumuşak)</option>
+                  <option value="linear" ${this.crossfadeCurve === 'linear' ? 'selected' : ''}>Doğrusal (Linear)</option>
+                </select>
               </div>
 
               <!-- Controls for Manual Duration or Info for Auto -->

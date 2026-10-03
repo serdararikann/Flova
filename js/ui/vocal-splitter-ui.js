@@ -830,6 +830,14 @@ export class VocalSplitterUI {
                     <span id="splitterCurrentTime" style="color: var(--accent-cyan);">00:00.0</span>
                     <span id="splitterTotalTime" style="color: var(--text-dim); margin-left: 4px;">/ 00:00.0</span>
                   </div>
+
+                  <!-- Quick A/B Audition Toggles -->
+                  <div style="display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.35); padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); margin-left: 8px;">
+                    <span style="font-size: 0.72rem; color: var(--text-dim); margin-right: 4px; font-weight: 600;">A/B:</span>
+                    <button class="btn ${!this.vocalSolo && !this.instSolo ? 'btn-primary' : 'btn-secondary'} btn-sm" style="font-size: 0.72rem; padding: 2px 7px;" onclick="window.flovaSplitter.setQuickMode('mix')">Miks</button>
+                    <button class="btn ${this.vocalSolo && !this.instSolo ? 'btn-primary' : 'btn-secondary'} btn-sm" style="font-size: 0.72rem; padding: 2px 7px;" onclick="window.flovaSplitter.setQuickMode('vocal')">Vokal</button>
+                    <button class="btn ${this.instSolo && !this.vocalSolo ? 'btn-primary' : 'btn-secondary'} btn-sm" style="font-size: 0.72rem; padding: 2px 7px;" onclick="window.flovaSplitter.setQuickMode('inst')">Altyapı</button>
+                  </div>
                 </div>
 
                 <!-- DSP Presets (shown in DSP mode) or AI indicator -->
@@ -1116,6 +1124,28 @@ export class VocalSplitterUI {
       this.vocalMuted = !this.vocalMuted;
     } else {
       this.instMuted = !this.instMuted;
+    }
+    this.render();
+    this.drawWaveforms();
+    this.updateGainNodes();
+  }
+
+  setQuickMode(mode) {
+    if (mode === 'vocal') {
+      this.vocalSolo = true;
+      this.instSolo = false;
+      this.vocalMuted = false;
+      this.instMuted = false;
+    } else if (mode === 'inst') {
+      this.vocalSolo = false;
+      this.instSolo = true;
+      this.vocalMuted = false;
+      this.instMuted = false;
+    } else {
+      this.vocalSolo = false;
+      this.instSolo = false;
+      this.vocalMuted = false;
+      this.instMuted = false;
     }
     this.render();
     this.drawWaveforms();

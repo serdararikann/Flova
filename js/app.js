@@ -6,11 +6,12 @@
 import { AudioEngine } from './audio/audio-engine.js';
 import { WaveformCanvas } from './ui/waveform-canvas.js';
 import { VisualizerCanvas } from './ui/visualizer-canvas.js';
-import { MergerUI } from './ui/merger-ui.js?v=9.1';
-import { VocalSplitterUI } from './ui/vocal-splitter-ui.js?v=9.1';
-import { StemSplitterUI } from './ui/stem-splitter-ui.js?v=9.1';
-import { YouTubeUI } from './ui/youtube-ui.js?v=9.5';
-import { ExportModal } from './ui/export-modal.js';
+import { MergerUI } from './ui/merger-ui.js?v=9.6';
+import { VocalSplitterUI } from './ui/vocal-splitter-ui.js?v=9.6';
+import { StemSplitterUI } from './ui/stem-splitter-ui.js?v=9.6';
+import { YouTubeUI } from './ui/youtube-ui.js?v=9.6';
+import { ExportModal } from './ui/export-modal.js?v=9.6';
+import { HotkeysModal } from './ui/hotkeys-modal.js?v=9.6';
 import { BPMKeyDetector } from './audio/bpm-key-detector.js';
 import { SmartToolsModal } from './ui/smart-tools-modal.js';
 import { LyricsModal } from './ui/lyrics-modal.js?v=9.1';
@@ -102,6 +103,12 @@ class FlovaStudioApp {
     this.openLyricsBtn = document.getElementById('openLyricsBtn');
     this.openAudiogramBtn = document.getElementById('openAudiogramBtn');
     this.beatGridToggleBtn = document.getElementById('beatGridToggleBtn');
+
+    // New DAW Controls
+    this.normalizeBtn = document.getElementById('normalizeBtn');
+    this.addMarkerBtn = document.getElementById('addMarkerBtn');
+    this.hotkeysBtn = document.getElementById('hotkeysBtn');
+    this.themeSelector = document.getElementById('themeSelector');
   }
 
   initComponents() {
@@ -176,10 +183,20 @@ class FlovaStudioApp {
       window.flovaServerModal = this.serverModal;
     }
 
+    // 12. Keyboard Shortcuts Modal
+    const hotkeysContainer = document.getElementById('hotkeysModalContainer');
+    if (hotkeysContainer) {
+      this.hotkeysModal = new HotkeysModal(hotkeysContainer);
+    }
+
     // Audio Engine callbacks
     this.engine.onBufferChange = (buffer, selection) => this.handleBufferChange(buffer, selection);
     this.engine.onTimeUpdate = (time) => this.handleTimeUpdate(time);
     this.engine.onPlayStateChange = (isPlaying) => this.handlePlayStateChange(isPlaying);
+    this.engine.onHistoryChange = (canUndo, canRedo) => {
+      if (this.undoBtn) this.undoBtn.disabled = !canUndo;
+      if (this.redoBtn) this.redoBtn.disabled = !canRedo;
+    };
 
     // 8. Waveform selection commit
     this.waveform.onSelectionCommit = (start, end) => {
@@ -427,6 +444,51 @@ class FlovaStudioApp {
       }
       this.exportModal.open(this.selectionStart, this.selectionEnd);
     });
+
+    // Normalize Button
+    this.normalizeBtn?.addEventListener('click', () => {
+      if (!this.engine.currentBuffer) {
+        this.showToast('Lütfen önce bir ses dosyası yükleyin.', 'info');
+        return;
+      }
+      const res = this.engine.normalizeCurrent(-0.1);
+      if (res) {
+        const gainSign = res.gainDb >= 0 ? '+' : '';
+        this.showToast(`Ses normalize edildi (-0.1 dB tepe, ${gainSign}${res.gainDb.toFixed(1)} dB)`, 'success');
+      }
+    });
+
+    // Add Marker (Cue Point) Button
+    this.addMarkerBtn?.addEventListener('click', () => {
+      if (!this.engine.currentBuffer) {
+        this.showToast('Lütfen önce bir ses dosyası yükleyin.', 'info');
+        return;
+      }
+      const curTime = this.engine.getCurrentTime();
+      const count = this.waveform.getMarkers().length + 1;
+      this.waveform.addMarker(curTime, `Bölüm ${count}`);
+      this.showToast(`İşaretçi eklendi: Bölüm ${count} (${this.formatTime(curTime)})`, 'success');
+    });
+
+    // Hotkeys Help Modal Button
+    this.hotkeysBtn?.addEventListener('click', () => {
+      this.hotkeysModal?.open();
+    });
+
+    // Hardware Theme Selector
+    if (this.themeSelector) {
+      const savedTheme = localStorage.getItem('flova_theme') || 'obsidian';
+      this.themeSelector.value = savedTheme;
+      document.documentElement.setAttribute('data-theme', savedTheme);
+
+      this.themeSelector.addEventListener('change', (e) => {
+        const selected = e.target.value;
+        document.documentElement.setAttribute('data-theme', selected);
+        localStorage.setItem('flova_theme', selected);
+        const name = e.target.options[e.target.selectedIndex].text;
+        this.showToast(`Stüdyo teması: ${name}`, 'info');
+      });
+    }
 
     // Creative & Smart Tools Buttons
     this.openSmartToolsBtn?.addEventListener('click', () => {
@@ -874,7 +936,16 @@ class FlovaStudioApp {
   bindKeyboardShortcuts() {
     window.addEventListener('keydown', (e) => {
       // Avoid firing shortcuts when typing in text or number inputs
+      const tag = e.target.tagName ? e.target.tagName.toLowerCase() : '';
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) {
+        if (e.key === 'Escape') {
+          e.target.blur();
+        }
+        return;
+      }
+
       if (e.key === 'Escape') {
+        this.hotkeysModal?.close();
         this.smartToolsModal?.close();
         this.lyricsModal?.close();
         this.audiogramModal?.close();
@@ -889,22 +960,18 @@ class FlovaStudioApp {
         e.preventDefault();
         
         if (this.activeMode === 'merger') {
-          // In Merger mode: Space toggles sequential preview
           if (this.merger) {
             this.merger.togglePlayAll();
           }
         } else if (this.activeMode === 'vocal-splitter') {
-          // In Vocal Splitter mode: Space toggles dual stem playback
           if (this.vocalSplitter) {
             this.vocalSplitter.togglePlay();
           }
         } else if (this.activeMode === 'stem-splitter') {
-          // In 4-Stem Splitter mode: Space toggles 4-stem playback
           if (this.stemSplitter) {
             this.stemSplitter.togglePlay();
           }
         } else {
-          // In Editor mode: Space toggles main audio player
           if (this.merger && this.merger.playback && this.merger.playback.isPlaying) {
             this.merger.stopPlayback();
           }
@@ -922,8 +989,33 @@ class FlovaStudioApp {
             this.engine.play();
           }
         }
-      } else if (e.code === 'KeyL') {
+      } else if (e.code === 'KeyL' && !e.ctrlKey && !e.metaKey) {
         this.loopBtn.click();
+      } else if (e.code === 'KeyS' && !e.ctrlKey && !e.metaKey) {
+        if (this.activeMode === 'editor' && this.trimBtn) {
+          e.preventDefault();
+          this.trimBtn.click();
+        }
+      } else if (e.code === 'KeyN' && !e.ctrlKey && !e.metaKey) {
+        if (this.activeMode === 'editor' && this.normalizeBtn) {
+          e.preventDefault();
+          this.normalizeBtn.click();
+        }
+      } else if (e.code === 'KeyM' && !e.ctrlKey && !e.metaKey) {
+        if (this.activeMode === 'editor' && this.addMarkerBtn) {
+          e.preventDefault();
+          this.addMarkerBtn.click();
+        }
+      } else if (['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'].includes(e.code) && !e.ctrlKey && !e.metaKey) {
+        const modes = ['editor', 'merger', 'vocal-splitter', 'stem-splitter', 'youtube'];
+        const idx = parseInt(e.code.replace('Digit', ''), 10) - 1;
+        if (modes[idx]) {
+          e.preventDefault();
+          this.switchMode(modes[idx]);
+        }
+      } else if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+        e.preventDefault();
+        this.hotkeysModal?.open();
       } else if (e.code === 'Delete' || e.code === 'Backspace') {
         if (this.engine.currentBuffer && this.activeMode === 'editor') {
           e.preventDefault();

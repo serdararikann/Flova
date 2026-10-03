@@ -101,6 +101,7 @@ export class StemSplitterUI {
     this.masterGain = 1.0;
     this.masterGainNode = null;
     this.animFrameId = null;
+    this.activePreset = 'all';
 
     // A/B Comparison State
     this.isComparingOriginal = false;
@@ -553,6 +554,62 @@ export class StemSplitterUI {
     this.stems[key].muted = !this.stems[key].muted;
     this.updateStemGains();
     this.updateMixerButtonVisuals();
+  }
+
+  setQuickPreset(preset) {
+    const activeKeys = this.getActiveStemKeys();
+    if (activeKeys.length === 0) return;
+
+    this.activePreset = preset;
+
+    if (preset === 'all') {
+      for (const k of activeKeys) {
+        this.stems[k].solo = false;
+        this.stems[k].muted = false;
+      }
+    } else if (preset === 'vocal') {
+      for (const k of activeKeys) {
+        this.stems[k].solo = (k === 'vocals');
+        this.stems[k].muted = false;
+      }
+    } else if (preset === 'karaoke') {
+      for (const k of activeKeys) {
+        this.stems[k].solo = false;
+        this.stems[k].muted = (k === 'vocals');
+      }
+    } else if (preset === 'rhythm') {
+      for (const k of activeKeys) {
+        this.stems[k].solo = (k === 'drums' || k === 'bass');
+        this.stems[k].muted = false;
+      }
+    }
+
+    this.updateStemGains();
+    this.updateMixerButtonVisuals();
+    this.updatePresetButtonVisuals();
+
+    if (window.flovaApp) {
+      const names = {
+        all: 'Tüm Kanallar Açık',
+        vocal: 'Acapella (Yalnızca Vokal)',
+        karaoke: 'Karaoke (Enstrümantal)',
+        rhythm: 'Ritim & Bas (Davul + Bas)'
+      };
+      window.flovaApp.showToast(names[preset] || 'Preset uygulandı', 'info');
+    }
+  }
+
+  updatePresetButtonVisuals() {
+    ['all', 'vocal', 'karaoke', 'rhythm'].forEach(p => {
+      const b = document.getElementById(`stemPresetBtn_${p}`);
+      if (b) {
+        if (this.activePreset === p) {
+          b.className = 'btn btn-primary btn-sm';
+        } else {
+          b.className = 'btn btn-secondary btn-sm';
+        }
+      }
+    });
   }
 
   setMasterGain(val) {
@@ -1028,6 +1085,15 @@ export class StemSplitterUI {
             <div style="flex: 1; min-width: 180px; display: flex; align-items: center; gap: 10px;">
               <input type="range" id="stemScrubBar" class="studio-slider" min="0" max="${this.duration || 100}" step="0.05" value="0"
                 oninput="window.flovaStemSplitter.seek(parseFloat(this.value))" style="width: 100%;" />
+            </div>
+
+            <!-- Quick Stem Presets -->
+            <div style="display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.35); padding: 3px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06);">
+              <span style="font-size: 0.72rem; color: var(--text-dim); margin-right: 2px; font-weight: 600;">Hazır:</span>
+              <button id="stemPresetBtn_all" class="btn ${this.activePreset === 'all' ? 'btn-primary' : 'btn-secondary'} btn-sm" style="font-size: 0.72rem; padding: 2px 7px;" onclick="window.flovaStemSplitter.setQuickPreset('all')">Tümü</button>
+              <button id="stemPresetBtn_vocal" class="btn ${this.activePreset === 'vocal' ? 'btn-primary' : 'btn-secondary'} btn-sm" style="font-size: 0.72rem; padding: 2px 7px;" onclick="window.flovaStemSplitter.setQuickPreset('vocal')">Vokal</button>
+              <button id="stemPresetBtn_karaoke" class="btn ${this.activePreset === 'karaoke' ? 'btn-primary' : 'btn-secondary'} btn-sm" style="font-size: 0.72rem; padding: 2px 7px;" onclick="window.flovaStemSplitter.setQuickPreset('karaoke')">Karaoke</button>
+              <button id="stemPresetBtn_rhythm" class="btn ${this.activePreset === 'rhythm' ? 'btn-primary' : 'btn-secondary'} btn-sm" style="font-size: 0.72rem; padding: 2px 7px;" onclick="window.flovaStemSplitter.setQuickPreset('rhythm')">Ritim+Bas</button>
             </div>
 
             <!-- Master Output Volume -->

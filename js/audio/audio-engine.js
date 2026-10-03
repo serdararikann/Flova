@@ -38,6 +38,7 @@ export class AudioEngine {
     this.onPlayStateChange = null;
     this.onBufferChange = null;
     this.onEnded = null;
+    this.onHistoryChange = null;
 
     this.animationFrameId = null;
   }
@@ -120,6 +121,9 @@ export class AudioEngine {
     if (this.onBufferChange) {
       this.onBufferChange(this.currentBuffer, { start: this.loopStart, end: this.loopEnd });
     }
+    if (this.onHistoryChange) {
+      this.onHistoryChange(this.canUndo(), this.canRedo());
+    }
   }
 
   pushSelectionState(start, end) {
@@ -139,6 +143,9 @@ export class AudioEngine {
       this.historyStack.shift();
     }
     this.historyIndex = this.historyStack.length - 1;
+    if (this.onHistoryChange) {
+      this.onHistoryChange(this.canUndo(), this.canRedo());
+    }
   }
 
   undo() {
@@ -147,6 +154,7 @@ export class AudioEngine {
       const state = this.historyStack[this.historyIndex];
       this.currentFileName = state.name;
       this.setBuffer(state.buffer, false, { start: state.selectionStart, end: state.selectionEnd });
+      if (this.onHistoryChange) this.onHistoryChange(this.canUndo(), this.canRedo());
       return true;
     }
     return false;
@@ -158,6 +166,7 @@ export class AudioEngine {
       const state = this.historyStack[this.historyIndex];
       this.currentFileName = state.name;
       this.setBuffer(state.buffer, false, { start: state.selectionStart, end: state.selectionEnd });
+      if (this.onHistoryChange) this.onHistoryChange(this.canUndo(), this.canRedo());
       return true;
     }
     return false;
@@ -365,5 +374,13 @@ export class AudioEngine {
       newBuffer = AudioProcessor.applyFade(this.ctx, this.currentBuffer, fadeInSec, fadeOutSec);
     }
     this.setBuffer(newBuffer, true);
+  }
+
+  normalizeCurrent(targetPeakDb = -0.1) {
+    if (!this.currentBuffer) return null;
+    this.ensureContext();
+    const result = AudioProcessor.normalizeBuffer(this.ctx, this.currentBuffer, targetPeakDb);
+    this.setBuffer(result.buffer, true, { start: this.loopStart, end: this.loopEnd });
+    return result;
   }
 }

@@ -20,7 +20,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   
   <!-- Styles -->
-  <link rel="stylesheet" href="./css/style.css?v=9.1" />
+  <link rel="stylesheet" href="./css/style.css?v=9.6" />
 </head>
 <body>
   <div class="app-container">
@@ -63,6 +63,20 @@
 
       <!-- Action Buttons -->
       <div class="header-actions">
+        <!-- Studio Hardware Theme Selector -->
+        <select id="themeSelector" class="theme-select-pill" title="Stüdyo Donanım Teması">
+          <option value="obsidian">Stüdyo Obsidyen</option>
+          <option value="slate">Ableton Antrasit</option>
+          <option value="vintage">Roland Klasik</option>
+          <option value="cyber">Zümrüt Yeşil</option>
+        </select>
+
+        <!-- Hotkeys Help Button -->
+        <button id="hotkeysBtn" class="btn btn-secondary btn-sm" title="Klavye Kısayolları Haritası (?)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"></rect><line x1="6" y1="8" x2="6" y2="8.01"></line><line x1="10" y1="8" x2="10" y2="8.01"></line><line x1="14" y1="8" x2="14" y2="8.01"></line><line x1="18" y1="8" x2="18" y2="8.01"></line><line x1="6" y1="12" x2="6" y2="12.01"></line><line x1="18" y1="12" x2="18" y2="12.01"></line><line x1="8" y1="16" x2="16" y2="16"></line></svg>
+          <span>Kısayollar</span>
+        </button>
+
         <button id="openFileBtn" class="btn btn-secondary btn-sm">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
           <span>Dosya Aç</span>
@@ -174,11 +188,13 @@
 
             <!-- Undo / Redo -->
             <div style="display: flex; gap: 6px;">
-              <button id="undoBtn" class="btn btn-secondary btn-sm" title="Geri Al (Ctrl+Z)" disabled>
-                ↩ Geri Al
+              <button id="undoBtn" class="btn btn-secondary btn-sm" title="Geri Al (Ctrl+Z)" disabled style="display: inline-flex; align-items: center; gap: 4px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+                Geri Al
               </button>
-              <button id="redoBtn" class="btn btn-secondary btn-sm" title="Yinele (Ctrl+Y)" disabled>
-                ↪ Yinele
+              <button id="redoBtn" class="btn btn-secondary btn-sm" title="Yinele (Ctrl+Y)" disabled style="display: inline-flex; align-items: center; gap: 4px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                Yinele
               </button>
             </div>
           </div>
@@ -230,6 +246,14 @@
             <button id="reverseBtn" class="btn btn-secondary" title="Tersine çevir">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
               Tersine
+            </button>
+            <button id="normalizeBtn" class="btn btn-secondary" title="Sesi stüdyo tepe noktasına (-0.1 dB) normalize et (N)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+              Normalize
+            </button>
+            <button id="addMarkerBtn" class="btn btn-secondary" title="Mevcut oynatma konumuna işaretçi (Cue Marker) ekle (M)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+              İşaretçi
             </button>
 
             <!-- Manual Fade In Control Box -->
@@ -498,12 +522,15 @@
     <!-- YouTube Cookies Modal -->
     <div id="youtubeCookiesModalContainer"></div>
 
+    <!-- Hotkeys Shortcuts Modal -->
+    <div id="hotkeysModalContainer"></div>
+
     <!-- Toast Alerts Container -->
     <div id="toastContainer" class="toast-container"></div>
 
   </div>
 
   <!-- Main JavaScript App Entry -->
-  <script type="module" src="./js/app.js?v=9.5"></script>
+  <script type="module" src="./js/app.js?v=9.6"></script>
 </body>
 </html>

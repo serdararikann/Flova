@@ -53,6 +53,9 @@ export class WaveformCanvas {
     this.showBeatGrid = false;
     this.snapToBeat = false;
 
+    // Timeline Markers / Cue Points
+    this.markers = [];
+
     this.onSelectionChange = options.onSelectionChange || null;
     this.onSeek = options.onSeek || null;
 
@@ -358,7 +361,53 @@ export class WaveformCanvas {
       }
     }
 
-    // 2. Draw Playhead Indicator
+    // 2. Draw Markers (Cue Points)
+    if (this.markers && this.markers.length > 0) {
+      for (const m of this.markers) {
+        const mx = this.timeToPixel(m.time);
+        if (mx >= -20 && mx <= w + 20) {
+          ctx.strokeStyle = m.color || '#38bdf8';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([3, 3]);
+          ctx.beginPath();
+          ctx.moveTo(mx, 26);
+          ctx.lineTo(mx, h);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Marker Head Badge
+          const labelText = m.label || 'İşaret';
+          ctx.font = '600 10px Inter, -apple-system, sans-serif';
+          const textMetrics = ctx.measureText(labelText);
+          const badgeWidth = Math.max(22, textMetrics.width + 12);
+          const badgeHeight = 18;
+          const badgeX = mx - badgeWidth / 2;
+          const badgeY = 6;
+
+          ctx.fillStyle = m.color || '#38bdf8';
+          ctx.beginPath();
+          if (ctx.roundRect) {
+            ctx.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 4);
+          } else {
+            ctx.rect(badgeX, badgeY, badgeWidth, badgeHeight);
+          }
+          ctx.fill();
+
+          // Small pointer
+          ctx.beginPath();
+          ctx.moveTo(mx - 4, badgeY + badgeHeight);
+          ctx.lineTo(mx + 4, badgeY + badgeHeight);
+          ctx.lineTo(mx, badgeY + badgeHeight + 4);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.fillStyle = '#080a10';
+          ctx.fillText(labelText, badgeX + (badgeWidth - textMetrics.width) / 2, badgeY + 13);
+        }
+      }
+    }
+
+    // 3. Draw Playhead Indicator
     if (playheadX >= -10 && playheadX <= w + 10) {
       ctx.strokeStyle = this.colors.playhead;
       ctx.lineWidth = 2.5;
@@ -379,6 +428,39 @@ export class WaveformCanvas {
       ctx.fill();
       ctx.shadowBlur = 0;
     }
+  }
+
+  addMarker(time, label = 'İşaretçi', color = '#38bdf8') {
+    const id = 'marker_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+    const marker = { id, time: Math.max(0, Math.min(this.duration, time)), label, color };
+    this.markers.push(marker);
+    this.markers.sort((a, b) => a.time - b.time);
+    this.drawOverlay();
+    return marker;
+  }
+
+  removeMarker(id) {
+    this.markers = this.markers.filter(m => m.id !== id);
+    this.drawOverlay();
+  }
+
+  clearMarkers() {
+    this.markers = [];
+    this.drawOverlay();
+  }
+
+  getMarkers() {
+    return [...this.markers];
+  }
+
+  findMarkerNear(pixelX, tolerance = 16) {
+    for (const m of this.markers) {
+      const px = this.timeToPixel(m.time);
+      if (Math.abs(px - pixelX) <= tolerance) {
+        return m;
+      }
+    }
+    return null;
   }
 
   setBeats(beats, bpm = 120) {
@@ -593,6 +675,18 @@ export class WaveformCanvas {
 
       this.dragStartX = x;
       this.dragStartSelection = { start: this.selectionStart, end: this.selectionEnd };
+
+      // Check marker click in top header region (y <= 30)
+      const y = e.clientY - rect.top;
+      if (y <= 30) {
+        const marker = this.findMarkerNear(x);
+        if (marker) {
+          this.currentTime = marker.time;
+          if (this.onSeek) this.onSeek(marker.time);
+          this.drawOverlay();
+          return;
+        }
+      }
 
       if (Math.abs(x - startX) <= handleRadius) {
         this.isDragging = true;

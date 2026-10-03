@@ -45,6 +45,123 @@
   --shadow-glow-cyan: 0 0 16px -2px rgba(56, 189, 248, 0.3);
 }
 
+/* 1. Ableton Slate Theme */
+[data-theme="slate"] {
+  --bg-primary: #12151c;
+  --bg-secondary: #181d27;
+  --bg-card: rgba(26, 32, 44, 0.88);
+  --bg-card-hover: rgba(33, 41, 56, 0.95);
+  --bg-glass: rgba(22, 28, 38, 0.8);
+  --border-glass: rgba(255, 255, 255, 0.09);
+  --border-glass-glow: rgba(245, 158, 11, 0.3);
+  
+  --accent-primary: #d97706;
+  --accent-glow: rgba(217, 119, 6, 0.25);
+  --accent-cyan: #fbbf24;
+  --accent-purple: #f59e0b;
+  --waveform-wave: #f59e0b;
+  --waveform-wave-sec: #fbbf24;
+  --waveform-progress: #fcd34d;
+  --waveform-region: rgba(245, 158, 11, 0.2);
+  --waveform-region-border: #f59e0b;
+}
+
+/* 2. Roland Vintage Hardware Theme */
+[data-theme="vintage"] {
+  --bg-primary: #111113;
+  --bg-secondary: #19191d;
+  --bg-card: rgba(28, 28, 34, 0.9);
+  --bg-card-hover: rgba(36, 36, 44, 0.95);
+  --bg-glass: rgba(24, 24, 28, 0.8);
+  --border-glass: rgba(255, 255, 255, 0.08);
+  --border-glass-glow: rgba(249, 115, 22, 0.35);
+  
+  --accent-primary: #ea580c;
+  --accent-glow: rgba(234, 88, 12, 0.25);
+  --accent-cyan: #ff7849;
+  --accent-purple: #fb923c;
+  --waveform-wave: #f97316;
+  --waveform-wave-sec: #fdba74;
+  --waveform-progress: #fb923c;
+  --waveform-region: rgba(249, 115, 22, 0.2);
+  --waveform-region-border: #f97316;
+}
+
+/* 3. Cyberpunk Emerald Theme */
+[data-theme="cyber"] {
+  --bg-primary: #070f0d;
+  --bg-secondary: #0b1714;
+  --bg-card: rgba(14, 28, 24, 0.88);
+  --bg-card-hover: rgba(20, 38, 32, 0.95);
+  --bg-glass: rgba(11, 23, 20, 0.8);
+  --border-glass: rgba(52, 211, 153, 0.12);
+  --border-glass-glow: rgba(16, 185, 129, 0.35);
+  
+  --accent-primary: #059669;
+  --accent-glow: rgba(16, 185, 129, 0.25);
+  --accent-cyan: #34d399;
+  --accent-purple: #10b981;
+  --waveform-wave: #10b981;
+  --waveform-wave-sec: #6ee7b7;
+  --waveform-progress: #34d399;
+  --waveform-region: rgba(16, 185, 129, 0.2);
+  --waveform-region-border: #10b981;
+}
+
+.theme-select-pill {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: var(--radius-sm);
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.theme-select-pill:hover {
+  color: var(--text-main);
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+}
+.theme-select-pill option {
+  background: #0d111c;
+  color: #f8fafc;
+}
+
+.hotkeys-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+.hotkeys-table th {
+  text-align: left;
+  padding: 8px 10px;
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border-glass);
+}
+.hotkeys-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+kbd {
+  display: inline-block;
+  padding: 2px 6px;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
 * {
   margin: 0;
   padding: 0;
