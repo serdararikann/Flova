@@ -340,8 +340,9 @@ export class AudiogramModal {
 
     // 2. Frequency data
     let freqData = new Uint8Array(64);
-    if (this.engine.analyserNode && this.engine.isPlaying) {
-      this.engine.analyserNode.getByteFrequencyData(freqData);
+    const analyser = this.engine.analyser || this.engine.analyserNode;
+    if (analyser && this.engine.isPlaying) {
+      analyser.getByteFrequencyData(freqData);
     } else {
       // Gentle resting waveform simulation when stopped
       const t = Date.now() / 300;
@@ -481,10 +482,17 @@ export class AudiogramModal {
         ...audioStreamDestination.stream.getAudioTracks()
       ]);
 
-      // 3. Setup MediaRecorder
-      const mimeType = MediaRecorder.isTypeSupported('video/mp4;codecs=avc1') 
-        ? 'video/mp4' 
-        : (MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm');
+      // 3. Setup MediaRecorder with supported audio+video codecs
+      let mimeType = 'video/webm';
+      if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1,mp4a.40.2')) {
+        mimeType = 'video/mp4;codecs=avc1,mp4a.40.2';
+      } else if (MediaRecorder.isTypeSupported('video/mp4')) {
+        mimeType = 'video/mp4';
+      } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) {
+        mimeType = 'video/webm;codecs=vp9,opus';
+      } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) {
+        mimeType = 'video/webm;codecs=vp8,opus';
+      }
 
       this.mediaRecorder = new MediaRecorder(combinedStream, {
         mimeType,
@@ -521,19 +529,19 @@ export class AudiogramModal {
 
       // Monitor playback until end
       const checkEnd = setInterval(() => {
-        const current = this.engine.currentTime;
-        const total = this.engine.duration;
+        const current = this.engine.getCurrentTime ? this.engine.getCurrentTime() : 0;
+        const total = this.engine.currentBuffer ? this.engine.currentBuffer.duration : 1;
         if (progressEl) {
-          progressEl.textContent = `Render ediliyor: %${Math.round((current / (total || 1)) * 100)}`;
+          progressEl.textContent = `Render ediliyor: %${Math.min(100, Math.round((current / (total || 1)) * 100))}`;
         }
 
-        if (current >= total || !this.engine.isPlaying) {
+        if (current >= total - 0.1 || !this.engine.isPlaying) {
           clearInterval(checkEnd);
           if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
             this.mediaRecorder.stop();
           }
         }
-      }, 500);
+      }, 250);
 
     } catch (err) {
       console.error('[Audiogram] Render error:', err);

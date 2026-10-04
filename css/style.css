@@ -2597,6 +2597,17 @@ body {
 }
 
 /* AI Server Status Button & Modal */
+/* Şimdilik görünmez yapıldı. Veritabanı ve admin yetkilendirmesi bağlandığında body.is-admin veya admin kontrolüyle görüntülenecek */
+.admin-only,
+#serverStatusBtn {
+  display: none !important;
+}
+
+body.is-admin .admin-only,
+body.is-admin #serverStatusBtn {
+  display: inline-flex !important;
+}
+
 .server-status-btn {
   display: inline-flex;
   align-items: center;

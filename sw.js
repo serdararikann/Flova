@@ -5,7 +5,7 @@
    - Clean cache lifecycle management
    ==================================================================== */
 
-const CACHE_NAME = 'flova-studio-v2.0';
+const CACHE_NAME = 'flova-studio-v2.1';
 
 const PRECACHE_ASSETS = [
   './',
@@ -13,7 +13,7 @@ const PRECACHE_ASSETS = [
   './manifest.json',
   './favicon.ico',
   './logo.png',
-  './css/style.css?v=12.0',
+  './css/style.css?v=13.0',
   './icons/icon-72.png',
   './icons/icon-96.png',
   './icons/icon-128.png',

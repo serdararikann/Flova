@@ -28,6 +28,15 @@ export class ServerModal {
   updateStatusPill() {
     const btn = document.getElementById('serverStatusBtn');
     if (!btn) return;
+
+    // Şimdilik görünmez - İleride admin girişi bağlandığında is-admin kontrolüyle açılacak
+    const isAdmin = document.body.classList.contains('is-admin');
+    if (!isAdmin) {
+      btn.style.setProperty('display', 'none', 'important');
+    } else {
+      btn.style.display = 'inline-flex';
+    }
+
     const dot = btn.querySelector('.server-status-dot');
     const text = btn.querySelector('.server-status-text');
 

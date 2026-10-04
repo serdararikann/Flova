@@ -34,7 +34,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   
   <!-- Styles -->
-  <link rel="stylesheet" href="./css/style.css?v=12.0" />
+  <link rel="stylesheet" href="./css/style.css?v=13.0" />
 </head>
 <body>
   <div class="app-container">
@@ -103,8 +103,8 @@
         
         <input type="file" id="fileInput" accept="audio/*" style="display: none;" />
 
-        <!-- AI Server Status Button -->
-        <button id="serverStatusBtn" class="btn btn-secondary btn-sm server-status-btn" title="Yapay Zeka Sunucu Durumu & Ayarları">
+        <!-- AI Server Status Button (Şimdilik gizli; veritabanı bağlandığında sadece adminler için açılacak) -->
+        <button id="serverStatusBtn" class="btn btn-secondary btn-sm server-status-btn admin-only" title="Yapay Zeka Sunucu Durumu & Ayarları" style="display: none !important;">
           <span class="server-status-dot offline"></span>
           <span class="server-status-text">AI Sunucu</span>
         </button>
