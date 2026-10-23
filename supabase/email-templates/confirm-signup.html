@@ -1,0 +1,93 @@
+<!--
+  Supabase > Authentication > Emails > Templates > "Confirm signup"
+  Konu (Subject): Flova Studio hesabınızı onaylayın
+  Değişkenler: {{ .ConfirmationURL }} onay bağlantısı, {{ .Email }} kayıt olan adres.
+-->
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="supported-color-schemes" content="dark">
+  <title>Flova Studio hesabınızı onaylayın</title>
+</head>
+<body style="margin:0; padding:0; background-color:#080A10;">
+  <!-- Önizleme satırı (gelen kutusunda konunun yanında görünür) -->
+  <div style="display:none; max-height:0; overflow:hidden; opacity:0; color:#080A10;">
+    Kaydınızı tamamlamak için e-posta adresinizi onaylayın.&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;
+  </div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#080A10" style="background-color:#080A10;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;">
+
+          <!-- Logo -->
+          <tr>
+            <td align="center" style="padding:0 0 24px 0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td valign="middle" style="padding-right:12px;">
+                    <img src="https://flova.serdararikan.net/icons/icon-192.png" width="44" height="44" alt="Flova" style="display:block; border:0; border-radius:10px;">
+                  </td>
+                  <td valign="middle" style="font-family:Inter,Segoe UI,Roboto,Helvetica,Arial,sans-serif; font-size:20px; color:#F1F5F9; letter-spacing:-0.3px;">
+                    <strong>FLOVA</strong> <span style="font-weight:300;">STUDIO</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Kart -->
+          <tr>
+            <td bgcolor="#0D101B" style="background-color:#0D101B; border:1px solid #1E2433; border-radius:16px; padding:36px 32px; font-family:Inter,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+              <h1 style="margin:0 0 12px 0; font-size:22px; line-height:30px; color:#F1F5F9; font-weight:700;">
+                Hesabınızı onaylayın
+              </h1>
+              <p style="margin:0 0 24px 0; font-size:15px; line-height:24px; color:#94A3B8;">
+                Flova Studio'ya hoş geldiniz! <span style="color:#CBD5E1;">{{ .Email }}</span> adresiyle oluşturduğunuz hesabı
+                kullanmaya başlamak için aşağıdaki düğmeye dokunun.
+              </p>
+
+              <!-- Düğme -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 28px 0;">
+                <tr>
+                  <td align="center" bgcolor="#4F46E5" style="border-radius:10px; background-color:#4F46E5;">
+                    <a href="{{ .ConfirmationURL }}" target="_blank"
+                       style="display:inline-block; padding:14px 30px; font-family:Inter,Segoe UI,Roboto,Helvetica,Arial,sans-serif; font-size:15px; font-weight:600; color:#FFFFFF; text-decoration:none; border-radius:10px;">
+                      E-postamı Onayla
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:0 0 8px 0; font-size:13px; line-height:20px; color:#64748B;">
+                Düğme çalışmazsa bu bağlantıyı tarayıcınıza yapıştırın:
+              </p>
+              <p style="margin:0 0 24px 0; font-size:12px; line-height:18px; word-break:break-all;">
+                <a href="{{ .ConfirmationURL }}" target="_blank" style="color:#38BDF8; text-decoration:underline;">{{ .ConfirmationURL }}</a>
+              </p>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td style="border-top:1px solid #1E2433; font-size:0; line-height:0;">&nbsp;</td></tr>
+              </table>
+              <p style="margin:20px 0 0 0; font-size:13px; line-height:20px; color:#64748B;">
+                Bu hesabı siz oluşturmadıysanız bu e-postayı yok sayabilirsiniz; adresiniz onaylanmadan hesap kullanılamaz.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Alt bilgi -->
+          <tr>
+            <td align="center" style="padding:24px 8px 0 8px; font-family:Inter,Segoe UI,Roboto,Helvetica,Arial,sans-serif; font-size:12px; line-height:18px; color:#475569;">
+              Flova Studio · Ses Stüdyosu<br>
+              <a href="https://flova.serdararikan.net" target="_blank" style="color:#64748B; text-decoration:none;">flova.serdararikan.net</a>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

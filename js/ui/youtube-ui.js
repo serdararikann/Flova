@@ -8,6 +8,8 @@ import { ApiClient } from '../audio/api-client.js';
 
 export class YouTubeUI {
   constructor(containerElement, audioEngine, options = {}) {
+    // Downloaded MP3 files by their decoded buffer, so a cloud project stores the file instead of re-encoding it.
+    this.downloadedFiles = new WeakMap();
     this.container = containerElement;
     this.engine = audioEngine;
     this.options = options;
@@ -866,6 +868,7 @@ export class YouTubeUI {
     if (!audioBuffer) return;
 
     this.engine.currentFileName = `${item.title}.mp3`;
+    this.engine.pendingRecipe = this.editorRecipe(audioBuffer);
     this.engine.setBuffer(audioBuffer, true);
 
     if (window.flovaApp) {
@@ -887,7 +890,7 @@ export class YouTubeUI {
       window.flovaApp.switchMode('merger');
     }
     if (window.flovaMerger) {
-      window.flovaMerger.addTrackFromBuffer(audioBuffer, `${item.title}.mp3`);
+      window.flovaMerger.addTrackFromBuffer(audioBuffer, `${item.title}.mp3`, this.editorRecipe(audioBuffer)?.source);
       if (window.flovaApp) {
         window.flovaApp.showToast(`"${item.title}" birleştiriciye eklendi!`, 'success');
       }
@@ -907,11 +910,17 @@ export class YouTubeUI {
       window.flovaApp.switchMode('vocal-splitter');
     }
     if (window.flovaSplitter) {
-      window.flovaSplitter.loadBuffer(audioBuffer, `${item.title}.mp3`);
+      window.flovaSplitter.loadBuffer(audioBuffer, `${item.title}.mp3`, this.downloadedFiles.get(audioBuffer));
       if (window.flovaApp) {
         window.flovaApp.showToast(`"${item.title}" vokal ayrıştırması başlatıldı!`, 'success');
       }
     }
+  }
+
+  /** The editor recipe for downloaded audio: the MP3 itself as the project's source. */
+  editorRecipe(audioBuffer) {
+    const blob = this.downloadedFiles.get(audioBuffer);
+    return blob ? { source: { blob, ext: 'mp3', buffer: audioBuffer }, steps: [] } : null;
   }
 
   async loadToEditor() {
@@ -920,6 +929,7 @@ export class YouTubeUI {
     if (!audioBuffer) return;
 
     this.engine.currentFileName = `${this.videoInfo.title}.mp3`;
+    this.engine.pendingRecipe = this.editorRecipe(audioBuffer);
     this.engine.setBuffer(audioBuffer, true);
 
     if (window.flovaApp) {
@@ -937,7 +947,7 @@ export class YouTubeUI {
       window.flovaApp.switchMode('merger');
     }
     if (window.flovaMerger) {
-      window.flovaMerger.addTrackFromBuffer(audioBuffer, `${this.videoInfo.title}.mp3`);
+      window.flovaMerger.addTrackFromBuffer(audioBuffer, `${this.videoInfo.title}.mp3`, this.editorRecipe(audioBuffer)?.source);
       if (window.flovaApp) {
         window.flovaApp.showToast(`"${this.videoInfo.title}" birleştiriciye eklendi!`, 'success');
       }
@@ -953,7 +963,7 @@ export class YouTubeUI {
       window.flovaApp.switchMode('vocal-splitter');
     }
     if (window.flovaSplitter) {
-      window.flovaSplitter.loadBuffer(audioBuffer, `${this.videoInfo.title}.mp3`);
+      window.flovaSplitter.loadBuffer(audioBuffer, `${this.videoInfo.title}.mp3`, this.downloadedFiles.get(audioBuffer));
       if (window.flovaApp) {
         window.flovaApp.showToast(`"${this.videoInfo.title}" vokal ayrıştırması başlatıldı!`, 'success');
       }
@@ -969,7 +979,7 @@ export class YouTubeUI {
       window.flovaApp.switchMode('stem-splitter');
     }
     if (window.flovaStemSplitter) {
-      window.flovaStemSplitter.loadBuffer(audioBuffer, `${this.videoInfo.title}.mp3`);
+      window.flovaStemSplitter.loadBuffer(audioBuffer, `${this.videoInfo.title}.mp3`, this.downloadedFiles.get(audioBuffer));
       if (window.flovaApp) {
         window.flovaApp.showToast(`"${this.videoInfo.title}" 4-Stem & 6-Stem ayrıştırması başlatıldı!`, 'success');
       }
@@ -986,7 +996,7 @@ export class YouTubeUI {
       window.flovaApp.switchMode('stem-splitter');
     }
     if (window.flovaStemSplitter) {
-      window.flovaStemSplitter.loadBuffer(audioBuffer, `${item.title}.mp3`);
+      window.flovaStemSplitter.loadBuffer(audioBuffer, `${item.title}.mp3`, this.downloadedFiles.get(audioBuffer));
       if (window.flovaApp) {
         window.flovaApp.showToast(`"${item.title}" 4-Stem & 6-Stem ayrıştırması başlatıldı!`, 'success');
       }
@@ -1065,6 +1075,7 @@ export class YouTubeUI {
     if (!audioBuffer) return;
 
     this.engine.currentFileName = `${item.title}.mp3`;
+    this.engine.pendingRecipe = this.editorRecipe(audioBuffer);
     this.engine.setBuffer(audioBuffer, true);
 
     if (window.flovaApp) {
@@ -1083,7 +1094,7 @@ export class YouTubeUI {
       window.flovaApp.switchMode('merger');
     }
     if (window.flovaMerger) {
-      window.flovaMerger.addTrackFromBuffer(audioBuffer, `${item.title}.mp3`);
+      window.flovaMerger.addTrackFromBuffer(audioBuffer, `${item.title}.mp3`, this.editorRecipe(audioBuffer)?.source);
       if (window.flovaApp) {
         window.flovaApp.showToast(`"${item.title}" birleştiriciye eklendi!`, 'success');
       }
@@ -1100,7 +1111,7 @@ export class YouTubeUI {
       window.flovaApp.switchMode('stem-splitter');
     }
     if (window.flovaStemSplitter) {
-      window.flovaStemSplitter.loadBuffer(audioBuffer, `${item.title}.mp3`);
+      window.flovaStemSplitter.loadBuffer(audioBuffer, `${item.title}.mp3`, this.downloadedFiles.get(audioBuffer));
       if (window.flovaApp) {
         window.flovaApp.showToast(`"${item.title}" 4-Stem & 6-Stem ayrıştırması başlatıldı!`, 'success');
       }
@@ -1117,7 +1128,7 @@ export class YouTubeUI {
       window.flovaApp.switchMode('vocal-splitter');
     }
     if (window.flovaSplitter) {
-      window.flovaSplitter.loadBuffer(audioBuffer, `${item.title}.mp3`);
+      window.flovaSplitter.loadBuffer(audioBuffer, `${item.title}.mp3`, this.downloadedFiles.get(audioBuffer));
       if (window.flovaApp) {
         window.flovaApp.showToast(`"${item.title}" vokal ayrıştırması başlatıldı!`, 'success');
       }
@@ -1210,8 +1221,10 @@ export class YouTubeUI {
       }
 
       const arrayBuffer = await resp.arrayBuffer();
+      const mp3Bytes = arrayBuffer.slice(0); // decodeAudioData detaches its input
       this.engine.ensureContext();
       const decodedBuffer = await this.engine.ctx.decodeAudioData(arrayBuffer);
+      this.downloadedFiles.set(decodedBuffer, new Blob([mp3Bytes], { type: 'audio/mpeg' }));
 
       this.activeDownloadingItemId = null;
       this.render();
@@ -1256,8 +1269,10 @@ export class YouTubeUI {
       this.render();
 
       const arrayBuffer = await resp.arrayBuffer();
+      const mp3Bytes = arrayBuffer.slice(0); // decodeAudioData detaches its input
       this.engine.ensureContext();
       const decodedBuffer = await this.engine.ctx.decodeAudioData(arrayBuffer);
+      this.downloadedFiles.set(decodedBuffer, new Blob([mp3Bytes], { type: 'audio/mpeg' }));
 
       this.isDownloading = false;
       this.downloadProgressText = '';
@@ -1452,8 +1467,9 @@ export class YouTubeUI {
     if (deleteBtn) {
       deleteBtn.onclick = async () => {
         try {
-          const res = await fetch(`${this.getApiBase()}/api/youtube/cookies/delete`);
+          const res = await this.adminFetch(`${this.getApiBase()}/api/youtube/cookies/delete`);
           const d = await res.json();
+          if (!res.ok) throw new Error(d.error || 'Çerezler silinemedi.');
           if (window.flovaApp) window.flovaApp.showToast(d.message || 'Çerezler silindi.', 'info');
           await this.fetchCookieStatus();
           this.renderCookieModalContent(container);
@@ -1462,6 +1478,26 @@ export class YouTubeUI {
         }
       };
     }
+  }
+
+  // Cookie upload/delete need the server's FLOVA_ADMIN_TOKEN; asked once and remembered in this browser.
+  async adminFetch(url, options = {}) {
+    const send = (token) => fetch(url, {
+      ...options,
+      headers: { ...(options.headers || {}), ...(token ? { 'X-Flova-Admin-Token': token } : {}) }
+    });
+    let token = null;
+    try { token = localStorage.getItem('flovaAdminToken'); } catch (_) {}
+    let res = await send(token);
+    if (res.status === 401) {
+      const entered = (window.prompt('Çerez yönetimi için yönetici anahtarını girin:') || '').trim();
+      if (!entered) return res;
+      res = await send(entered);
+      if (res.ok) {
+        try { localStorage.setItem('flovaAdminToken', entered); } catch (_) {}
+      }
+    }
+    return res;
   }
 
   async handleCookieFileUpload(file) {
@@ -1480,7 +1516,7 @@ export class YouTubeUI {
     }
     if (window.flovaApp) window.flovaApp.showToast('Çerezler bulut sunucusuna yükleniyor...', 'info');
     try {
-      const res = await fetch(`${this.getApiBase()}/api/youtube/cookies`, {
+      const res = await this.adminFetch(`${this.getApiBase()}/api/youtube/cookies`, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain; charset=utf-8' },
         body: cookieText

@@ -19,6 +19,9 @@ import { AudiogramModal } from './ui/audiogram-modal.js';
 import { ServerModal } from './ui/server-modal.js?v=9.1';
 import { CodeGuard } from './security/code-guard.js?v=9.1';
 import { ApiClient } from './audio/api-client.js?v=9.1';
+import { AuthModal } from './ui/auth-modal.js';
+import { ProjectsModal } from './ui/projects-modal.js';
+import { supabaseService } from './db/supabase-client.js';
 
 class FlovaStudioApp {
   constructor() {
@@ -165,7 +168,7 @@ class FlovaStudioApp {
       this.engine,
       (msg, type) => this.showToast(msg, type),
       (newBuffer, actionName) => {
-        this.engine.setBuffer(newBuffer, this.engine.currentFileName || 'Flova Düzeltilmiş');
+        this.engine.setBuffer(newBuffer, true);
         this.onBufferLoaded(newBuffer);
         this.showToast(`${actionName} uygulandı!`, 'success');
       }
@@ -192,6 +195,27 @@ class FlovaStudioApp {
       this.hotkeysModal = new HotkeysModal(hotkeysContainer);
     }
 
+    // 13. Supabase Auth Modal
+    const authContainer = document.getElementById('authModalContainer');
+    if (authContainer) {
+      this.authModal = new AuthModal(authContainer, ({ user, profile }) => {
+        if (profile?.tier === 'pro' || profile?.tier === 'studio') {
+          document.body.classList.add('is-pro');
+        } else {
+          document.body.classList.remove('is-pro');
+        }
+        this.syncThemeWithAccount(user, profile);
+      });
+      window.flovaAuthModal = this.authModal;
+    }
+
+    // 14. Cloud Projects Modal
+    const projectsContainer = document.getElementById('projectsModalContainer');
+    if (projectsContainer) {
+      this.projectsModal = new ProjectsModal(projectsContainer, this);
+      window.flovaProjectsModal = this.projectsModal;
+    }
+
     // Audio Engine callbacks
     this.engine.onBufferChange = (buffer, selection) => this.handleBufferChange(buffer, selection);
     this.engine.onTimeUpdate = (time) => this.handleTimeUpdate(time);
@@ -210,6 +234,33 @@ class FlovaStudioApp {
   }
 
   bindEvents() {
+    // Auth & Cloud Projects Buttons
+    const authBtn = document.getElementById('authBtn');
+    if (authBtn) {
+      authBtn.addEventListener('click', () => {
+        if (this.authModal) this.authModal.open();
+      });
+    }
+
+    const quickSaveBtn = document.getElementById('quickSaveBtn');
+    if (quickSaveBtn) {
+      quickSaveBtn.addEventListener('click', () => {
+        if (this.projectsModal) {
+          this.projectsModal.quickSaveCurrentProject();
+        }
+      });
+    }
+
+    const cloudProjectsBtn = document.getElementById('cloudProjectsBtn');
+    if (cloudProjectsBtn) {
+      cloudProjectsBtn.addEventListener('click', () => {
+        if (this.projectsModal) this.projectsModal.open();
+      });
+    }
+
+    // Interactive Track Title Rename in Header
+    this.setupTrackRename();
+
     // AI Server Status Button
     const serverStatusBtn = document.getElementById('serverStatusBtn');
     if (serverStatusBtn) {
@@ -231,6 +282,7 @@ class FlovaStudioApp {
     if (this.loadDemoBtn) {
       this.loadDemoBtn.addEventListener('click', async () => {
         this.showToast('Demo müzik sentezleniyor...', 'info');
+        this.projectsModal?.clearLoadedProject();
         await this.engine.loadDemoTrack();
         this.visualizer.setAnalyser(this.engine.analyser);
         this.showToast('Demo müzik yüklendi! Şimdi düzenleyebilirsiniz.', 'success');
@@ -285,6 +337,7 @@ class FlovaStudioApp {
       if (file) {
         this.showToast(`"${file.name}" yükleniyor...`, 'info');
         try {
+          this.projectsModal?.clearLoadedProject();
           await this.engine.loadFile(file);
           this.visualizer.setAnalyser(this.engine.analyser);
           this.showToast('Ses dosyası yüklendi!', 'success');
@@ -524,10 +577,10 @@ class FlovaStudioApp {
 
       this.themeSelector.addEventListener('change', (e) => {
         const selected = e.target.value;
-        document.documentElement.setAttribute('data-theme', selected);
-        localStorage.setItem('flova_theme', selected);
+        this.applyTheme(selected);
         const name = e.target.options[e.target.selectedIndex].text;
         this.showToast(`Stüdyo teması: ${name}`, 'info');
+        this.pushThemeToAccount();
       });
     }
 
@@ -711,6 +764,7 @@ class FlovaStudioApp {
       } else {
         this.showToast(`"${file.name}" yükleniyor...`, 'info');
         try {
+          this.projectsModal?.clearLoadedProject();
           await this.engine.loadFile(file);
           this.visualizer.setAnalyser(this.engine.analyser);
           this.showToast('Ses dosyası yüklendi!', 'success');
@@ -896,6 +950,144 @@ class FlovaStudioApp {
     }
   }
 
+  renderTrackTitle() {
+    if (!this.trackNameElem) return;
+    const cloudTitle = this.projectsModal?.currentLoadedProjectTitle;
+    const existingRaw = this.trackNameElem.dataset.rawTitle;
+    
+    let activeTitle = cloudTitle || this.engine?.currentFileName || existingRaw || 'Flova Parçası';
+    activeTitle = activeTitle.replace(/\.[^/.]+$/, "").replace(/\s*Bulut\s*$/, "").trim();
+    if (!activeTitle) activeTitle = 'Flova Parçası';
+
+    this.trackNameElem.dataset.rawTitle = activeTitle;
+    if (this.engine) {
+      this.engine.currentFileName = activeTitle;
+    }
+
+    if (cloudTitle) {
+      this.trackNameElem.innerHTML = `${activeTitle} <span class="cloud-badge" style="font-size: 0.65rem; background: rgba(56, 189, 248, 0.2); color: var(--accent-cyan); border: 1px solid rgba(56, 189, 248, 0.4); padding: 1px 6px; border-radius: 4px; font-weight: 600; margin-left: 6px;">Bulut</span>`;
+    } else {
+      this.trackNameElem.textContent = activeTitle;
+    }
+  }
+
+  applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    try { localStorage.setItem('flova_theme', theme); } catch (_) {}
+    if (this.themeSelector) this.themeSelector.value = theme;
+  }
+
+  /**
+   * The theme follows the account (flova_profiles.settings.theme, shared with the mobile app, which names
+   * them "Obsidian", "Slate", ...): right after signing in the account's theme wins, otherwise this
+   * device's theme is written to the account.
+   */
+  syncThemeWithAccount(user, profile) {
+    if (!user || !profile) return;
+    const fresh = supabaseService.freshSignIn;
+    supabaseService.freshSignIn = false;
+    const accountTheme = String(profile.settings?.theme || '').toLowerCase();
+    const known = this.themeSelector && [...this.themeSelector.options].some((o) => o.value === accountTheme);
+    if (fresh && known) {
+      if (accountTheme !== this.themeSelector.value) this.applyTheme(accountTheme);
+    } else if (this.themeSelector && accountTheme !== this.themeSelector.value) {
+      this.pushThemeToAccount();
+    }
+  }
+
+  pushThemeToAccount() {
+    if (!supabaseService.isLoggedIn() || !this.themeSelector) return;
+    const theme = this.themeSelector.value;
+    const appName = theme.charAt(0).toUpperCase() + theme.slice(1);
+    clearTimeout(this.themePushTimer);
+    this.themePushTimer = setTimeout(() => {
+      supabaseService.updateProfile({ settings: { theme: appName } }).catch((err) => console.warn('[Flova] Theme sync:', err));
+    }, 800);
+  }
+
+  setTrackTitle(newTitle, { quiet = false } = {}) {
+    const trimmed = (newTitle || '').replace(/\.[^/.]+$/, "").replace(/\s*Bulut\s*$/, "").trim();
+    if (!trimmed) return;
+
+    if (this.engine) {
+      this.engine.currentFileName = trimmed;
+      if (Array.isArray(this.engine.historyStack)) {
+        this.engine.historyStack.forEach(h => {
+          if (h) h.name = trimmed;
+        });
+      }
+    }
+
+    if (this.projectsModal) {
+      if (this.projectsModal.currentLoadedProjectId) {
+        this.projectsModal.currentLoadedProjectTitle = trimmed;
+      }
+      const titleInput = document.getElementById('saveProjectTitleInput');
+      if (titleInput) {
+        titleInput.value = trimmed;
+      }
+    }
+
+    this.renderTrackTitle();
+    if (!quiet) this.showToast(`Parça adı "${trimmed}" olarak güncellendi.`, 'info');
+  }
+
+  setupTrackRename() {
+    const titleWrapper = document.getElementById('trackTitleWrapper');
+    const nameInput = document.getElementById('trackNameInput');
+    const renameBtn = document.getElementById('trackRenameBtn');
+    if (!titleWrapper || !nameInput) return;
+
+    const startEditing = () => {
+      const currentRaw = this.trackNameElem?.dataset?.rawTitle || this.engine?.currentFileName || 'Flova Parçası';
+      nameInput.value = currentRaw;
+      titleWrapper.style.display = 'none';
+      nameInput.style.display = 'inline-block';
+      nameInput.focus();
+      nameInput.select();
+    };
+
+    const commitEditing = () => {
+      if (nameInput.style.display === 'none') return;
+      const val = nameInput.value.trim();
+      nameInput.style.display = 'none';
+      titleWrapper.style.display = 'inline-flex';
+      if (val && val !== this.trackNameElem?.dataset?.rawTitle) {
+        this.setTrackTitle(val);
+      }
+    };
+
+    const cancelEditing = () => {
+      nameInput.style.display = 'none';
+      titleWrapper.style.display = 'inline-flex';
+    };
+
+    titleWrapper.addEventListener('click', (e) => {
+      startEditing();
+    });
+
+    if (renameBtn) {
+      renameBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        startEditing();
+      });
+    }
+
+    nameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        commitEditing();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelEditing();
+      }
+    });
+
+    nameInput.addEventListener('blur', () => {
+      commitEditing();
+    });
+  }
+
   onBufferLoaded(buffer) {
     this.handleBufferChange(buffer);
   }
@@ -904,7 +1096,7 @@ class FlovaStudioApp {
     if (this.dropZone) this.dropZone.style.display = 'none';
     if (this.trackWorkspace) this.trackWorkspace.style.display = 'flex';
 
-    this.trackNameElem.textContent = this.engine.currentFileName;
+    this.renderTrackTitle();
     this.totalTimeElem.textContent = '/ ' + this.formatTime(buffer.duration);
 
     const channels = buffer.numberOfChannels === 2 ? 'Stereo' : buffer.numberOfChannels === 1 ? 'Mono' : `${buffer.numberOfChannels} Kanal`;
@@ -1060,6 +1252,8 @@ class FlovaStudioApp {
         this.smartToolsModal?.close();
         this.lyricsModal?.close();
         this.audiogramModal?.close();
+        this.authModal?.close();
+        this.projectsModal?.close();
         if (this.exportModal) {
           const closeBtn = document.getElementById('closeExportModalBtn');
           closeBtn?.click();
@@ -1107,6 +1301,11 @@ class FlovaStudioApp {
         }
       } else if (e.code === 'KeyL' && !e.ctrlKey && !e.metaKey) {
         this.loopBtn.click();
+      } else if ((e.key === 's' || e.key === 'S' || e.code === 'KeyS') && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        if (this.projectsModal) {
+          this.projectsModal.quickSaveCurrentProject();
+        }
       } else if (e.code === 'KeyS' && !e.ctrlKey && !e.metaKey) {
         if (this.activeMode === 'editor' && this.trimBtn) {
           e.preventDefault();

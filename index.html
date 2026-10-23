@@ -33,6 +33,9 @@
   <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
+  
   <!-- Styles -->
   <link rel="stylesheet" href="./css/style.css?v=13.0" />
 </head>
@@ -103,6 +106,18 @@
         
         <input type="file" id="fileInput" accept="audio/*" style="display: none;" />
 
+        <!-- Cloud Projects Button -->
+        <button id="cloudProjectsBtn" class="btn btn-secondary btn-sm" title="Bulut Projelerim (Kayıtlı Parçalar)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+          <span>Projelerim</span>
+        </button>
+
+        <!-- Supabase Auth / Profile Button -->
+        <button id="authBtn" class="btn btn-secondary btn-sm auth-btn" title="Giriş Yap / Profil">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          <span>Giriş Yap</span>
+        </button>
+
         <!-- AI Server Status Button (Şimdilik gizli; veritabanı bağlandığında sadece adminler için açılacak) -->
         <button id="serverStatusBtn" class="btn btn-secondary btn-sm server-status-btn admin-only" title="Yapay Zeka Sunucu Durumu & Ayarları" style="display: none !important;">
           <span class="server-status-dot offline"></span>
@@ -148,8 +163,17 @@
           
           <!-- Track Info Bar -->
           <div class="track-meta-bar">
-            <div class="track-info-pill">
-              <span class="track-name" id="trackName">Parça</span>
+            <div class="track-info-pill" id="trackInfoPill">
+              <div class="track-title-wrapper" id="trackTitleWrapper" title="Parça adını değiştirmek için tıklayın">
+                <span class="track-name" id="trackName">Flova Parçası</span>
+                <button type="button" class="track-rename-btn" id="trackRenameBtn" title="Adı Değiştir (Düzenle)" aria-label="Adı Değiştir">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                </button>
+              </div>
+              <input type="text" id="trackNameInput" class="track-name-input" style="display: none;" maxlength="60" placeholder="Parça Adı..." />
             </div>
             <div class="track-specs" id="trackSpecs">
               <!-- Injected via JS -->
@@ -206,7 +230,7 @@
             </div>
 
             <!-- Undo / Redo -->
-            <div style="display: flex; gap: 6px;">
+            <div style="display: flex; gap: 6px; align-items: center;">
               <button id="undoBtn" class="btn btn-secondary btn-sm" title="Geri Al (Ctrl+Z)" disabled style="display: inline-flex; align-items: center; gap: 4px;">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
                 Geri Al
@@ -311,9 +335,17 @@
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                 Şarkı Sözleri
               </button>
-              <button id="openAudiogramBtn" class="btn btn-emerald btn-sm" title="Instagram Reels / TikTok Video Oluştur">
+              <button id="openAudiogramBtn" class="btn btn-secondary btn-sm" title="Instagram Reels / TikTok Video Oluştur">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line><line x1="2" y1="7" x2="7" y2="7"></line><line x1="2" y1="17" x2="7" y2="17"></line><line x1="17" y1="17" x2="22" y2="17"></line><line x1="17" y1="7" x2="22" y2="7"></line></svg>
                 Video Oluştur
+              </button>
+              <button id="quickSaveBtn" class="btn btn-emerald btn-sm quick-save-btn" title="Projeyi Buluta Kaydet (Ctrl + S)" style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                  <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                  <polyline points="7 3 7 8 15 8"></polyline>
+                </svg>
+                <span id="quickSaveBtnText">Buluta Kaydet</span>
               </button>
             </div>
           </div>
@@ -544,12 +576,18 @@
     <!-- Hotkeys Shortcuts Modal -->
     <div id="hotkeysModalContainer"></div>
 
+    <!-- Supabase Auth Modal -->
+    <div id="authModalContainer"></div>
+
+    <!-- Cloud Projects Modal -->
+    <div id="projectsModalContainer"></div>
+
     <!-- Toast Alerts Container -->
     <div id="toastContainer" class="toast-container"></div>
 
   </div>
 
   <!-- Main JavaScript App Entry -->
-  <script type="module" src="./js/app.js?v=12.0"></script>
+  <script type="module" src="./js/app.js?v=12.6"></script>
 </body>
 </html>

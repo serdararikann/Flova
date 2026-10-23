@@ -58,6 +58,8 @@ export class MasteringRack {
   }
 
   applyPreset(presetName) {
+    // Remembered for saved projects (the mobile app's MasteringPreset by its key).
+    this.currentPreset = ['spotify', 'youtube', 'podcast', 'club'].includes(presetName) ? presetName : 'bypass';
     switch (presetName) {
       case 'spotify': // -14 LUFS standard streaming
         this.isBypassed = false;

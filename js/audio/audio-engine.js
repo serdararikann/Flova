@@ -16,7 +16,7 @@ export class AudioEngine {
 
     // Active Audio Source & Buffer
     this.currentBuffer = null;
-    this.currentFileName = 'İsimsiz Parça';
+    this.currentFileName = 'Flova Parçası';
     this.sourceNode = null;
 
     // Playback State
@@ -32,6 +32,8 @@ export class AudioEngine {
     this.historyStack = [];
     this.historyIndex = -1;
     this.maxHistory = 15;
+    // How the next history entry was made ({ source, steps }); see takeRecipe().
+    this.pendingRecipe = null;
 
     // Event Callbacks
     this.onTimeUpdate = null;
@@ -79,19 +81,35 @@ export class AudioEngine {
     const arrayBuffer = await file.arrayBuffer();
     const decodedBuffer = await this.ctx.decodeAudioData(arrayBuffer);
     
-    this.currentFileName = file.name || 'Ses Dosyası';
+    const baseName = file.name ? file.name.replace(/\.[^/.]+$/, "") : 'Ses Dosyası';
+    this.currentFileName = baseName;
     this.historyStack = [];
     this.historyIndex = -1;
+    const ext = (file.name || '').split('.').pop().toLowerCase();
+    this.pendingRecipe = { source: { blob: file, ext, buffer: decodedBuffer }, steps: [] };
     this.setBuffer(decodedBuffer, true);
     return decodedBuffer;
   }
 
   async loadDemoTrack() {
     this.ensureContext();
-    this.currentFileName = 'Flova Synthwave Demo.wav';
+    this.currentFileName = 'Flova Synthwave Demo';
     this.historyStack = [];
     this.historyIndex = -1;
     const demoBuffer = await DemoAudioGenerator.generateDemoTrack(this.ctx);
+    // The synthesized mix peaks above full scale (clips on output and in 16-bit files): bring it to -0.4 dBFS.
+    let peak = 0;
+    for (let c = 0; c < demoBuffer.numberOfChannels; c++) {
+      const data = demoBuffer.getChannelData(c);
+      for (let i = 0; i < data.length; i++) peak = Math.max(peak, Math.abs(data[i]));
+    }
+    if (peak > 0.95) {
+      const gain = 0.95 / peak;
+      for (let c = 0; c < demoBuffer.numberOfChannels; c++) {
+        const data = demoBuffer.getChannelData(c);
+        for (let i = 0; i < data.length; i++) data[i] *= gain;
+      }
+    }
     this.setBuffer(demoBuffer, true);
     return demoBuffer;
   }
@@ -100,8 +118,11 @@ export class AudioEngine {
     this.stop();
     this.currentBuffer = audioBuffer;
     this.pauseOffset = 0;
-    this.loopStart = selectionRange ? selectionRange.start : 0;
-    this.loopEnd = selectionRange ? selectionRange.end : (audioBuffer ? audioBuffer.duration : 0);
+    // Some callers pass a file name here; only a { start, end } object is a selection.
+    const range = selectionRange && typeof selectionRange === 'object' ? selectionRange : null;
+    this.loopStart = range ? range.start : 0;
+    this.loopEnd = range ? range.end : (audioBuffer ? audioBuffer.duration : 0);
+    const recipe = this.takeRecipe(audioBuffer);
 
     if (pushHistory && audioBuffer) {
       // Remove any redo steps ahead
@@ -110,7 +131,8 @@ export class AudioEngine {
         buffer: audioBuffer,
         name: this.currentFileName,
         selectionStart: this.loopStart,
-        selectionEnd: this.loopEnd
+        selectionEnd: this.loopEnd,
+        recipe
       });
       if (this.historyStack.length > this.maxHistory) {
         this.historyStack.shift();
@@ -126,6 +148,38 @@ export class AudioEngine {
     }
   }
 
+  /**
+   * How the audio of the next history entry was made, as a cloud project stores it (the same document as the
+   * mobile app): a source (the original file, or a buffer that is uploaded as it is) and the edit steps replayed
+   * on it ({ op: 'trim', start, end }, ...). Audio set without a recipe (smart tools, imports from the other
+   * screens) becomes a new source.
+   */
+  takeRecipe(audioBuffer) {
+    const recipe = this.pendingRecipe;
+    this.pendingRecipe = null;
+    return recipe || { source: { buffer: audioBuffer }, steps: [] };
+  }
+
+  /** The recipe of what is in the editor now (null when it is empty). */
+  get recipe() {
+    return this.historyStack[this.historyIndex]?.recipe || null;
+  }
+
+  withStep(step) {
+    const current = this.recipe;
+    return current ? { source: current.source, steps: [...current.steps, step] } : null;
+  }
+
+  /** Shows audio rebuilt from a saved project: a fresh history whose only entry is [recipe]. */
+  loadFromRecipe(audioBuffer, recipe, name, selectionRange = null) {
+    this.ensureContext();
+    this.currentFileName = name;
+    this.historyStack = [];
+    this.historyIndex = -1;
+    this.pendingRecipe = recipe;
+    this.setBuffer(audioBuffer, true, selectionRange);
+  }
+
   pushSelectionState(start, end) {
     if (!this.currentBuffer) return;
     const lastState = this.historyStack[this.historyIndex];
@@ -137,7 +191,8 @@ export class AudioEngine {
       buffer: this.currentBuffer,
       name: this.currentFileName,
       selectionStart: start,
-      selectionEnd: end
+      selectionEnd: end,
+      recipe: lastState?.recipe || { source: { buffer: this.currentBuffer }, steps: [] }
     });
     if (this.historyStack.length > this.maxHistory) {
       this.historyStack.shift();
@@ -152,7 +207,9 @@ export class AudioEngine {
     if (this.historyIndex > 0) {
       this.historyIndex--;
       const state = this.historyStack[this.historyIndex];
-      this.currentFileName = state.name;
+      if (state.name && state.name !== 'İsimsiz Parça' && state.name !== 'Yeni Proje') {
+        this.currentFileName = state.name;
+      }
       this.setBuffer(state.buffer, false, { start: state.selectionStart, end: state.selectionEnd });
       if (this.onHistoryChange) this.onHistoryChange(this.canUndo(), this.canRedo());
       return true;
@@ -164,7 +221,9 @@ export class AudioEngine {
     if (this.historyIndex < this.historyStack.length - 1) {
       this.historyIndex++;
       const state = this.historyStack[this.historyIndex];
-      this.currentFileName = state.name;
+      if (state.name && state.name !== 'İsimsiz Parça' && state.name !== 'Yeni Proje') {
+        this.currentFileName = state.name;
+      }
       this.setBuffer(state.buffer, false, { start: state.selectionStart, end: state.selectionEnd });
       if (this.onHistoryChange) this.onHistoryChange(this.canUndo(), this.canRedo());
       return true;
@@ -339,24 +398,28 @@ export class AudioEngine {
   trimCurrent(startTime, endTime) {
     if (!this.currentBuffer) return;
     const newBuffer = AudioProcessor.trimBuffer(this.ctx, this.currentBuffer, startTime, endTime);
+    this.pendingRecipe = this.withStep({ op: 'trim', start: startTime, end: endTime });
     this.setBuffer(newBuffer, true);
   }
 
   cutOutCurrent(startTime, endTime) {
     if (!this.currentBuffer) return;
     const newBuffer = AudioProcessor.cutOutRange(this.ctx, this.currentBuffer, startTime, endTime);
+    this.pendingRecipe = this.withStep({ op: 'cut', start: startTime, end: endTime });
     this.setBuffer(newBuffer, true);
   }
 
   silenceCurrent(startTime, endTime) {
     if (!this.currentBuffer) return;
     const newBuffer = AudioProcessor.silenceRange(this.ctx, this.currentBuffer, startTime, endTime);
+    this.pendingRecipe = this.withStep({ op: 'silence', start: startTime, end: endTime });
     this.setBuffer(newBuffer, true);
   }
 
   reverseCurrent() {
     if (!this.currentBuffer) return;
     const newBuffer = AudioProcessor.reverseBuffer(this.ctx, this.currentBuffer);
+    this.pendingRecipe = this.withStep({ op: 'reverse' });
     this.setBuffer(newBuffer, true);
   }
 
@@ -365,8 +428,10 @@ export class AudioEngine {
     let newBuffer;
     if (customRange && customRange.end > customRange.start) {
       newBuffer = AudioProcessor.applyFadeRange(this.ctx, this.currentBuffer, customRange.start, customRange.end, customRange.type);
+      this.pendingRecipe = this.withStep({ op: 'fadeRange', start: customRange.start, end: customRange.end, fadeIn: customRange.type !== 'out' });
     } else {
       newBuffer = AudioProcessor.applyFade(this.ctx, this.currentBuffer, fadeInSec, fadeOutSec);
+      this.pendingRecipe = this.withStep({ op: 'fade', fadeIn: fadeInSec, fadeOut: fadeOutSec });
     }
     this.setBuffer(newBuffer, true);
   }
@@ -375,6 +440,8 @@ export class AudioEngine {
     if (!this.currentBuffer) return null;
     this.ensureContext();
     const result = AudioProcessor.normalizeBuffer(this.ctx, this.currentBuffer, targetPeakDb);
+    // A saved step always normalizes to -0.1 dBFS; another target is kept as the result itself.
+    this.pendingRecipe = targetPeakDb === -0.1 ? this.withStep({ op: 'normalize' }) : null;
     this.setBuffer(result.buffer, true, { start: this.loopStart, end: this.loopEnd });
     return result;
   }

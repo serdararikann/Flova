@@ -5,7 +5,7 @@
    - Clean cache lifecycle management
    ==================================================================== */
 
-const CACHE_NAME = 'flova-studio-v2.1';
+const CACHE_NAME = 'flova-studio-v2.6';
 
 const PRECACHE_ASSETS = [
   './',
@@ -24,7 +24,7 @@ const PRECACHE_ASSETS = [
   './icons/icon-512.png',
   './icons/icon-maskable-192.png',
   './icons/icon-maskable-512.png',
-  './js/app.js?v=12.0',
+  './js/app.js?v=12.6',
   './js/audio/audio-engine.js',
   './js/audio/audio-processor.js',
   './js/audio/audio-encoders.js',
@@ -111,7 +111,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. App Shell & Static Assets: Network-First with Cache Fallback for instant updates
+  // 3. Other origins (Supabase auth/data/storage, AI server): straight to the network, never cached;
+  //    their responses belong to the signed-in user.
+  if (url.origin !== self.location.origin) return;
+
+  // 4. App Shell & Static Assets: Network-First with Cache Fallback for instant updates
   event.respondWith(
     fetch(req)
       .then((networkResponse) => {

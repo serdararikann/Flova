@@ -141,10 +141,12 @@ export class AudioEffectsRack {
   applyMasteringPreset(presetName) {
     if (this.masteringRack) {
       this.masteringRack.applyPreset(presetName);
+      this.params.makeup = this.masteringRack.makeupGain.gain.value;
     }
   }
 
   setMasteringMakeup(val) {
+    this.params.makeup = val;
     if (this.masteringRack && this.masteringRack.makeupGain) {
       this.masteringRack.makeupGain.gain.setTargetAtTime(val, this.ctx.currentTime, 0.02);
     }

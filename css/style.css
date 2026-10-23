@@ -559,9 +559,65 @@ body {
   gap: 10px;
 }
 
+.track-title-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease;
+}
+
+.track-title-wrapper:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
 .track-name {
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
+  color: #fff;
+  letter-spacing: -0.01em;
+}
+
+.track-rename-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 3px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.track-title-wrapper:hover .track-rename-btn {
+  color: var(--accent-cyan);
+}
+
+.track-rename-btn:hover {
+  transform: scale(1.15);
+  color: #fff;
+}
+
+.track-name-input {
+  background: rgba(15, 23, 42, 0.95);
+  border: 1.5px solid var(--accent-cyan);
+  color: #fff;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 1.05rem;
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  outline: none;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+  min-width: 180px;
+  max-width: 320px;
 }
 
 .track-specs {
@@ -3216,3 +3272,69 @@ body.is-admin #serverStatusBtn {
   }
 }
 
+/* --------------------------------------------------------------------
+   6. SUPABASE AUTH & CLOUD PROJECTS
+   -------------------------------------------------------------------- */
+.auth-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.auth-btn.logged-in {
+  background: rgba(56, 189, 248, 0.08);
+  border-color: rgba(56, 189, 248, 0.3);
+  color: #f8fafc;
+}
+
+.auth-btn.logged-in:hover {
+  background: rgba(56, 189, 248, 0.16);
+  border-color: rgba(56, 189, 248, 0.5);
+}
+
+.quick-save-btn {
+  color: #fff !important;
+  border-color: rgba(16, 185, 129, 0.45) !important;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.35)) !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.quick-save-btn:hover {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.4), rgba(5, 150, 105, 0.5)) !important;
+  border-color: rgba(16, 185, 129, 0.8) !important;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.35);
+  transform: translateY(-1px);
+}
+
+
+
+/* Text inputs of the account and project windows */
+.studio-input {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 0.88rem;
+  padding: 8px 10px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.studio-input::placeholder {
+  color: var(--text-dim);
+}
+
+.studio-input:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.18);
+}
+
+.studio-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

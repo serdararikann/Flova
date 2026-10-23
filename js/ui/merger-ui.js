@@ -723,7 +723,11 @@ export class MergerUI {
     }
   }
 
-  addTrackFromBuffer(buffer, name = 'Parça') {
+  /**
+   * [source] is how the track's audio can be stored in a cloud project: { blob, ext } for the original file,
+   * otherwise the buffer itself is (encoded and) uploaded. Edits on the track are recorded in [steps].
+   */
+  addTrackFromBuffer(buffer, name = 'Parça', source = null) {
     if (!buffer) return null;
     const trackName = (typeof name === 'string' && name.trim()) 
       ? name.trim() 
@@ -740,7 +744,9 @@ export class MergerUI {
       fadeInSec: 0,
       fadeOutSec: 0,
       enabled: true,
-      bpm: null
+      bpm: null,
+      source: { ...(source || {}), buffer },
+      steps: []
     };
     this.tracks.push(track);
     this.render();
@@ -771,7 +777,31 @@ export class MergerUI {
     const buffer = bufferOrName;
     if (!buffer) return null;
     const trackName = (file && file.name) || (typeof file === 'string' ? file : 'Parça ' + (this.tracks.length + 1));
-    return this.addTrackFromBuffer(buffer, trackName);
+    const source = file instanceof Blob && file.name ? { blob: file, ext: file.name.split('.').pop().toLowerCase() } : null;
+    return this.addTrackFromBuffer(buffer, trackName, source);
+  }
+
+  /** Replaces all tracks and settings (a cloud project being opened). */
+  restoreSession(tracks, { mode = 'auto', curve = 'equal-power', crossfadeSec = 2 } = {}) {
+    this.stopPlayback(true);
+    this.trackWaveforms.clear();
+    this.tracks = [];
+    this.crossfadeMode = mode === 'manual' ? 'manual' : 'auto';
+    this.crossfadeCurve = curve;
+    this.crossfadeSec = crossfadeSec;
+    for (const t of tracks) {
+      const track = this.addTrackFromBuffer(t.buffer, t.name, t.source);
+      track.steps = t.steps || [];
+      track.trimStart = Math.max(0, Math.min(track.duration, t.trimStart ?? 0));
+      track.trimEnd = Math.max(track.trimStart, Math.min(track.duration, t.trimEnd ?? track.duration));
+      track.volume = t.volume ?? 1;
+      track.fadeInSec = t.fadeIn ?? 0;
+      track.fadeOutSec = t.fadeOut ?? 0;
+      track.enabled = t.enabled !== false;
+    }
+    this.render();
+    this.updateTotalDurationBadge();
+    this.updateAllTransitionBridges();
   }
 
   removeTrack(id) {
@@ -925,6 +955,7 @@ export class MergerUI {
     this.pushTrackHistory(track);
 
     this.engine.ensureContext();
+    track.steps = [...(track.steps || []), { op: 'trim', start: track.trimStart, end: track.trimEnd }];
     track.buffer = AudioProcessor.trimBuffer(this.engine.ctx, track.buffer, track.trimStart, track.trimEnd);
     track.duration = track.buffer.duration;
     track.trimStart = 0;
@@ -961,6 +992,7 @@ export class MergerUI {
 
     const deletedSec = (track.trimEnd - track.trimStart).toFixed(1);
     this.engine.ensureContext();
+    track.steps = [...(track.steps || []), { op: 'cut', start: track.trimStart, end: track.trimEnd }];
     track.buffer = AudioProcessor.cutOutRange(this.engine.ctx, track.buffer, track.trimStart, track.trimEnd);
     track.duration = track.buffer.duration;
     track.trimStart = 0;
@@ -991,6 +1023,7 @@ export class MergerUI {
     this.pushTrackHistory(track);
 
     this.engine.ensureContext();
+    track.steps = [...(track.steps || []), { op: 'silence', start: track.trimStart, end: track.trimEnd }];
     track.buffer = AudioProcessor.silenceRange(this.engine.ctx, track.buffer, track.trimStart, track.trimEnd);
     const wf = this.trackWaveforms.get(id);
     if (wf) wf.draw();
@@ -1007,7 +1040,8 @@ export class MergerUI {
       trimEnd: track.trimEnd,
       volume: track.volume,
       fadeInSec: track.fadeInSec,
-      fadeOutSec: track.fadeOutSec
+      fadeOutSec: track.fadeOutSec,
+      steps: track.steps
     });
     if (track.history.length > 25) {
       track.history.shift();
@@ -1023,6 +1057,7 @@ export class MergerUI {
     }
     this.stopPlayback(true);
     const prevState = track.history.pop();
+    if (prevState.steps) track.steps = prevState.steps;
     if (prevState.buffer) {
       track.buffer = prevState.buffer;
       track.duration = prevState.duration || prevState.buffer.duration;
