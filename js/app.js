@@ -4,23 +4,23 @@
    ==================================================================== */
 
 import { AudioEngine } from './audio/audio-engine.js';
-import { WaveformCanvas } from './ui/waveform-canvas.js';
-import { VisualizerCanvas } from './ui/visualizer-canvas.js';
-import { MergerUI } from './ui/merger-ui.js?v=9.6';
-import { VocalSplitterUI } from './ui/vocal-splitter-ui.js?v=9.6';
-import { StemSplitterUI } from './ui/stem-splitter-ui.js?v=9.6';
-import { YouTubeUI } from './ui/youtube-ui.js?v=9.6';
-import { ExportModal } from './ui/export-modal.js?v=9.6';
+import { WaveformCanvas } from './ui/waveform-canvas.js?v=14.0';
+import { VisualizerCanvas } from './ui/visualizer-canvas.js?v=14.0';
+import { MergerUI } from './ui/merger-ui.js?v=14.0';
+import { VocalSplitterUI } from './ui/vocal-splitter-ui.js?v=14.0';
+import { StemSplitterUI } from './ui/stem-splitter-ui.js?v=14.0';
+import { YouTubeUI } from './ui/youtube-ui.js?v=14.0';
+import { ExportModal } from './ui/export-modal.js?v=14.0';
 import { HotkeysModal } from './ui/hotkeys-modal.js?v=9.6';
 import { BPMKeyDetector } from './audio/bpm-key-detector.js';
-import { SmartToolsModal } from './ui/smart-tools-modal.js';
-import { LyricsModal } from './ui/lyrics-modal.js?v=9.1';
-import { AudiogramModal } from './ui/audiogram-modal.js';
-import { ServerModal } from './ui/server-modal.js?v=9.1';
+import { SmartToolsModal } from './ui/smart-tools-modal.js?v=14.0';
+import { LyricsModal } from './ui/lyrics-modal.js?v=14.0';
+import { AudiogramModal } from './ui/audiogram-modal.js?v=14.0';
+import { ServerModal } from './ui/server-modal.js?v=14.0';
 import { CodeGuard } from './security/code-guard.js?v=9.1';
 import { ApiClient } from './audio/api-client.js?v=9.1';
-import { AuthModal } from './ui/auth-modal.js';
-import { ProjectsModal } from './ui/projects-modal.js';
+import { AuthModal } from './ui/auth-modal.js?v=14.0';
+import { ProjectsModal } from './ui/projects-modal.js?v=14.0';
 import { supabaseService } from './db/supabase-client.js';
 
 class FlovaStudioApp {
