@@ -8,6 +8,7 @@
 
 import { AudioProcessor } from '../audio/audio-processor.js';
 import { BPMKeyDetector } from '../audio/bpm-key-detector.js';
+import { themeColors, onThemeChange, withAlpha } from './theme-colors.js';
 
 /**
  * Interactive waveform canvas for an individual track in the Merger
@@ -36,6 +37,8 @@ class MergerTrackWaveform {
 
     this.resize();
     this.initEvents();
+    // Redraw in the new theme; the listener goes away with the card
+    const stopTheme = onThemeChange(() => (this.canvas.isConnected ? this.draw() : stopTheme()));
     if (this.scrollbarWrap) {
       this.setupScrollbar(this.scrollbarWrap);
     }
@@ -212,10 +215,7 @@ class MergerTrackWaveform {
     const buffer = track.buffer;
 
     ctx.clearRect(0, 0, w, h);
-
-    // Background
-    ctx.fillStyle = '#070912';
-    ctx.fillRect(0, 0, w, h);
+    const c = themeColors();
 
     if (!buffer) return;
 
@@ -225,12 +225,15 @@ class MergerTrackWaveform {
     const amp = h * 0.44;
 
     // Center guideline
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+    ctx.strokeStyle = c.lineSoft;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, centerY);
     ctx.lineTo(w, centerY);
     ctx.stroke();
+
+    const isTrimmed = track.trimEnd > track.trimStart && (track.trimStart > 0.05 || track.trimEnd < track.duration - 0.05);
+    const playX = this.currentPlayTime !== null && this.currentPlayTime >= 0 ? this.timeToX(this.currentPlayTime) : -1;
 
     // 1. Draw Waveform Peaks for visible window
     const visDur = this.visibleDuration;
@@ -240,8 +243,8 @@ class MergerTrackWaveform {
     const visibleSamples = Math.max(1, endSample - startSample);
 
     const barWidth = 2;
-    const gap = 1;
-    const step = Math.max(1, Math.floor(visibleSamples / (w * 1.5)));
+    const gap = 2;
+    const step = Math.max(1, Math.floor(visibleSamples / (w / (barWidth + gap))));
 
     for (let x = 0; x < w; x += (barWidth + gap)) {
       const sampleStart = startSample + Math.floor((x / w) * visibleSamples);
@@ -267,14 +270,11 @@ class MergerTrackWaveform {
       const currentTime = this.xToTime(x);
       const isInside = (track.trimStart <= 0.05 && track.trimEnd >= track.duration - 0.05) || (currentTime >= track.trimStart && currentTime <= track.trimEnd);
 
-      if (isInside) {
-        const grad = ctx.createLinearGradient(0, top, 0, bottom);
-        grad.addColorStop(0, '#38bdf8');
-        grad.addColorStop(1, '#6366f1');
-        ctx.fillStyle = grad;
-      } else {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-      }
+      // As in the app: played bars in the text color, the kept (trimmed) range in the accent, cut parts faint
+      if (!isInside) ctx.fillStyle = c.line;
+      else if (x < playX) ctx.fillStyle = c.text;
+      else if (isTrimmed) ctx.fillStyle = c.accent;
+      else ctx.fillStyle = c.waveIdle;
 
       ctx.fillRect(x, top, barWidth, barHeight);
     }
@@ -288,13 +288,9 @@ class MergerTrackWaveform {
     const isCustomTrimmed = track.trimEnd > track.trimStart && (track.trimStart > 0.05 || track.trimEnd < track.duration - 0.05);
 
     if (isCustomTrimmed) {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
-      if (visibleLeft > 0) ctx.fillRect(0, 0, visibleLeft, h);
-      if (visibleRight < w) ctx.fillRect(visibleRight, 0, w - visibleRight, h);
-
       // 3. Selection Region Highlight
       if (visibleRight > visibleLeft) {
-        ctx.fillStyle = 'rgba(99, 102, 241, 0.12)';
+        ctx.fillStyle = c.accentSoft;
         ctx.fillRect(visibleLeft, 0, visibleRight - visibleLeft, h);
       }
     }
@@ -304,7 +300,7 @@ class MergerTrackWaveform {
       const fadeStartX = startX;
       const fadeEndX = Math.min(endX, this.timeToX(track.trimStart + track.fadeInSec));
       if (fadeEndX > 0 && fadeStartX < w) {
-        ctx.fillStyle = 'rgba(16, 185, 129, 0.18)';
+        ctx.fillStyle = withAlpha(c.positive, 0.16);
         ctx.beginPath();
         ctx.moveTo(Math.max(0, fadeStartX), h);
         ctx.lineTo(Math.min(w, fadeEndX), 0);
@@ -312,7 +308,7 @@ class MergerTrackWaveform {
         ctx.closePath();
         ctx.fill();
 
-        ctx.strokeStyle = '#10b981';
+        ctx.strokeStyle = c.positive;
         ctx.lineWidth = 1.5;
         ctx.setLineDash([3, 3]);
         ctx.beginPath();
@@ -327,7 +323,7 @@ class MergerTrackWaveform {
       const fadeOutStartX = Math.max(startX, this.timeToX(track.trimEnd - track.fadeOutSec));
       const fadeOutEndX = endX;
       if (fadeOutEndX > 0 && fadeOutStartX < w) {
-        ctx.fillStyle = 'rgba(244, 63, 94, 0.18)';
+        ctx.fillStyle = withAlpha(c.danger, 0.16);
         ctx.beginPath();
         ctx.moveTo(Math.max(0, fadeOutStartX), 0);
         ctx.lineTo(Math.min(w, fadeOutEndX), h);
@@ -335,7 +331,7 @@ class MergerTrackWaveform {
         ctx.closePath();
         ctx.fill();
 
-        ctx.strokeStyle = '#f43f5e';
+        ctx.strokeStyle = c.danger;
         ctx.lineWidth = 1.5;
         ctx.setLineDash([3, 3]);
         ctx.beginPath();
@@ -348,7 +344,7 @@ class MergerTrackWaveform {
 
     // Top and bottom selection borders (when custom trimmed)
     if (isCustomTrimmed && visibleRight > visibleLeft) {
-      ctx.strokeStyle = '#818cf8';
+      ctx.strokeStyle = c.accent;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(visibleLeft, 0);
@@ -367,26 +363,22 @@ class MergerTrackWaveform {
     }
 
     // 6. Draw Live Moving Playhead Cursor (if playing)
-    if (this.currentPlayTime !== null && this.currentPlayTime >= 0) {
-      const playX = this.timeToX(this.currentPlayTime);
+    if (playX >= 0) {
       if (playX >= -5 && playX <= w + 5) {
-        ctx.strokeStyle = '#f43f5e';
-        ctx.lineWidth = 2.5;
-        ctx.shadowColor = 'rgba(244, 63, 94, 0.9)';
-        ctx.shadowBlur = 8;
+        ctx.strokeStyle = c.text;
+        ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(playX, 0);
         ctx.lineTo(playX, h);
         ctx.stroke();
 
-        ctx.fillStyle = '#f43f5e';
+        ctx.fillStyle = c.text;
         ctx.beginPath();
         ctx.moveTo(playX - 6, 0);
         ctx.lineTo(playX + 6, 0);
-        ctx.lineTo(playX, 10);
+        ctx.lineTo(playX, 8);
         ctx.closePath();
         ctx.fill();
-        ctx.shadowBlur = 0;
       }
     }
   }
@@ -395,19 +387,16 @@ class MergerTrackWaveform {
     const handleW = 12;
     const handleX = isLeft ? x - handleW : x;
 
-    ctx.strokeStyle = isLeft ? '#38bdf8' : '#a855f7';
-    ctx.lineWidth = 2.5;
-    ctx.shadowColor = isLeft ? 'rgba(56, 189, 248, 0.8)' : 'rgba(168, 85, 247, 0.8)';
-    ctx.shadowBlur = 6;
+    const c = themeColors();
+    ctx.strokeStyle = c.accent;
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(x, 0);
     ctx.lineTo(x, h);
     ctx.stroke();
-    ctx.shadowBlur = 0;
 
-    ctx.fillStyle = '#ffffff';
-    ctx.strokeStyle = isLeft ? '#38bdf8' : '#a855f7';
-    ctx.lineWidth = 1.5;
+    // Grip: an accent tab with three dots
+    ctx.fillStyle = c.accent;
 
     const btnH = 30;
     const btnY = (h - btnH) / 2;
@@ -415,9 +404,8 @@ class MergerTrackWaveform {
     ctx.beginPath();
     ctx.roundRect ? ctx.roundRect(handleX, btnY, handleW, btnH, isLeft ? [5, 0, 0, 5] : [0, 5, 5, 0]) : ctx.fillRect(handleX, btnY, handleW, btnH);
     ctx.fill();
-    ctx.stroke();
 
-    ctx.fillStyle = '#475569';
+    ctx.fillStyle = c.onAccent;
     ctx.beginPath();
     ctx.arc(handleX + handleW / 2, btnY + 9, 1.3, 0, Math.PI * 2);
     ctx.arc(handleX + handleW / 2, btnY + 15, 1.3, 0, Math.PI * 2);
@@ -715,7 +703,7 @@ export class MergerUI {
     const totalSec = this.calculateTotalMergedDuration();
     const bottomBadge = this.container.querySelector('#mergerTotalDurationBadge');
     if (bottomBadge) {
-      bottomBadge.innerHTML = `<span style="color: var(--text-dim); font-size: 0.78rem;">SÜRE:</span> <strong style="color: #fff; font-size: 0.95rem;">${this.formatTime(totalSec)}</strong> <span style="font-size: 0.75rem; opacity: 0.8; color: var(--accent-cyan);">(${totalSec.toFixed(1)} sn)</span>`;
+      bottomBadge.innerHTML = `<span style="color: var(--text-dim); font-size: 0.78rem;">SÜRE:</span> <strong style="color: var(--text); font-size: 0.95rem;">${this.formatTime(totalSec)}</strong> <span style="font-size: 0.75rem; opacity: 0.8; color: var(--accent-cyan);">(${totalSec.toFixed(1)} sn)</span>`;
     }
     const headerBadge = this.container.querySelector('#mergerHeaderTotalDuration');
     if (headerBadge) {
@@ -1440,12 +1428,12 @@ export class MergerUI {
       <div class="merger-section">
         
         <!-- Header Bar with Integrated Transition Controls -->
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 12px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 10px 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 12px; background: var(--inset); border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px;">
           <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
             <div style="display: flex; align-items: center; gap: 10px;">
-              <h3 style="font-size: 1.05rem; font-weight: 700; margin: 0; color: #fff;">Parça Listesi (${this.tracks.length} Parça, ${activeCount} Aktif)</h3>
+              <h3 style="font-size: 1.05rem; font-weight: 700; margin: 0; color: var(--text);">Parça Listesi (${this.tracks.length} Parça, ${activeCount} Aktif)</h3>
               ${this.tracks.length > 0 ? `
-                <span id="mergerHeaderTotalDuration" style="font-family: var(--font-mono); font-size: 0.78rem; font-weight: 700; color: #38bdf8; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); padding: 2px 8px; border-radius: 6px;" title="Tüm aktif parçaların geçişler sonrası net toplam süresi">
+                <span id="mergerHeaderTotalDuration" style="font-family: var(--font-mono); font-size: 0.78rem; font-weight: 700; color: var(--accent-text); background: var(--accent-soft); border: 1px solid var(--line); padding: 2px 8px; border-radius: 6px;" title="Tüm aktif parçaların geçişler sonrası net toplam süresi">
                   ${this.formatTime(totalMergedSec)}
                 </span>
               ` : ''}
@@ -1453,9 +1441,9 @@ export class MergerUI {
 
             ${this.tracks.length > 1 ? `
               <!-- Top-Bar Crossfade Mode Switcher (Always visible without scrolling!) -->
-              <div style="display: inline-flex; align-items: center; gap: 8px; background: rgba(0, 0, 0, 0.45); padding: 4px 10px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.3);">
-                <span style="font-size: 0.78rem; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.04em;">Geçiş Modu:</span>
-                <div style="display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.06); padding: 2px 4px; border-radius: 20px;">
+              <div style="display: inline-flex; align-items: center; gap: 8px; background: var(--inset); padding: 4px 10px; border-radius: 8px; border: 1px solid var(--line);">
+                <span style="font-size: 0.78rem; font-weight: 700; color: var(--accent-text); text-transform: none; letter-spacing: normal;">Geçiş Modu:</span>
+                <div style="display: flex; align-items: center; gap: 4px; background: var(--hover); padding: 2px 4px; border-radius: 20px;">
                   <button type="button" class="merger-mode-pill ${this.crossfadeMode === 'auto' ? 'active' : ''}" 
                     style="padding: 3px 10px; font-size: 0.76rem;"
                     onclick="window.flovaMerger.setCrossfadeMode('auto')"
@@ -1476,7 +1464,7 @@ export class MergerUI {
                       class="studio-slider" style="width: 80px; height: 4px;"
                       oninput="window.flovaMerger.setCrossfade(this.value)" />
                     <input type="number" id="headerCrossfadeNumInput" min="0" max="10" step="0.1" value="${this.crossfadeSec.toFixed(1)}" 
-                      style="width: 52px; background: rgba(0,0,0,0.5); border: 1px solid var(--border-glass); color: var(--accent-cyan); font-family: var(--font-mono); font-weight: 700; font-size: 0.8rem; padding: 2px 4px; border-radius: 4px; outline: none;"
+                      style="width: 52px; background: var(--inset); border: 1px solid var(--border-glass); color: var(--accent-cyan); font-family: var(--font-mono); font-weight: 700; font-size: 0.8rem; padding: 2px 4px; border-radius: 4px; outline: none;"
                       oninput="window.flovaMerger.setCrossfade(this.value)" />
                     <span style="font-family: var(--font-mono); color: var(--accent-cyan); font-weight: 700; font-size: 0.76rem;">sn</span>
                   </div>
@@ -1531,7 +1519,7 @@ export class MergerUI {
                     <div class="track-order-badge">${idx + 1}</div>
                     <div class="merger-track-title">${track.name}</div>
                     <div class="merger-track-meta">${this.formatTime(track.duration)}</div>
-                    <span id="bpm_badge_${track.id}" style="${track.bpm ? '' : 'display: none;'} font-size: 0.72rem; padding: 1px 6px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 4px; font-weight: 600;">
+                    <span id="bpm_badge_${track.id}" style="${track.bpm ? '' : 'display: none;'} font-size: 0.72rem; padding: 1px 6px; background: var(--accent-soft); color: var(--accent-text); border: 1px solid var(--line); border-radius: 4px; font-weight: 600;">
                       ${track.bpm ? `${track.bpm} BPM` : ''}
                     </span>
                   </div>
@@ -1549,9 +1537,9 @@ export class MergerUI {
                 </div>
 
                 <!-- Per-Track Dedicated Selection & Action Bar -->
-                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; background: rgba(0,0,0,0.35); padding: 6px 12px; border-radius: 6px; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; background: var(--inset); padding: 6px 12px; border-radius: 6px; margin-bottom: 8px; border: 1px solid var(--line);">
                   <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                    <span style="font-size: 0.76rem; font-weight: 700; color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 0.5px;">
+                    <span style="font-size: 0.76rem; font-weight: 700; color: var(--accent-cyan); text-transform: none; letter-spacing: normal;">
                       Aralık:
                     </span>
                     
@@ -1559,7 +1547,7 @@ export class MergerUI {
                       <span style="font-size: 0.75rem; color: var(--text-muted);">Baş:</span>
                       <input type="text" id="trim_start_input_${track.id}" value="${this.formatTime(track.trimStart)}"
                         title="Başlangıç süresi"
-                        style="width: 78px; background: rgba(0,0,0,0.5); border: 1px solid var(--border-glass); color: #fff; font-family: var(--font-mono); font-weight: 600; font-size: 0.78rem; padding: 2px 6px; border-radius: 4px; text-align: center;"
+                        style="width: 78px; background: var(--inset); border: 1px solid var(--border-glass); color: var(--text); font-family: var(--font-mono); font-weight: 600; font-size: 0.78rem; padding: 2px 6px; border-radius: 4px; text-align: center;"
                         onchange="window.flovaMerger.setTrackTrimStart('${track.id}', this.value)" />
                     </div>
 
@@ -1567,7 +1555,7 @@ export class MergerUI {
                       <span style="font-size: 0.75rem; color: var(--text-muted);">Bit:</span>
                       <input type="text" id="trim_end_input_${track.id}" value="${this.formatTime(track.trimEnd)}"
                         title="Bitiş süresi"
-                        style="width: 78px; background: rgba(0,0,0,0.5); border: 1px solid var(--border-glass); color: #fff; font-family: var(--font-mono); font-weight: 600; font-size: 0.78rem; padding: 2px 6px; border-radius: 4px; text-align: center;"
+                        style="width: 78px; background: var(--inset); border: 1px solid var(--border-glass); color: var(--text); font-family: var(--font-mono); font-weight: 600; font-size: 0.78rem; padding: 2px 6px; border-radius: 4px; text-align: center;"
                         onchange="window.flovaMerger.setTrackTrimEnd('${track.id}', this.value)" />
                     </div>
 
@@ -1583,7 +1571,7 @@ export class MergerUI {
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="20" y1="4" x2="8.12" y2="15.88"></line><line x1="14.47" y1="14.48" x2="20" y2="20"></line><line x1="8.12" y1="8.12" x2="12" y2="12"></line></svg>
                       Kırp
                     </button>
-                    <button class="btn btn-secondary btn-sm" style="padding: 3px 9px; font-size: 0.75rem; font-weight: 600; color: #f87171; border-color: rgba(248, 113, 113, 0.35);" 
+                    <button class="btn btn-secondary btn-sm" style="padding: 3px 9px; font-size: 0.75rem; font-weight: 600; color: var(--danger); border-color: var(--line);" 
                       onclick="window.flovaMerger.cutOutTrackSelection('${track.id}')" title="Seçili aralığı (örn. ortadaki 20 saniyeyi) parçadan siler, başı ve sonu pürüzsüzce birleştirir">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                       Seçimi Sil & Birleştir
@@ -1609,7 +1597,7 @@ export class MergerUI {
 
                 <!-- Full-Width Waveform with Draggable Handles -->
                 <div style="width: 100%; margin-bottom: 8px;">
-                  <div class="merger-waveform-wrapper" style="position: relative; height: 130px; background: #05070d; border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; overflow: hidden;">
+                  <div class="merger-waveform-wrapper" style="position: relative; height: 130px; background: var(--inset); border: 1px solid var(--line); border-radius: 8px; overflow: hidden;">
                     <canvas id="waveform_canvas_${track.id}" style="width: 100%; height: 100%; display: block;"></canvas>
                   </div>
                   <!-- Track Zoom Scrollbar -->
@@ -1622,7 +1610,7 @@ export class MergerUI {
                 </div>
 
                 <!-- Bottom Controls: Volume, Fade In & Fade Out (Slider + Typed Inputs) -->
-                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; font-size: 0.78rem; color: var(--text-muted); border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; font-size: 0.78rem; color: var(--text-muted); border-top: 1px solid var(--line); padding-top: 8px;">
                   
                   <!-- Volume -->
                   <div style="display: flex; align-items: center; gap: 6px;">
@@ -1635,24 +1623,24 @@ export class MergerUI {
 
                   <!-- Per-Track Fade In (Slider + Typable Number Box) -->
                   <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="color: #10b981; font-weight: 600;">Fade In:</span>
+                    <span style="color: var(--positive); font-weight: 600;">Fade In:</span>
                     <input type="range" id="fadein_slider_${track.id}" min="0" max="10.0" step="0.1" value="${track.fadeInSec}" 
                       class="studio-slider" style="width: 75px; height: 4px;"
                       oninput="window.flovaMerger.setFadeIn('${track.id}', this.value)" />
                     <input type="number" id="fadein_num_${track.id}" min="0" max="10.0" step="0.1" value="${track.fadeInSec.toFixed(1)}" 
-                      style="width: 55px; background: rgba(0,0,0,0.5); border: 1px solid var(--border-glass); color: #10b981; font-family: var(--font-mono); font-weight: 600; font-size: 0.78rem; padding: 2px 4px; border-radius: 4px; outline: none;"
+                      style="width: 55px; background: var(--inset); border: 1px solid var(--border-glass); color: var(--positive); font-family: var(--font-mono); font-weight: 600; font-size: 0.78rem; padding: 2px 4px; border-radius: 4px; outline: none;"
                       oninput="window.flovaMerger.setFadeIn('${track.id}', this.value)" />
                     <span style="color: var(--text-dim); font-size: 0.72rem;">sn</span>
                   </div>
 
                   <!-- Per-Track Fade Out (Slider + Typable Number Box) -->
                   <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="color: #f43f5e; font-weight: 600;">Fade Out:</span>
+                    <span style="color: var(--danger); font-weight: 600;">Fade Out:</span>
                     <input type="range" id="fadeout_slider_${track.id}" min="0" max="10.0" step="0.1" value="${track.fadeOutSec}" 
                       class="studio-slider" style="width: 75px; height: 4px;"
                       oninput="window.flovaMerger.setFadeOut('${track.id}', this.value)" />
                     <input type="number" id="fadeout_num_${track.id}" min="0" max="10.0" step="0.1" value="${track.fadeOutSec.toFixed(1)}" 
-                      style="width: 55px; background: rgba(0,0,0,0.5); border: 1px solid var(--border-glass); color: #f43f5e; font-family: var(--font-mono); font-weight: 600; font-size: 0.78rem; padding: 2px 4px; border-radius: 4px; outline: none;"
+                      style="width: 55px; background: var(--inset); border: 1px solid var(--border-glass); color: var(--danger); font-family: var(--font-mono); font-weight: 600; font-size: 0.78rem; padding: 2px 4px; border-radius: 4px; outline: none;"
                       oninput="window.flovaMerger.setFadeOut('${track.id}', this.value)" />
                     <span style="color: var(--text-dim); font-size: 0.72rem;">sn</span>
                   </div>
@@ -1682,17 +1670,17 @@ export class MergerUI {
               <div style="margin-bottom: 3px; color: var(--accent-cyan);">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
               </div>
-              <div style="font-weight: 700; color: #fff; font-size: 0.92rem;">Yeni Parça Ekle (${this.tracks.length + 1}. Şarkıyı Seçin veya Sürükleyin)</div>
+              <div style="font-weight: 700; color: var(--text); font-size: 0.92rem;">Yeni Parça Ekle (${this.tracks.length + 1}. Şarkıyı Seçin veya Sürükleyin)</div>
               <div style="font-size: 0.76rem; color: var(--text-muted); margin-top: 2px;">Tıklayarak dosya seçebilir veya şarkıyı doğrudan bu alana sürükleyip bırakabilirsiniz</div>
             </div>
           </div>
 
           <!-- Merger Settings Bar: Crossfade Mode & Duration Controls & Action Buttons -->
-          <div style="background: rgba(10, 14, 24, 0.75); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 14px 18px; margin-top: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+          <div style="background: var(--inset); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 14px 18px; margin-top: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
             <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
               
               <!-- Mode Selection Switcher Pills -->
-              <div style="display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.3); padding: 3px 5px; border-radius: 24px; border: 1px solid var(--border-glass);">
+              <div style="display: flex; align-items: center; gap: 6px; background: var(--inset); padding: 3px 5px; border-radius: 24px; border: 1px solid var(--border-glass);">
                 <button type="button" class="merger-mode-pill ${this.crossfadeMode === 'auto' ? 'active' : ''}" 
                   onclick="window.flovaMerger.setCrossfadeMode('auto')"
                   title="Parçaların Fade Out ve Fade In sürelerini otomatik algılayıp şarkıları tam o süre boyunca kesintisiz iç içe geçirir.">
@@ -1723,7 +1711,7 @@ export class MergerUI {
                     class="studio-slider" style="width: 120px;"
                     oninput="window.flovaMerger.setCrossfade(this.value)" />
                   <input type="number" id="crossfadeNumInput" min="0" max="10" step="0.1" value="${this.crossfadeSec.toFixed(1)}" 
-                    style="width: 60px; background: rgba(0,0,0,0.5); border: 1px solid var(--border-glass); color: var(--accent-cyan); font-family: var(--font-mono); font-weight: 700; font-size: 0.85rem; padding: 3px 6px; border-radius: 4px; outline: none;"
+                    style="width: 60px; background: var(--inset); border: 1px solid var(--border-glass); color: var(--accent-cyan); font-family: var(--font-mono); font-weight: 700; font-size: 0.85rem; padding: 3px 6px; border-radius: 4px; outline: none;"
                     oninput="window.flovaMerger.setCrossfade(this.value)" />
                   <span style="font-family: var(--font-mono); color: var(--accent-cyan); font-weight: 700; font-size: 0.85rem;">sn</span>
                 ` : ''}
@@ -1733,9 +1721,9 @@ export class MergerUI {
             <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
               <!-- Bottom Total Duration Badge -->
               <div id="mergerTotalDurationBadge" 
-                style="display: inline-flex; align-items: center; gap: 6px; background: rgba(56, 189, 248, 0.1); border: 1.5px solid rgba(56, 189, 248, 0.4); padding: 7px 16px; border-radius: 8px; font-family: var(--font-mono); font-size: 0.85rem; color: #38bdf8; box-shadow: 0 0 14px rgba(56, 189, 248, 0.18);"
+                style="display: inline-flex; align-items: center; gap: 6px; background: var(--accent-soft); border: 1.5px solid var(--line); padding: 7px 16px; border-radius: 8px; font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent-text); box-shadow: none;"
                 title="Geçişler ve kırpmalar dahil birleştirilmiş dosyanın net toplam süresi">
-                <span style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase;">Toplam:</span> <strong style="color: #fff; font-size: 0.96rem;">${this.formatTime(totalMergedSec)}</strong>
+                <span style="font-size: 0.75rem; color: var(--text-dim); text-transform: none;">Toplam:</span> <strong style="color: var(--text); font-size: 0.96rem;">${this.formatTime(totalMergedSec)}</strong>
                 <span style="font-size: 0.75rem; opacity: 0.85; color: var(--accent-cyan);">(${totalMergedSec.toFixed(1)} sn)</span>
               </div>
 

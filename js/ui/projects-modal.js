@@ -225,11 +225,11 @@ export class ProjectsModal {
         <div class="modal-body" style="display: flex; flex-direction: column; gap: 18px; max-height: 70vh; overflow-y: auto;">
           ${this.renderSave(work, selected, link, busy)}
 
-          ${this.error ? `<div style="background: rgba(244, 63, 94, 0.15); border: 1px solid rgba(244, 63, 94, 0.4); color: #fda4af; padding: 8px 12px; border-radius: var(--radius-sm); font-size: 0.82rem;">${escapeHtml(this.error)}</div>` : ''}
+          ${this.error ? `<div style="background: color-mix(in srgb, var(--danger) 14%, transparent); border: 1px solid var(--line); color: var(--danger); padding: 8px 12px; border-radius: var(--radius-sm); font-size: 0.82rem;">${escapeHtml(this.error)}</div>` : ''}
 
           <div>
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-              <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Kayıtlı Projeler (${this.projectsList.length})</span>
+              <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: none; letter-spacing: normal;">Kayıtlı Projeler (${this.projectsList.length})</span>
               <button id="refreshProjectsBtn" class="btn btn-secondary btn-sm" style="padding: 3px 8px; font-size: 0.75rem;" ${busy || this.isLoading ? 'disabled' : ''}>Yenile</button>
             </div>
             ${this.renderList(busy)}
@@ -244,7 +244,7 @@ export class ProjectsModal {
   renderSave(work, selected, link, busy) {
     if (!selected) {
       return `
-        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 14px; font-size: 0.82rem; color: var(--text-muted); line-height: 1.5;">
+        <div style="background: var(--hover); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 14px; font-size: 0.82rem; color: var(--text-muted); line-height: 1.5;">
           Şu an kaydedilecek bir çalışma yok. Düzenleyicide, birleştiricide veya ayırıcılarda açtığınız işler burada kaydedilebilir.
         </div>`;
     }
@@ -253,7 +253,7 @@ export class ProjectsModal {
         ${work.map((w) => `<button class="btn btn-sm ${w.kind === selected.kind ? 'btn-primary' : 'btn-secondary'} save-kind-btn" data-kind="${w.kind}" ${busy ? 'disabled' : ''} style="font-size: 0.75rem; padding: 3px 10px;">${KIND_LABELS[w.kind]}${this.linkFor(w.kind) ? ' ·  bulutta' : ''}</button>`).join('')}
       </div>` : '';
     return `
-      <div style="background: ${link ? 'rgba(56, 189, 248, 0.05)' : 'rgba(255,255,255,0.03)'}; border: 1px solid ${link ? 'rgba(56, 189, 248, 0.3)' : 'var(--border-glass)'}; border-radius: var(--radius-md); padding: 14px;">
+      <div style="background: ${link ? 'var(--accent-soft)' : 'transparent'}; border: 1px solid ${link ? 'var(--accent)' : 'var(--line)'}; border-radius: var(--radius-md); padding: 14px;">
         ${chips}
         <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
           <span>${link ? `Açık proje: <span style="color: var(--accent-cyan);">${escapeHtml(link.title)}</span>` : `${KIND_LABELS[selected.kind]} çalışmasını kaydet`}</span>
@@ -280,7 +280,7 @@ export class ProjectsModal {
       return `<div style="text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.85rem;">Projeler getiriliyor...</div>`;
     }
     if (!this.projectsList.length) {
-      return `<div style="text-align: center; padding: 30px; background: rgba(0,0,0,0.2); border-radius: var(--radius-sm); border: 1px dashed var(--border-glass); color: var(--text-dim); font-size: 0.85rem;">Henüz kayıtlı projeniz yok.</div>`;
+      return `<div style="text-align: center; padding: 30px; background: var(--inset); border-radius: var(--radius-sm); border: 1px dashed var(--border-glass); color: var(--text-dim); font-size: 0.85rem;">Henüz kayıtlı projeniz yok.</div>`;
     }
     const openIds = new Set(KINDS.map((k) => this.linkFor(k)?.id).filter(Boolean));
     return `<div style="display: flex; flex-direction: column; gap: 8px;">${this.projectsList.map((p) => {
@@ -288,19 +288,19 @@ export class ProjectsModal {
       const date = new Date(p.updated_at).toLocaleString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
       const meta = [date, formatDuration(p.duration_seconds), formatBytes(p.sizeBytes), p.fileCount > 1 ? `${p.fileCount} ses dosyası` : ''].filter(Boolean).join(' · ');
       return `
-        <div style="background: ${isCurrent ? 'rgba(56, 189, 248, 0.06)' : 'rgba(255,255,255,0.02)'}; border: 1px solid ${isCurrent ? 'rgba(56, 189, 248, 0.3)' : 'var(--border-glass)'}; border-radius: var(--radius-sm); padding: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+        <div style="background: ${isCurrent ? 'var(--accent-soft)' : 'transparent'}; border: 1px solid ${isCurrent ? 'var(--accent)' : 'var(--line)'}; border-radius: var(--radius-sm); padding: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
           <div style="flex: 1; min-width: 160px;">
             <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
               <span style="font-weight: 700; color: var(--text-main); font-size: 0.95rem; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${escapeHtml(p.title)}</span>
               <span style="font-size: 0.65rem; border: 1px solid var(--border-glass); color: var(--text-muted); padding: 1px 6px; border-radius: 4px; white-space: nowrap;">${escapeHtml(KIND_LABELS[p.kind] || p.kind)}</span>
-              ${isCurrent ? `<span style="font-size: 0.65rem; background: var(--accent-cyan); color: #000; font-weight: 700; padding: 1px 6px; border-radius: 4px; white-space: nowrap;">AÇIK</span>` : ''}
+              ${isCurrent ? `<span style="font-size: 0.65rem; background: var(--accent-cyan); color: var(--bg); font-weight: 700; padding: 1px 6px; border-radius: 4px; white-space: nowrap;">AÇIK</span>` : ''}
             </div>
             <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 3px;">${escapeHtml(meta)}</div>
           </div>
           <div style="display: flex; gap: 6px;">
             <button class="btn ${isCurrent ? 'btn-primary' : 'btn-secondary'} btn-sm load-proj-btn" data-id="${escapeHtml(p.id)}" ${busy || !KIND_LABELS[p.kind] ? 'disabled' : ''} title="${escapeHtml(KIND_LABELS[p.kind] || '')} ekranında aç">${this.busyId === p.id ? 'Açılıyor...' : isCurrent ? 'Yeniden Yükle' : 'Aç'}</button>
             <button class="btn btn-secondary btn-sm rename-proj-btn" data-id="${escapeHtml(p.id)}" ${busy ? 'disabled' : ''} title="Yeniden adlandır">Ad</button>
-            <button class="btn btn-secondary btn-sm delete-proj-btn" data-id="${escapeHtml(p.id)}" style="color: #fb7185; padding: 4px 8px;" ${busy ? 'disabled' : ''} title="Çöp kutusuna taşı">✕</button>
+            <button class="btn btn-secondary btn-sm delete-proj-btn" data-id="${escapeHtml(p.id)}" style="color: var(--danger); padding: 4px 8px;" ${busy ? 'disabled' : ''} title="Çöp kutusuna taşı">✕</button>
           </div>
         </div>`;
     }).join('')}</div>`;
@@ -324,7 +324,7 @@ export class ProjectsModal {
               </div>
               <div style="display: flex; gap: 6px;">
                 <button class="btn btn-secondary btn-sm restore-proj-btn" data-id="${escapeHtml(p.id)}" ${busy ? 'disabled' : ''}>Geri Al</button>
-                <button class="btn btn-secondary btn-sm purge-proj-btn" data-id="${escapeHtml(p.id)}" style="color: #fb7185;" ${busy ? 'disabled' : ''}>Kalıcı Sil</button>
+                <button class="btn btn-secondary btn-sm purge-proj-btn" data-id="${escapeHtml(p.id)}" style="color: var(--danger);" ${busy ? 'disabled' : ''}>Kalıcı Sil</button>
               </div>
             </div>`).join('')}
           </div>` : ''}

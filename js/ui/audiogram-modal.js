@@ -39,15 +39,15 @@ export class AudiogramModal {
     }
 
     container.innerHTML = `
-      <div id="audiogramModalBackdrop" class="modal-backdrop" style="display: none; position: fixed; inset: 0; background: rgba(0, 4, 15, 0.88); backdrop-filter: blur(12px); z-index: 10000; justify-content: center; align-items: center; padding: 20px;">
-        <div class="glass-card audiogram-dialog" style="width: 100%; max-width: 900px; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(0, 242, 254, 0.25); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);">
+      <div id="audiogramModalBackdrop" class="modal-backdrop" style="display: none; position: fixed; inset: 0; background: var(--inset); backdrop-filter: none; z-index: 10000; justify-content: center; align-items: center; padding: 20px;">
+        <div class="glass-card audiogram-dialog" style="width: 100%; max-width: 900px; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line); box-shadow: none;">
           
           <!-- Header -->
-          <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid var(--line);">
             <div style="display: flex; align-items: center; gap: 10px;">
               <span style="font-size: 1.4rem;">📹</span>
               <div>
-                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #fff;">Sosyal Medya Audiogram Video Oluşturucu</h3>
+                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text);">Sosyal Medya Audiogram Video Oluşturucu</h3>
               </div>
             </div>
             <button id="closeAudiogramModal" class="btn btn-secondary btn-sm" style="border-radius: 50%; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center;">✕</button>
@@ -57,13 +57,13 @@ export class AudiogramModal {
           <div style="display: flex; flex: 1; overflow-y: auto; padding: 20px; gap: 24px;">
             
             <!-- Preview Column -->
-            <div style="flex: 1.1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.4); border-radius: 12px; padding: 16px; border: 1px dashed rgba(255, 255, 255, 0.1);">
-              <div id="audiogramPreviewWrapper" style="position: relative; max-width: 100%; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border-radius: 10px; overflow: hidden;">
+            <div style="flex: 1.1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--inset); border-radius: 12px; padding: 16px; border: 1px dashed var(--line);">
+              <div id="audiogramPreviewWrapper" style="position: relative; max-width: 100%; display: flex; align-items: center; justify-content: center; box-shadow: none; border-radius: 10px; overflow: hidden;">
                 <canvas id="audiogramCanvas" style="max-height: 480px; width: auto; object-fit: contain; border-radius: 8px;"></canvas>
               </div>
               <div style="margin-top: 14px; display: flex; gap: 12px; align-items: center;">
                 <button id="audiogramPlayPreviewBtn" class="btn btn-secondary btn-sm">▶️ Önizleme Oynat</button>
-                <span id="audiogramRenderProgress" style="font-size: 0.8rem; color: #00f2fe; font-weight: 600; display: none;">Render ediliyor...</span>
+                <span id="audiogramRenderProgress" style="font-size: 0.8rem; color: var(--accent-text); font-weight: 600; display: none;">Render ediliyor...</span>
               </div>
             </div>
 
@@ -72,15 +72,15 @@ export class AudiogramModal {
               
               <!-- Video Format -->
               <div>
-                <label style="font-size: 0.8rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 6px; display: block;">Video Formatı</label>
+                <label style="font-size: 0.8rem; font-weight: 700; color: var(--muted); text-transform: none; margin-bottom: 6px; display: block;">Video Formatı</label>
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
-                  <button class="ag-format-btn active" data-fmt="9:16" style="padding: 8px 6px; font-size: 0.82rem; border-radius: 6px; border: 1px solid #00f2fe; background: rgba(0, 242, 254, 0.15); color: #fff; cursor: pointer; text-align: center;">
+                  <button class="ag-format-btn active" data-fmt="9:16" style="padding: 8px 6px; font-size: 0.82rem; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent-soft); color: var(--text); cursor: pointer; text-align: center;">
                     📱 9:16<br><span style="font-size: 0.7rem; opacity: 0.7;">Reels/TikTok</span>
                   </button>
-                  <button class="ag-format-btn" data-fmt="1:1" style="padding: 8px 6px; font-size: 0.82rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: #ccc; cursor: pointer; text-align: center;">
+                  <button class="ag-format-btn" data-fmt="1:1" style="padding: 8px 6px; font-size: 0.82rem; border-radius: 6px; border: 1px solid var(--line); background: var(--hover); color: var(--muted); cursor: pointer; text-align: center;">
                     🔲 1:1<br><span style="font-size: 0.7rem; opacity: 0.7;">Post / Kare</span>
                   </button>
-                  <button class="ag-format-btn" data-fmt="16:9" style="padding: 8px 6px; font-size: 0.82rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: #ccc; cursor: pointer; text-align: center;">
+                  <button class="ag-format-btn" data-fmt="16:9" style="padding: 8px 6px; font-size: 0.82rem; border-radius: 6px; border: 1px solid var(--line); background: var(--hover); color: var(--muted); cursor: pointer; text-align: center;">
                     💻 16:9<br><span style="font-size: 0.7rem; opacity: 0.7;">YouTube</span>
                   </button>
                 </div>
@@ -88,11 +88,11 @@ export class AudiogramModal {
 
               <!-- Theme & Background -->
               <div>
-                <label style="font-size: 0.8rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 6px; display: block;">Görsel Tema</label>
+                <label style="font-size: 0.8rem; font-weight: 700; color: var(--muted); text-transform: none; margin-bottom: 6px; display: block;">Görsel Tema</label>
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                  <button class="ag-theme-btn active" data-theme="cyberpunk" style="padding: 6px 12px; font-size: 0.8rem; border-radius: 6px; border: 1px solid #00f2fe; background: rgba(0, 242, 254, 0.2); color: #fff; cursor: pointer;">⚡ Cyberpunk</button>
-                  <button class="ag-theme-btn" data-theme="sunset" style="padding: 6px 12px; font-size: 0.8rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: #ccc; cursor: pointer;">🌅 Sunset</button>
-                  <button class="ag-theme-btn" data-theme="midnight" style="padding: 6px 12px; font-size: 0.8rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: #ccc; cursor: pointer;">🌌 Midnight</button>
+                  <button class="ag-theme-btn active" data-theme="cyberpunk" style="padding: 6px 12px; font-size: 0.8rem; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent-soft); color: var(--text); cursor: pointer;">⚡ Cyberpunk</button>
+                  <button class="ag-theme-btn" data-theme="sunset" style="padding: 6px 12px; font-size: 0.8rem; border-radius: 6px; border: 1px solid var(--line); background: var(--hover); color: var(--muted); cursor: pointer;">🌅 Sunset</button>
+                  <button class="ag-theme-btn" data-theme="midnight" style="padding: 6px 12px; font-size: 0.8rem; border-radius: 6px; border: 1px solid var(--line); background: var(--hover); color: var(--muted); cursor: pointer;">🌌 Midnight</button>
                   <label class="btn btn-secondary btn-sm" style="padding: 6px 12px; font-size: 0.8rem; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
                     🖼️ Resim Seç
                     <input type="file" id="agCustomBgFile" accept="image/*" style="display: none;" />
@@ -102,23 +102,23 @@ export class AudiogramModal {
 
               <!-- Visualizer Style -->
               <div>
-                <label style="font-size: 0.8rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 6px; display: block;">Dalga Formu Tarzı</label>
+                <label style="font-size: 0.8rem; font-weight: 700; color: var(--muted); text-transform: none; margin-bottom: 6px; display: block;">Dalga Formu Tarzı</label>
                 <div style="display: flex; gap: 8px;">
-                  <button class="ag-viz-btn active" data-viz="bars" style="flex: 1; padding: 6px 10px; font-size: 0.8rem; border-radius: 6px; border: 1px solid #00f2fe; background: rgba(0, 242, 254, 0.2); color: #fff; cursor: pointer;">📊 Spektrum Çubukları</button>
-                  <button class="ag-viz-btn" data-viz="wave" style="flex: 1; padding: 6px 10px; font-size: 0.8rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: #ccc; cursor: pointer;">〰️ Neon Dalga</button>
-                  <button class="ag-viz-btn" data-viz="circle" style="flex: 1; padding: 6px 10px; font-size: 0.8rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: #ccc; cursor: pointer;">⭕ Dairesel Orbit</button>
+                  <button class="ag-viz-btn active" data-viz="bars" style="flex: 1; padding: 6px 10px; font-size: 0.8rem; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent-soft); color: var(--text); cursor: pointer;">📊 Spektrum Çubukları</button>
+                  <button class="ag-viz-btn" data-viz="wave" style="flex: 1; padding: 6px 10px; font-size: 0.8rem; border-radius: 6px; border: 1px solid var(--line); background: var(--hover); color: var(--muted); cursor: pointer;">〰️ Neon Dalga</button>
+                  <button class="ag-viz-btn" data-viz="circle" style="flex: 1; padding: 6px 10px; font-size: 0.8rem; border-radius: 6px; border: 1px solid var(--line); background: var(--hover); color: var(--muted); cursor: pointer;">⭕ Dairesel Orbit</button>
                 </div>
               </div>
 
               <!-- Track Title & Artist -->
               <div style="display: flex; gap: 10px;">
                 <div style="flex: 1;">
-                  <label style="font-size: 0.75rem; color: #94a3b8;">Parça Başlığı</label>
-                  <input type="text" id="agTrackTitle" class="form-input" value="Flova Track" style="width: 100%; padding: 8px 10px; font-size: 0.85rem; border-radius: 6px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); color: #fff; margin-top: 4px;" />
+                  <label style="font-size: 0.75rem; color: var(--muted);">Parça Başlığı</label>
+                  <input type="text" id="agTrackTitle" class="form-input" value="Flova Track" style="width: 100%; padding: 8px 10px; font-size: 0.85rem; border-radius: 6px; background: var(--hover); border: 1px solid var(--line); color: var(--text); margin-top: 4px;" />
                 </div>
                 <div style="flex: 1;">
-                  <label style="font-size: 0.75rem; color: #94a3b8;">Sanatçı / İsim</label>
-                  <input type="text" id="agTrackArtist" class="form-input" value="Flova Studio Pro" style="width: 100%; padding: 8px 10px; font-size: 0.85rem; border-radius: 6px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); color: #fff; margin-top: 4px;" />
+                  <label style="font-size: 0.75rem; color: var(--muted);">Sanatçı / İsim</label>
+                  <input type="text" id="agTrackArtist" class="form-input" value="Flova Studio Pro" style="width: 100%; padding: 8px 10px; font-size: 0.85rem; border-radius: 6px; background: var(--hover); border: 1px solid var(--line); color: var(--text); margin-top: 4px;" />
                 </div>
               </div>
 
@@ -126,8 +126,8 @@ export class AudiogramModal {
           </div>
 
           <!-- Footer Actions -->
-          <div style="padding: 16px 24px; border-top: 1px solid rgba(255, 255, 255, 0.08); display: flex; justify-content: space-between; align-items: center; background: rgba(0, 0, 0, 0.3);">
-            <div style="font-size: 0.8rem; color: var(--text-muted, #94a3b8);">
+          <div style="padding: 16px 24px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; background: var(--inset);">
+            <div style="font-size: 0.8rem; color: var(--text-muted, var(--muted));">
               💡 Tarayıcı içinde GPU hızlandırmasıyla anında render edilir
             </div>
             <div style="display: flex; gap: 10px;">
@@ -159,13 +159,13 @@ export class AudiogramModal {
     fmtBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         fmtBtns.forEach(b => {
-          b.style.border = '1px solid rgba(255,255,255,0.1)';
-          b.style.background = 'rgba(255,255,255,0.04)';
-          b.style.color = '#ccc';
+          b.style.border = '1px solid var(--line)';
+          b.style.background = 'var(--hover)';
+          b.style.color = 'var(--muted)';
         });
-        btn.style.border = '1px solid #00f2fe';
-        btn.style.background = 'rgba(0, 242, 254, 0.15)';
-        btn.style.color = '#fff';
+        btn.style.border = '1px solid var(--accent)';
+        btn.style.background = 'var(--accent-soft)';
+        btn.style.color = 'var(--text)';
         this.settings.format = btn.dataset.fmt;
         this._updateCanvasResolution();
         this._drawStaticFrame();
@@ -177,13 +177,13 @@ export class AudiogramModal {
     themeBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         themeBtns.forEach(b => {
-          b.style.border = '1px solid rgba(255,255,255,0.1)';
-          b.style.background = 'rgba(255,255,255,0.04)';
-          b.style.color = '#ccc';
+          b.style.border = '1px solid var(--line)';
+          b.style.background = 'var(--hover)';
+          b.style.color = 'var(--muted)';
         });
-        btn.style.border = '1px solid #00f2fe';
-        btn.style.background = 'rgba(0, 242, 254, 0.2)';
-        btn.style.color = '#fff';
+        btn.style.border = '1px solid var(--accent)';
+        btn.style.background = 'var(--accent-soft)';
+        btn.style.color = 'var(--text)';
         this.settings.theme = btn.dataset.theme;
         this.bgImage = null;
         this._drawStaticFrame();
@@ -195,13 +195,13 @@ export class AudiogramModal {
     vizBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         vizBtns.forEach(b => {
-          b.style.border = '1px solid rgba(255,255,255,0.1)';
-          b.style.background = 'rgba(255,255,255,0.04)';
-          b.style.color = '#ccc';
+          b.style.border = '1px solid var(--line)';
+          b.style.background = 'var(--hover)';
+          b.style.color = 'var(--muted)';
         });
-        btn.style.border = '1px solid #00f2fe';
-        btn.style.background = 'rgba(0, 242, 254, 0.2)';
-        btn.style.color = '#fff';
+        btn.style.border = '1px solid var(--accent)';
+        btn.style.background = 'var(--accent-soft)';
+        btn.style.color = 'var(--text)';
         this.settings.vizType = btn.dataset.viz;
         this._drawStaticFrame();
       });

@@ -10,59 +10,42 @@
 
 import { AudioEncoders } from '../audio/audio-encoders.js';
 import { ApiClient } from '../audio/api-client.js';
+import { themeColors, onThemeChange } from './theme-colors.js';
 
 export const STEM_DEFS = {
   vocals: {
     id: 'vocals',
     name: 'Vokal',
-    color: '#38bdf8',
-    gradientStart: '#38bdf8',
-    gradientEnd: '#0284c7',
     icon: '',
     badge: 'VOKAL'
   },
   drums: {
     id: 'drums',
     name: 'Davul',
-    color: '#f59e0b',
-    gradientStart: '#fbbf24',
-    gradientEnd: '#d97706',
     icon: '',
     badge: 'DAVUL'
   },
   bass: {
     id: 'bass',
     name: 'Bas',
-    color: '#a855f7',
-    gradientStart: '#c084fc',
-    gradientEnd: '#7e22ce',
     icon: '',
     badge: 'BAS'
   },
   guitar: {
     id: 'guitar',
     name: 'Gitar',
-    color: '#f97316',
-    gradientStart: '#fb923c',
-    gradientEnd: '#c2410c',
     icon: '',
     badge: 'GİTAR'
   },
   piano: {
     id: 'piano',
     name: 'Piyano',
-    color: '#10b981',
-    gradientStart: '#34d399',
-    gradientEnd: '#059669',
     icon: '',
     badge: 'PİYANO'
   },
   other: {
     id: 'other',
     name: 'Sentetik & FX',
-    color: '#ec4899',
-    gradientStart: '#f472b6',
-    gradientEnd: '#be185d',
     icon: '',
     badge: 'DİĞER'
   }
@@ -912,27 +895,29 @@ export class StemSplitterUI {
     const height = rect.height;
 
     ctx.clearRect(0, 0, width, height);
+    const c = themeColors();
+    if (!this.themeRedraw) {
+      this.themeRedraw = onThemeChange(() => this.getActiveStemKeys().forEach((k) => this.drawStemWaveform(k)));
+    }
 
     if (!stem.buffer) {
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx.fillStyle = c.line;
       ctx.fillRect(0, height / 2 - 1, width, 2);
       return;
     }
 
-    const def = STEM_DEFS[key];
     const data = stem.buffer.getChannelData(0);
-    const step = Math.ceil(data.length / width);
+    const barStep = 3;
+    const step = Math.ceil(data.length / width) * barStep;
     const amp = height / 2;
 
-    const grad = ctx.createLinearGradient(0, 0, 0, height);
-    grad.addColorStop(0, def.gradientStart);
-    grad.addColorStop(1, def.gradientEnd);
-    ctx.fillStyle = grad;
+    // Stems are monochrome, as in the app; the played part is lit by the playhead overlay
+    ctx.fillStyle = c.waveIdle;
 
-    for (let i = 0; i < width; i++) {
+    for (let i = 0; i < width; i += barStep) {
       let min = 1.0;
       let max = -1.0;
-      const startIdx = i * step;
+      const startIdx = (i / barStep) * step;
       const endIdx = Math.min(startIdx + step, data.length);
 
       for (let j = startIdx; j < endIdx; j += 4) {
@@ -950,7 +935,7 @@ export class StemSplitterUI {
       const y2 = Math.min(height, (1 + max) * amp);
       const barHeight = Math.max(2, y2 - y1);
 
-      ctx.fillRect(i, y1, 1.2, barHeight);
+      ctx.fillRect(i, y1, 2, barHeight);
     }
 
     this.drawStemPlayhead(key);
@@ -985,23 +970,26 @@ export class StemSplitterUI {
     const progress = Math.max(0, Math.min(this.currentTime / this.duration, 1));
     const playheadX = progress * width;
 
-    // Played region dim overlay
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
-    ctx.fillRect(0, 0, playheadX, height);
+    const c = themeColors();
 
-    // Glowing Neon Playhead Line
-    ctx.strokeStyle = '#f43f5e';
+    // Played part: the bars underneath turn text-colored
+    const waveCanvas = document.getElementById(`waveform_${key}`);
+    if (waveCanvas && playheadX > 0) {
+      ctx.save();
+      ctx.drawImage(waveCanvas, 0, 0, Math.round(playheadX * dpr), canvas.height, 0, 0, playheadX, height);
+      ctx.globalCompositeOperation = 'source-in';
+      ctx.fillStyle = c.text;
+      ctx.fillRect(0, 0, playheadX, height);
+      ctx.restore();
+    }
+
+    // Playhead line
+    ctx.strokeStyle = c.text;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(playheadX, 0);
     ctx.lineTo(playheadX, height);
     ctx.stroke();
-
-    // Playhead handle
-    ctx.fillStyle = '#f43f5e';
-    ctx.beginPath();
-    ctx.arc(playheadX, 5, 4, 0, Math.PI * 2);
-    ctx.fill();
   }
 
   /* ====================================================================
@@ -1020,7 +1008,7 @@ export class StemSplitterUI {
             <div style="font-size: 1.15rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line></svg>
               Çok Kanallı Kök (Stem) Ayırıcı
-              <span class="badge-pro" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; letter-spacing: 0.05em;">${is6s ? '6-STEM PRO' : '4-STEM'}</span>
+              <span class="badge-pro" style="background: var(--accent-soft); color: var(--accent-text); border: 1px solid var(--line); font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; letter-spacing: normal;">${is6s ? '6-STEM PRO' : '4-STEM'}</span>
             </div>
             ${this.sourceBuffer ? `
               <div class="track-info-pill">
@@ -1032,7 +1020,7 @@ export class StemSplitterUI {
 
           <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
             <!-- Mode Switcher Pill -->
-            <div style="display: flex; align-items: center; gap: 3px; background: rgba(255,255,255,0.05); padding: 3px 5px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);">
+            <div style="display: flex; align-items: center; gap: 3px; background: var(--hover); padding: 3px 5px; border-radius: 8px; border: 1px solid var(--line);">
               <button class="btn ${is6s ? 'btn-primary' : 'btn-secondary'} btn-sm" style="padding: 2px 8px; font-size: 0.74rem;" 
                 onclick="window.flovaStemSplitter.setSeparationMode('6s')">
                 6-Stem Pro
@@ -1062,7 +1050,7 @@ export class StemSplitterUI {
                 A/B: Miks
               </button>
 
-              <button class="btn btn-primary btn-sm" onclick="window.flovaStemSplitter.exportCustomMix()" title="Mikser ayarlarına göre miksi kaydet" style="background: linear-gradient(135deg, #4f46e5, #7c3aed); border: none; display: inline-flex; align-items: center; gap: 5px;">
+              <button class="btn btn-primary btn-sm" onclick="window.flovaStemSplitter.exportCustomMix()" title="Mikser ayarlarına göre miksi kaydet" style="background: var(--accent); border: none; display: inline-flex; align-items: center; gap: 5px;">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                 Miks İndir
               </button>
@@ -1109,7 +1097,7 @@ export class StemSplitterUI {
             </div>
 
             <!-- Quick Stem Presets -->
-            <div style="display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.35); padding: 3px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06);">
+            <div style="display: flex; align-items: center; gap: 4px; background: var(--inset); padding: 3px 6px; border-radius: 6px; border: 1px solid var(--line);">
               <span style="font-size: 0.72rem; color: var(--text-dim); margin-right: 2px; font-weight: 600;">Hazır:</span>
               <button id="stemPresetBtn_all" class="btn ${this.activePreset === 'all' ? 'btn-primary' : 'btn-secondary'} btn-sm" style="font-size: 0.72rem; padding: 2px 7px;" onclick="window.flovaStemSplitter.setQuickPreset('all')">Tümü</button>
               <button id="stemPresetBtn_vocal" class="btn ${this.activePreset === 'vocal' ? 'btn-primary' : 'btn-secondary'} btn-sm" style="font-size: 0.72rem; padding: 2px 7px;" onclick="window.flovaStemSplitter.setQuickPreset('vocal')">Vokal</button>
@@ -1118,7 +1106,7 @@ export class StemSplitterUI {
             </div>
 
             <!-- Master Output Volume -->
-            <div style="display: flex; align-items: center; gap: 8px; border-left: 1px solid rgba(255,255,255,0.08); padding-left: 14px;">
+            <div style="display: flex; align-items: center; gap: 8px; border-left: 1px solid var(--line); padding-left: 14px;">
               <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
                 Çıkış:
@@ -1133,7 +1121,7 @@ export class StemSplitterUI {
         <!-- Empty State Dropzone -->
         ${!this.sourceBuffer && !this.isProcessing ? `
           <div id="stemDropZone" class="drop-zone" style="margin-top: 10px;">
-            <div class="drop-zone-icon" style="color: #a855f7;">
+            <div class="drop-zone-icon" style="color: var(--accent-text);">
               <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M9 18V5l12-2v13"></path>
                 <circle cx="6" cy="18" r="3"></circle>
@@ -1177,14 +1165,11 @@ export class StemSplitterUI {
     else if (stem.pan > 0.05) panText = `R${Math.round(stem.pan * 50)}`;
 
     return `
-      <div class="stem-lane glass-card" style="border-left: 4px solid ${def.color};">
+      <div class="stem-lane">
         
         <!-- Track Header Strip -->
         <div class="stem-lane-header">
           <div class="stem-lane-info">
-            <span class="stem-lane-badge" style="background: ${def.color}22; color: ${def.color}; border: 1px solid ${def.color}44;">
-              ${def.icon} ${def.badge}
-            </span>
             <span class="stem-lane-title">${def.name}</span>
           </div>
 
@@ -1223,7 +1208,7 @@ export class StemSplitterUI {
               Editör
             </button>
             
-            <button class="btn btn-primary btn-sm" onclick="window.flovaStemSplitter.downloadStem('${key}')" style="background: ${def.color}; border-color: ${def.color}; display: inline-flex; align-items: center; gap: 5px;" title="WAV olarak indir">
+            <button class="btn btn-secondary btn-sm" onclick="window.flovaStemSplitter.downloadStem('${key}')" style="display: inline-flex; align-items: center; gap: 5px;" title="WAV olarak indir">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
               İndir
             </button>
@@ -1243,16 +1228,16 @@ export class StemSplitterUI {
 
   getProgressHtml(pct, statusText) {
     return `
-      <div class="glass-card" style="padding: 16px 20px; border-left: 4px solid #a855f7; background: rgba(18, 23, 38, 0.9);">
+      <div class="glass-card" style="padding: 16px 20px; border-left: 4px solid var(--accent); background: var(--inset);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
           <div style="display: flex; align-items: center; gap: 10px;">
-            <div class="loading-spinner" style="border-top-color: #a855f7;"></div>
-            <span style="font-weight: 700; font-size: 0.92rem; color: #f8fafc;">Çok Kanallı Stem Ayrıştırma İşlemi</span>
+            <div class="loading-spinner" style="border-top-color: var(--accent);"></div>
+            <span style="font-weight: 700; font-size: 0.92rem; color: var(--text);">Çok Kanallı Stem Ayrıştırma İşlemi</span>
           </div>
-          <span style="font-family: var(--font-mono); font-weight: 700; color: #a855f7; font-size: 0.95rem;">%${pct}</span>
+          <span style="font-family: var(--font-mono); font-weight: 700; color: var(--accent-text); font-size: 0.95rem;">%${pct}</span>
         </div>
-        <div class="progress-bar-container" style="height: 9px; background: rgba(255,255,255,0.08); border-radius: 5px; overflow: hidden; margin-bottom: 8px;">
-          <div class="progress-bar-fill" style="width: ${pct}%; height: 100%; background: linear-gradient(90deg, #6366f1, #a855f7, #38bdf8); transition: width 0.3s ease;"></div>
+        <div class="progress-bar-container" style="height: 9px; background: var(--hover); border-radius: 5px; overflow: hidden; margin-bottom: 8px;">
+          <div class="progress-bar-fill" style="width: ${pct}%; height: 100%; background: var(--accent); transition: width 0.3s ease;"></div>
         </div>
         <div class="progress-status-text" style="color: var(--text-muted); font-size: 0.8rem; font-family: var(--font-mono);">
           ${statusText}

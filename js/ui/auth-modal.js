@@ -72,14 +72,14 @@ export class AuthModal {
       const tier = profile?.tier || 'free';
       btn.className = 'btn btn-secondary btn-sm auth-btn logged-in';
       btn.innerHTML = `
-        <span class="auth-user-avatar" style="width: 18px; height: 18px; border-radius: 50%; background: linear-gradient(135deg, var(--accent-cyan), var(--accent-primary)); display: inline-flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: bold; color: #fff;">${escapeHtml(name.charAt(0).toLocaleUpperCase('tr-TR'))}</span>
+        <span class="auth-user-avatar" style="width: 18px; height: 18px; border-radius: 50%; background: linear-gradient(135deg, var(--accent-cyan), var(--accent-primary)); display: inline-flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: bold; color: var(--text);">${escapeHtml(name.charAt(0).toLocaleUpperCase('tr-TR'))}</span>
         <span style="max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(name)}</span>
-        ${tier !== 'free' ? `<span style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; font-size: 0.65rem; padding: 1px 6px; border-radius: 99px; font-weight: 700;">${escapeHtml(tier.toLocaleUpperCase('tr-TR'))}</span>` : ''}
+        ${tier !== 'free' ? `<span style="background: var(--positive); color: var(--text); font-size: 0.65rem; padding: 1px 6px; border-radius: 99px; font-weight: 700;">${escapeHtml(tier.toLocaleUpperCase('tr-TR'))}</span>` : ''}
       `;
       btn.title = `Giriş yapıldı: ${user.email} (hesabı yönetmek için tıklayın)`;
     } else {
       btn.className = 'btn btn-secondary btn-sm auth-btn';
-      btn.innerHTML = `${ICON_USER}<span>Giriş Yap</span>`;
+      btn.innerHTML = `${ICON_USER}<span>Giriş yap</span>`;
       btn.title = SIGNUP_ENABLED ? 'Hesabınıza giriş yapın veya kayıt olun' : 'Hesabınıza giriş yapın';
     }
   }
@@ -110,8 +110,8 @@ export class AuthModal {
 
   alerts() {
     return `
-      ${this.errorMessage ? `<div style="background: rgba(244, 63, 94, 0.15); border: 1px solid rgba(244, 63, 94, 0.4); color: #fda4af; padding: 8px 12px; border-radius: var(--radius-sm); font-size: 0.82rem; line-height: 1.4;">${escapeHtml(this.errorMessage)}</div>` : ''}
-      ${this.successMessage ? `<div style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #6ee7b7; padding: 8px 12px; border-radius: var(--radius-sm); font-size: 0.82rem; line-height: 1.4;">${escapeHtml(this.successMessage)}</div>` : ''}
+      ${this.errorMessage ? `<div style="background: color-mix(in srgb, var(--danger) 14%, transparent); border: 1px solid var(--line); color: var(--danger); padding: 8px 12px; border-radius: var(--radius-sm); font-size: 0.82rem; line-height: 1.4;">${escapeHtml(this.errorMessage)}</div>` : ''}
+      ${this.successMessage ? `<div style="background: color-mix(in srgb, var(--positive) 14%, transparent); border: 1px solid var(--line); color: var(--positive); padding: 8px 12px; border-radius: var(--radius-sm); font-size: 0.82rem; line-height: 1.4;">${escapeHtml(this.successMessage)}</div>` : ''}
     `;
   }
 
@@ -156,7 +156,7 @@ export class AuthModal {
     const isSignIn = this.activeTab === 'signin';
     const email = escapeHtml(this.email);
     return this.shell(isSignIn ? 'Flova Hesabına Giriş Yap' : 'Flova Hesabı Oluştur', `
-      <div style="display: flex; background: rgba(0,0,0,0.3); padding: 3px; border-radius: var(--radius-sm); border: 1px solid var(--border-glass);">
+      <div style="display: flex; background: var(--inset); padding: 3px; border-radius: var(--radius-sm); border: 1px solid var(--border-glass);">
         <button id="tabAuthSignIn" class="mode-tab-btn ${isSignIn ? 'active' : ''}" style="flex: 1; padding: 6px; font-size: 0.85rem;">Giriş Yap</button>
         ${SIGNUP_ENABLED
           ? `<button id="tabAuthSignUp" class="mode-tab-btn ${!isSignIn ? 'active' : ''}" style="flex: 1; padding: 6px; font-size: 0.85rem;">Kayıt Ol</button>`
@@ -173,7 +173,7 @@ export class AuthModal {
         </label>
         ${this.submitButton(isSignIn ? 'Giriş Yap' : 'Hesap Oluştur')}
       </form>
-      <div style="font-size: 0.78rem; color: var(--text-dim, #64748b); text-align: center; display: flex; flex-direction: column; gap: 6px;">
+      <div style="font-size: 0.78rem; color: var(--text-dim, var(--muted)); text-align: center; display: flex; flex-direction: column; gap: 6px;">
         ${isSignIn
           ? `<a href="#" id="authForgotLink" style="color: var(--accent-cyan); text-decoration: none;">Şifremi unuttum</a>
              <span>${SIGNUP_ENABLED
@@ -212,15 +212,15 @@ export class AuthModal {
     const tier = profile?.tier || 'free';
     return this.shell('Flova Hesabı', `
       ${this.alerts()}
-      <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 16px; display: flex; align-items: center; gap: 14px;">
-        <div style="width: 48px; height: 48px; flex-shrink: 0; border-radius: 50%; background: linear-gradient(135deg, var(--accent-cyan), var(--accent-primary)); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 700; color: #fff;">${escapeHtml(name.charAt(0).toLocaleUpperCase('tr-TR'))}</div>
+      <div style="background: var(--hover); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 16px; display: flex; align-items: center; gap: 14px;">
+        <div style="width: 48px; height: 48px; flex-shrink: 0; border-radius: 50%; background: linear-gradient(135deg, var(--accent-cyan), var(--accent-primary)); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 700; color: var(--text);">${escapeHtml(name.charAt(0).toLocaleUpperCase('tr-TR'))}</div>
         <div style="flex: 1; min-width: 0;">
           <div style="display: flex; align-items: center; gap: 8px;">
             <span style="font-weight: 700; font-size: 1rem; color: var(--text-main); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${escapeHtml(name)}</span>
-            <span style="font-size: 0.7rem; padding: 2px 8px; border-radius: 99px; font-weight: 700; background: ${tier === 'free' ? 'rgba(255,255,255,0.1)' : 'var(--accent-emerald)'}; color: #fff;">${escapeHtml(tier.toLocaleUpperCase('tr-TR'))}</span>
+            <span style="font-size: 0.7rem; padding: 2px 8px; border-radius: 99px; font-weight: 700; background: ${tier === 'free' ? 'var(--raised)' : 'var(--accent)'}; color: ${tier === 'free' ? 'var(--text)' : 'var(--on-accent)'};">${escapeHtml(tier.toLocaleUpperCase('tr-TR'))}</span>
           </div>
           <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 3px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${escapeHtml(user.email)}</div>
-          <div style="font-size: 0.75rem; color: var(--text-dim, #64748b); margin-top: 3px;">Bulutta kullanılan alan: ${formatBytes(profile?.storage_used_bytes)}</div>
+          <div style="font-size: 0.75rem; color: var(--text-dim, var(--muted)); margin-top: 3px;">Bulutta kullanılan alan: ${formatBytes(profile?.storage_used_bytes)}</div>
         </div>
       </div>
 
@@ -233,7 +233,7 @@ export class AuthModal {
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
         <span>Projelerim</span>
       </button>
-      <button id="authSignOutBtn" class="btn" style="background: rgba(244, 63, 94, 0.15); border: 1px solid rgba(244, 63, 94, 0.3); color: #fb7185; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px;">
+      <button id="authSignOutBtn" class="btn" style="background: color-mix(in srgb, var(--danger) 14%, transparent); border: 1px solid var(--line); color: var(--danger); display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px;">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
         <span>Oturumu Kapat</span>
       </button>

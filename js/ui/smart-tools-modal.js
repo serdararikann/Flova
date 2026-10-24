@@ -27,29 +27,29 @@ export class SmartToolsModal {
     }
 
     container.innerHTML = `
-      <div id="smartToolsModalBackdrop" class="modal-backdrop" style="display: none; position: fixed; inset: 0; background: rgba(0, 4, 15, 0.88); backdrop-filter: blur(12px); z-index: 10000; justify-content: center; align-items: center; padding: 20px;">
-        <div class="glass-card smart-tools-dialog" style="width: 100%; max-width: 680px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(0, 242, 254, 0.3); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);">
+      <div id="smartToolsModalBackdrop" class="modal-backdrop" style="display: none; position: fixed; inset: 0; background: var(--inset); backdrop-filter: none; z-index: 10000; justify-content: center; align-items: center; padding: 20px;">
+        <div class="glass-card smart-tools-dialog" style="width: 100%; max-width: 680px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line); box-shadow: none;">
           
           <!-- Header -->
-          <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid var(--line);">
             <div style="display: flex; align-items: center; gap: 10px;">
               <span style="font-size: 1.4rem;">🪄</span>
               <div>
-                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #fff;">Stüdyo Akıllı Araçlar & AI</h3>
+                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text);">Stüdyo Akıllı Araçlar & AI</h3>
               </div>
             </div>
             <button id="closeSmartToolsModal" class="btn btn-secondary btn-sm" style="border-radius: 50%; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center;">✕</button>
           </div>
 
           <!-- Tool Selector Tabs -->
-          <div style="display: flex; background: rgba(0, 0, 0, 0.3); padding: 8px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); gap: 8px;">
-            <button class="st-tab-btn active" data-tab="denoise" style="flex: 1; padding: 8px 12px; border-radius: 6px; font-size: 0.84rem; font-weight: 600; border: 1px solid #00f2fe; background: rgba(0, 242, 254, 0.15); color: #fff; cursor: pointer;">
+          <div style="display: flex; background: var(--inset); padding: 8px 16px; border-bottom: 1px solid var(--line); gap: 8px;">
+            <button class="st-tab-btn active" data-tab="denoise" style="flex: 1; padding: 8px 12px; border-radius: 6px; font-size: 0.84rem; font-weight: 600; border: 1px solid var(--accent); background: var(--accent-soft); color: var(--text); cursor: pointer;">
               🔇 AI Dip Ses Temizle
             </button>
-            <button class="st-tab-btn" data-tab="silence" style="flex: 1; padding: 8px 12px; border-radius: 6px; font-size: 0.84rem; font-weight: 600; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.04); color: #ccc; cursor: pointer;">
+            <button class="st-tab-btn" data-tab="silence" style="flex: 1; padding: 8px 12px; border-radius: 6px; font-size: 0.84rem; font-weight: 600; border: 1px solid var(--line); background: var(--hover); color: var(--muted); cursor: pointer;">
               ✂️ Sessizlikleri Buday
             </button>
-            <button class="st-tab-btn" data-tab="autotune" style="flex: 1; padding: 8px 12px; border-radius: 6px; font-size: 0.84rem; font-weight: 600; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.04); color: #ccc; cursor: pointer;">
+            <button class="st-tab-btn" data-tab="autotune" style="flex: 1; padding: 8px 12px; border-radius: 6px; font-size: 0.84rem; font-weight: 600; border: 1px solid var(--line); background: var(--hover); color: var(--muted); cursor: pointer;">
               🎤 Auto-Tune Vokal
             </button>
           </div>
@@ -59,43 +59,43 @@ export class SmartToolsModal {
             
             <!-- 1. DENOISE PANEL -->
             <div id="stDenoisePanel" class="st-panel">
-              <h4 style="margin: 0 0 14px 0; font-size: 0.95rem; color: #fff;">Arka Plan Dip Ses ve Hiss Temizleme</h4>
+              <h4 style="margin: 0 0 14px 0; font-size: 0.95rem; color: var(--text);">Arka Plan Dip Ses ve Hiss Temizleme</h4>
 
-              <div style="background: rgba(255,255,255,0.03); padding: 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 20px;">
+              <div style="background: var(--hover); padding: 16px; border-radius: 8px; border: 1px solid var(--line); margin-bottom: 20px;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                  <span style="font-size: 0.85rem; color: #e2e8f0; font-weight: 600;">Temizleme Gücü</span>
-                  <span id="denoiseStrengthDisplay" style="font-size: 0.85rem; color: #00f2fe; font-weight: 700;">%80 (Önerilen)</span>
+                  <span style="font-size: 0.85rem; color: var(--text); font-weight: 600;">Temizleme Gücü</span>
+                  <span id="denoiseStrengthDisplay" style="font-size: 0.85rem; color: var(--accent-text); font-weight: 700;">%80 (Önerilen)</span>
                 </div>
                 <input type="range" id="denoiseStrengthSlider" min="20" max="100" step="5" value="80" class="studio-slider" style="width: 100%;" />
-                <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #64748b; margin-top: 4px;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--muted); margin-top: 4px;">
                   <span>Hafif (%20)</span>
                   <span>Dengeli (%80)</span>
                   <span>Maksimum (%100)</span>
                 </div>
               </div>
 
-              <button id="applyDenoiseBtn" class="btn btn-primary" style="width: 100%; padding: 12px; font-weight: 700; background: linear-gradient(135deg, #00f2fe, #4facfe);">
+              <button id="applyDenoiseBtn" class="btn btn-primary" style="width: 100%; padding: 12px; font-weight: 700; background: var(--accent);">
                 🔇 Dip Sesi Temizle ve Parçaya Uygula
               </button>
             </div>
 
             <!-- 2. SILENCE TRIMMER PANEL -->
             <div id="stSilencePanel" class="st-panel" style="display: none;">
-              <h4 style="margin: 0 0 14px 0; font-size: 0.95rem; color: #fff;">Konuşma & Kayıt İçi Sessizlik Budayıcı</h4>
+              <h4 style="margin: 0 0 14px 0; font-size: 0.95rem; color: var(--text);">Konuşma & Kayıt İçi Sessizlik Budayıcı</h4>
 
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-                <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);">
-                  <label style="font-size: 0.78rem; color: #94a3b8; display: block; margin-bottom: 4px;">Sessizlik Eşiği</label>
-                  <select id="silenceThresholdSelect" class="form-input" style="width: 100%; padding: 6px 10px; font-size: 0.85rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); color: #fff; border-radius: 6px;">
+                <div style="background: var(--hover); padding: 12px; border-radius: 8px; border: 1px solid var(--line);">
+                  <label style="font-size: 0.78rem; color: var(--muted); display: block; margin-bottom: 4px;">Sessizlik Eşiği</label>
+                  <select id="silenceThresholdSelect" class="form-input" style="width: 100%; padding: 6px 10px; font-size: 0.85rem; background: var(--inset); border: 1px solid var(--line); color: var(--text); border-radius: 6px;">
                     <option value="-45">-45 dB (Çok Sessiz)</option>
                     <option value="-40" selected>-40 dB (Normal / Standart)</option>
                     <option value="-35">-35 dB (Hafif Arka Planlı)</option>
                     <option value="-30">-30 dB (Agresif)</option>
                   </select>
                 </div>
-                <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);">
-                  <label style="font-size: 0.78rem; color: #94a3b8; display: block; margin-bottom: 4px;">Minimum Süre</label>
-                  <select id="silenceMinDurationSelect" class="form-input" style="width: 100%; padding: 6px 10px; font-size: 0.85rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); color: #fff; border-radius: 6px;">
+                <div style="background: var(--hover); padding: 12px; border-radius: 8px; border: 1px solid var(--line);">
+                  <label style="font-size: 0.78rem; color: var(--muted); display: block; margin-bottom: 4px;">Minimum Süre</label>
+                  <select id="silenceMinDurationSelect" class="form-input" style="width: 100%; padding: 6px 10px; font-size: 0.85rem; background: var(--inset); border: 1px solid var(--line); color: var(--text); border-radius: 6px;">
                     <option value="0.25">0.25 saniye</option>
                     <option value="0.35" selected>0.35 saniye (Önerilen)</option>
                     <option value="0.5">0.50 saniye</option>
@@ -105,15 +105,15 @@ export class SmartToolsModal {
               </div>
 
               <!-- Scan Results Box -->
-              <div id="silenceScanResultBox" style="background: rgba(0, 242, 254, 0.06); border: 1px dashed rgba(0, 242, 254, 0.3); padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; display: none;">
-                <span id="silenceScanResultText" style="font-size: 0.85rem; color: #00f2fe; font-weight: 600;"></span>
+              <div id="silenceScanResultBox" style="background: var(--accent-soft); border: 1px dashed var(--line); padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; display: none;">
+                <span id="silenceScanResultText" style="font-size: 0.85rem; color: var(--accent-text); font-weight: 600;"></span>
               </div>
 
               <div style="display: flex; gap: 10px;">
                 <button id="scanSilenceBtn" class="btn btn-secondary" style="flex: 1; padding: 10px; font-weight: 600;">
                   🔍 Sessizlikleri Tara
                 </button>
-                <button id="applySilenceCutBtn" class="btn btn-primary" style="flex: 1.2; padding: 10px; font-weight: 700; background: linear-gradient(135deg, #10b981, #059669);" disabled>
+                <button id="applySilenceCutBtn" class="btn btn-primary" style="flex: 1.2; padding: 10px; font-weight: 700; background: var(--positive);" disabled>
                   ✂️ Sessizlikleri Kes & Birleştir
                 </button>
               </div>
@@ -121,12 +121,12 @@ export class SmartToolsModal {
 
             <!-- 3. AUTOTUNE PANEL -->
             <div id="stAutotunePanel" class="st-panel" style="display: none;">
-              <h4 style="margin: 0 0 14px 0; font-size: 0.95rem; color: #fff;">Akıllı Pitch Correction & Auto-Tune</h4>
+              <h4 style="margin: 0 0 14px 0; font-size: 0.95rem; color: var(--text);">Akıllı Pitch Correction & Auto-Tune</h4>
 
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-                <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);">
-                  <label style="font-size: 0.78rem; color: #94a3b8; display: block; margin-bottom: 4px;">Kök Nota (Root Key)</label>
-                  <select id="autotuneRootSelect" class="form-input" style="width: 100%; padding: 6px 10px; font-size: 0.85rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); color: #fff; border-radius: 6px;">
+                <div style="background: var(--hover); padding: 12px; border-radius: 8px; border: 1px solid var(--line);">
+                  <label style="font-size: 0.78rem; color: var(--muted); display: block; margin-bottom: 4px;">Kök Nota (Root Key)</label>
+                  <select id="autotuneRootSelect" class="form-input" style="width: 100%; padding: 6px 10px; font-size: 0.85rem; background: var(--inset); border: 1px solid var(--line); color: var(--text); border-radius: 6px;">
                     <option value="C">C (Do)</option>
                     <option value="C#">C# / Db</option>
                     <option value="D">D (Re)</option>
@@ -141,9 +141,9 @@ export class SmartToolsModal {
                     <option value="B">B (Si)</option>
                   </select>
                 </div>
-                <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);">
-                  <label style="font-size: 0.78rem; color: #94a3b8; display: block; margin-bottom: 4px;">Müzikal Gam (Scale)</label>
-                  <select id="autotuneScaleSelect" class="form-input" style="width: 100%; padding: 6px 10px; font-size: 0.85rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); color: #fff; border-radius: 6px;">
+                <div style="background: var(--hover); padding: 12px; border-radius: 8px; border: 1px solid var(--line);">
+                  <label style="font-size: 0.78rem; color: var(--muted); display: block; margin-bottom: 4px;">Müzikal Gam (Scale)</label>
+                  <select id="autotuneScaleSelect" class="form-input" style="width: 100%; padding: 6px 10px; font-size: 0.85rem; background: var(--inset); border: 1px solid var(--line); color: var(--text); border-radius: 6px;">
                     <option value="minor" selected>Doğal Minör (Minor)</option>
                     <option value="major">Majör (Major)</option>
                     <option value="pentatonicMinor">Pentatonik Minör</option>
@@ -155,20 +155,20 @@ export class SmartToolsModal {
               </div>
 
               <!-- Speed preset -->
-              <div style="background: rgba(255,255,255,0.03); padding: 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 20px;">
+              <div style="background: var(--hover); padding: 16px; border-radius: 8px; border: 1px solid var(--line); margin-bottom: 20px;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                  <span style="font-size: 0.85rem; color: #e2e8f0; font-weight: 600;">Düzeltme Hızı & Karakteri</span>
-                  <span id="autotuneSpeedDisplay" style="font-size: 0.85rem; color: #a855f7; font-weight: 700;">Modern Pop (25ms)</span>
+                  <span style="font-size: 0.85rem; color: var(--text); font-weight: 600;">Düzeltme Hızı & Karakteri</span>
+                  <span id="autotuneSpeedDisplay" style="font-size: 0.85rem; color: var(--accent-text); font-weight: 700;">Modern Pop (25ms)</span>
                 </div>
                 <input type="range" id="autotuneSpeedSlider" min="0" max="80" step="5" value="25" class="studio-slider" style="width: 100%;" />
-                <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #64748b; margin-top: 4px;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--muted); margin-top: 4px;">
                   <span>🤖 Robot / T-Pain (0ms)</span>
                   <span>⚡ Modern Pop (25ms)</span>
                   <span>🍃 Doğal Akustik (80ms)</span>
                 </div>
               </div>
 
-              <button id="applyAutotuneBtn" class="btn btn-primary" style="width: 100%; padding: 12px; font-weight: 700; background: linear-gradient(135deg, #a855f7, #6366f1);">
+              <button id="applyAutotuneBtn" class="btn btn-primary" style="width: 100%; padding: 12px; font-weight: 700; background: var(--accent);">
                 🎤 Auto-Tune Uygula
               </button>
             </div>
@@ -197,13 +197,13 @@ export class SmartToolsModal {
     tabBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         tabBtns.forEach(b => {
-          b.style.border = '1px solid rgba(255,255,255,0.1)';
-          b.style.background = 'rgba(255,255,255,0.04)';
-          b.style.color = '#ccc';
+          b.style.border = '1px solid var(--line)';
+          b.style.background = 'var(--hover)';
+          b.style.color = 'var(--muted)';
         });
-        btn.style.border = '1px solid #00f2fe';
-        btn.style.background = 'rgba(0, 242, 254, 0.15)';
-        btn.style.color = '#fff';
+        btn.style.border = '1px solid var(--accent)';
+        btn.style.background = 'var(--accent-soft)';
+        btn.style.color = 'var(--text)';
 
         const tab = btn.dataset.tab;
         Object.keys(panels).forEach(p => {

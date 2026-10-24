@@ -110,10 +110,10 @@ export class ServerModal {
           <div class="server-status-banner ${isOk ? 'status-ok' : 'status-err'}">
             <div class="status-indicator-circle ${isOk ? 'pulse-green' : 'pulse-red'}"></div>
             <div style="flex: 1;">
-              <div style="font-weight: 700; font-size: 0.95rem; color: #fff;">
+              <div style="font-weight: 700; font-size: 0.95rem; color: var(--text);">
                 ${isOk ? 'Sunucu Bağlantısı Aktif' : 'Sunucu Çevrimdışı / Erişilemiyor'}
               </div>
-              <div style="font-size: 0.82rem; color: #94a3b8; margin-top: 2px;">
+              <div style="font-size: 0.82rem; color: var(--muted); margin-top: 2px;">
                 ${isOk 
                   ? `Sunucu yanıt verdi (${this.healthStatus.latency} ms).` 
                   : (this.healthStatus?.error ? `Hata: ${this.healthStatus.error}` : 'Henüz sunucuya bağlanılamadı.')
@@ -129,7 +129,7 @@ export class ServerModal {
           <div class="form-group">
             <label style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px;">
               <span>Sunucu Adresi (Backend URL)</span>
-              <span style="font-size: 0.75rem; color: #64748b;">(Örn: https://xxx.trycloudflare.com veya http://localhost:3000)</span>
+              <span style="font-size: 0.75rem; color: var(--muted);">(Örn: https://xxx.trycloudflare.com veya http://localhost:3000)</span>
             </label>
             <div style="display: flex; gap: 8px;">
               <input 

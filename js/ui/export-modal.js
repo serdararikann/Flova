@@ -187,10 +187,10 @@ export class ExportModal {
           <!-- Custom File Name Input -->
           <div class="option-group">
             <label class="option-label">Dosya Adı</label>
-            <div style="display: flex; align-items: center; background: rgba(0,0,0,0.45); border: 1px solid var(--border-glass); border-radius: var(--radius-sm); padding: 7px 12px;">
+            <div style="display: flex; align-items: center; background: var(--inset); border: 1px solid var(--border-glass); border-radius: var(--radius-sm); padding: 7px 12px;">
               <input type="text" id="exportFileNameInput" value="Flova_Audio_edit" 
                 placeholder="Dosya adını yazın..." 
-                style="width: 100%; background: transparent; border: none; outline: none; color: #fff; font-family: var(--font-sans); font-size: 0.95rem; font-weight: 600;" />
+                style="width: 100%; background: transparent; border: none; outline: none; color: var(--text); font-family: var(--font-sans); font-size: 0.95rem; font-weight: 600;" />
               <span id="exportExtLabel" style="color: var(--accent-cyan); font-family: var(--font-mono); font-weight: 700; font-size: 0.88rem; margin-left: 6px;">.wav</span>
             </div>
           </div>
@@ -228,7 +228,7 @@ export class ExportModal {
           <!-- WAV Settings -->
           <div class="option-group" id="wavSettingsGroup">
             <label class="option-label">WAV Bit Derinliği</label>
-            <select id="wavBitDepthSelect" style="background: rgba(0,0,0,0.4); border: 1px solid var(--border-glass); color: #fff; padding: 8px 12px; border-radius: var(--radius-sm); outline: none;">
+            <select id="wavBitDepthSelect" style="background: var(--inset); border: 1px solid var(--border-glass); color: var(--text); padding: 8px 12px; border-radius: var(--radius-sm); outline: none;">
               <option value="16" selected>16-bit PCM (CD Kalitesi - Standart)</option>
               <option value="24">24-bit PCM (Stüdyo Master)</option>
               <option value="32">32-bit Float (Yüksek Dinamik Aralık)</option>
@@ -238,7 +238,7 @@ export class ExportModal {
           <!-- MP3 Settings -->
           <div class="option-group" id="mp3SettingsGroup" style="display: none;">
             <label class="option-label">MP3 Kalitesi (Bitrate)</label>
-            <select id="mp3BitrateSelect" style="background: rgba(0,0,0,0.4); border: 1px solid var(--border-glass); color: #fff; padding: 8px 12px; border-radius: var(--radius-sm); outline: none;">
+            <select id="mp3BitrateSelect" style="background: var(--inset); border: 1px solid var(--border-glass); color: var(--text); padding: 8px 12px; border-radius: var(--radius-sm); outline: none;">
               <option value="320" selected>320 kbps (En Yüksek Kalite)</option>
               <option value="192">192 kbps (Yüksek Kalite)</option>
               <option value="128">128 kbps (Standart / Küçük Boyut)</option>

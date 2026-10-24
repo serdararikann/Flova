@@ -29,25 +29,25 @@ export class LyricsModal {
     }
 
     container.innerHTML = `
-      <div id="lyricsModalBackdrop" class="modal-backdrop" style="display: none; position: fixed; inset: 0; background: rgba(0, 4, 15, 0.9); backdrop-filter: blur(14px); z-index: 10000; justify-content: center; align-items: center; padding: 20px;">
-        <div class="glass-card lyrics-dialog" style="width: 100%; max-width: 900px; max-height: 94vh; display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(168, 85, 247, 0.35); box-shadow: 0 25px 70px rgba(0, 0, 0, 0.8), 0 0 40px rgba(168, 85, 247, 0.2);">
+      <div id="lyricsModalBackdrop" class="modal-backdrop" style="display: none; position: fixed; inset: 0; background: var(--inset); backdrop-filter: none; z-index: 10000; justify-content: center; align-items: center; padding: 20px;">
+        <div class="glass-card lyrics-dialog" style="width: 100%; max-width: 900px; max-height: 94vh; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line); box-shadow: none;">
           
           <!-- Header -->
-          <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); background: rgba(168, 85, 247, 0.04);">
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid var(--line); background: var(--accent-soft);">
             <div style="display: flex; align-items: center; gap: 12px;">
-              <span style="font-size: 1.5rem; background: linear-gradient(135deg, #a855f7, #00f2fe); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">🎙️</span>
+              <span style="font-size: 1.5rem; background: var(--accent); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">🎙️</span>
               <div>
-                <h3 style="margin: 0; font-size: 1.18rem; font-weight: 700; color: #fff; letter-spacing: -0.01em;">AI Şarkı Sözü & Canlı Karaoke Stüdyosu</h3>
+                <h3 style="margin: 0; font-size: 1.18rem; font-weight: 700; color: var(--text); letter-spacing: -0.01em;">AI Şarkı Sözü & Canlı Karaoke Stüdyosu</h3>
               </div>
             </div>
             
             <!-- Mode Switcher & Close -->
             <div style="display: flex; align-items: center; gap: 10px;">
-              <div style="display: flex; background: rgba(0,0,0,0.4); padding: 3px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
-                <button id="lyricsModeEditorBtn" class="btn btn-sm" style="padding: 4px 10px; font-size: 0.78rem; border-radius: 6px; font-weight: 700; background: #a855f7; color: #fff; border: none; cursor: pointer;">
+              <div style="display: flex; background: var(--inset); padding: 3px; border-radius: 8px; border: 1px solid var(--line);">
+                <button id="lyricsModeEditorBtn" class="btn btn-sm" style="padding: 4px 10px; font-size: 0.78rem; border-radius: 6px; font-weight: 700; background: var(--accent); color: var(--on-accent); border: none; cursor: pointer;">
                   📝 Düzenleyici
                 </button>
-                <button id="lyricsModeStageBtn" class="btn btn-sm" style="padding: 4px 10px; font-size: 0.78rem; border-radius: 6px; font-weight: 700; background: transparent; color: #94a3b8; border: none; cursor: pointer;">
+                <button id="lyricsModeStageBtn" class="btn btn-sm" style="padding: 4px 10px; font-size: 0.78rem; border-radius: 6px; font-weight: 700; background: transparent; color: var(--muted); border: none; cursor: pointer;">
                   🎤 Karaoke Sahnesi
                 </button>
               </div>
@@ -59,16 +59,16 @@ export class LyricsModal {
           <div style="display: flex; flex-direction: column; flex: 1; overflow-y: auto; padding: 18px 22px; gap: 12px;">
             
             <!-- Controls bar -->
-            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255, 255, 255, 0.03); padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.07); flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; background: var(--hover); padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); flex-wrap: wrap; gap: 8px;">
               
               <!-- Transcribe Action & Options -->
               <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                <button id="startTranscribeBtn" class="btn btn-primary btn-sm" style="display: flex; align-items: center; gap: 7px; background: linear-gradient(135deg, #a855f7, #6366f1); font-weight: 700; padding: 7px 15px; box-shadow: 0 4px 15px rgba(168, 85, 247, 0.35);">
+                <button id="startTranscribeBtn" class="btn btn-primary btn-sm" style="display: flex; align-items: center; gap: 7px; background: var(--accent); font-weight: 700; padding: 7px 15px; box-shadow: none;">
                   <span>✨ AI ile Sözleri Çıkar</span>
                 </button>
 
                 <!-- Language -->
-                <select id="lyricsLanguageSelect" class="form-input" style="padding: 6px 10px; font-size: 0.8rem; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.18); color: #fff; border-radius: 6px; font-weight: 600;">
+                <select id="lyricsLanguageSelect" class="form-input" style="padding: 6px 10px; font-size: 0.8rem; background: var(--inset); border: 1px solid var(--line); color: var(--text); border-radius: 6px; font-weight: 600;">
                   <option value="tr-TR" selected>🇹🇷 Türkçe</option>
                   <option value="en-US">🇬🇧 İngilizce</option>
                   <option value="de-DE">🇩🇪 Almanca</option>
@@ -79,20 +79,20 @@ export class LyricsModal {
                 </select>
 
                 <!-- Model Selector -->
-                <select id="lyricsModelSelect" class="form-input" style="padding: 6px 10px; font-size: 0.8rem; background: rgba(0,0,0,0.5); border: 1px solid rgba(168, 85, 247, 0.4); color: #c084fc; border-radius: 6px; font-weight: 700;" title="Yapay zeka modeli kalitesi">
+                <select id="lyricsModelSelect" class="form-input" style="padding: 6px 10px; font-size: 0.8rem; background: var(--inset); border: 1px solid var(--line); color: var(--accent-text); border-radius: 6px; font-weight: 700;" title="Yapay zeka modeli kalitesi">
                   <option value="small" selected>⚡ Whisper Pro (Önerilen)</option>
                   <option value="medium">🎯 Whisper Medium (Stüdyo Kalitesi)</option>
                   <option value="base">🚀 Whisper Base (Ultra Hızlı)</option>
                 </select>
 
                 <!-- Demucs AI Neural Vocal Separation Checkbox (Optional) -->
-                <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.76rem; font-weight: 600; color: #c084fc; background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); padding: 5px 9px; border-radius: 6px; cursor: pointer; user-select: none;" title="Demucs U-Net sinir ağı ile tüm enstrümanları izole eder. CPU üzerinde parçanın uzunluğuna göre 2-3 dakika sürebilir. Hızlı analiz için kapalı tutunuz.">
-                  <input type="checkbox" id="lyricsAutoVocalAiCheck" style="accent-color: #a855f7; cursor: pointer;">
+                <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.76rem; font-weight: 600; color: var(--accent-text); background: var(--accent-soft); border: 1px solid var(--line); padding: 5px 9px; border-radius: 6px; cursor: pointer; user-select: none;" title="Demucs U-Net sinir ağı ile tüm enstrümanları izole eder. CPU üzerinde parçanın uzunluğuna göre 2-3 dakika sürebilir. Hızlı analiz için kapalı tutunuz.">
+                  <input type="checkbox" id="lyricsAutoVocalAiCheck" style="accent-color: var(--accent); cursor: pointer;">
                   🤖 Demucs Derin Vokal Ayrıştırma
                 </label>
 
                 <!-- Vocal Source Badge / Switcher -->
-                <span id="vocalSourceBadge" style="font-size: 0.74rem; font-weight: 700; padding: 4px 8px; border-radius: 6px; background: rgba(0, 242, 254, 0.12); border: 1px solid rgba(0, 242, 254, 0.3); color: #00f2fe; display: none;">
+                <span id="vocalSourceBadge" style="font-size: 0.74rem; font-weight: 700; padding: 4px 8px; border-radius: 6px; background: var(--accent-soft); border: 1px solid var(--line); color: var(--accent-text); display: none;">
                   🎙️ Temiz Vokal
                 </span>
 
@@ -119,18 +119,18 @@ export class LyricsModal {
             </div>
 
             <!-- Progress Bar / Status Row -->
-            <div id="lyricsProgressBox" style="display: none; background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 8px; padding: 10px 14px; align-items: center; gap: 12px;">
-              <div class="loading-spinner" style="border-top-color: #a855f7; width: 16px; height: 16px; flex-shrink: 0;"></div>
-              <span id="lyricsProgressText" style="font-size: 0.82rem; color: #e2e8f0; font-weight: 600;">Şarkı sözleri analiz ediliyor...</span>
+            <div id="lyricsProgressBox" style="display: none; background: var(--accent-soft); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; align-items: center; gap: 12px;">
+              <div class="loading-spinner" style="border-top-color: var(--accent); width: 16px; height: 16px; flex-shrink: 0;"></div>
+              <span id="lyricsProgressText" style="font-size: 0.82rem; color: var(--text); font-weight: 600;">Şarkı sözleri analiz ediliyor...</span>
             </div>
 
             <!-- 1. EDITOR VIEW (List of editable lines with time adjustments) -->
             <div id="lyricsEditorView" style="display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 320px;">
               
               <!-- Secondary Tools Bar (Offset Shift, Find & Replace, Capitalize, Clear) -->
-              <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255, 255, 255, 0.02); padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.06); font-size: 0.76rem; flex-wrap: wrap; gap: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; background: var(--hover); padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line); font-size: 0.76rem; flex-wrap: wrap; gap: 8px;">
                 <div style="display: flex; gap: 4px; align-items: center;">
-                  <span style="color: var(--text-muted, #94a3b8); font-weight: 600;">⏱️ Tümünü Kaydır:</span>
+                  <span style="color: var(--text-muted, var(--muted)); font-weight: 600;">⏱️ Tümünü Kaydır:</span>
                   <button id="shiftAllBack05Btn" class="btn btn-secondary btn-sm" style="padding: 2px 7px; font-size: 0.72rem;" title="Tüm satırları 0.5s geriye al">-0.5s</button>
                   <button id="shiftAllBack02Btn" class="btn btn-secondary btn-sm" style="padding: 2px 7px; font-size: 0.72rem;" title="Tüm satırları 0.2s geriye al">-0.2s</button>
                   <button id="shiftAllFwd02Btn" class="btn btn-secondary btn-sm" style="padding: 2px 7px; font-size: 0.72rem;" title="Tüm satırları 0.2s ileriye al">+0.2s</button>
@@ -144,26 +144,26 @@ export class LyricsModal {
                   <button id="formatLyricsBtn" class="btn btn-secondary btn-sm" style="padding: 3px 9px; font-size: 0.74rem;" title="Her satırın ilk harfini büyüt ve noktalama işaretlerini düzenle">
                     ✨ Yazım Düzelt
                   </button>
-                  <button id="clearAllLyricsBtn" class="btn btn-secondary btn-sm" style="padding: 3px 9px; font-size: 0.74rem; color: #f87171;" title="Tüm satırları sil">
+                  <button id="clearAllLyricsBtn" class="btn btn-secondary btn-sm" style="padding: 3px 9px; font-size: 0.74rem; color: var(--danger);" title="Tüm satırları sil">
                     🗑️ Temizle
                   </button>
                 </div>
               </div>
 
               <!-- Inline Find & Replace Panel (Hidden by default) -->
-              <div id="findReplacePanel" style="display: none; gap: 8px; align-items: center; background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.3); padding: 8px 12px; border-radius: 6px;">
-                <input type="text" id="findInput" placeholder="Aranacak kelime..." class="form-input" style="flex: 1; padding: 4px 8px; font-size: 0.8rem; background: rgba(0,0,0,0.5);" />
-                <span style="color: #c084fc; font-weight: 700;">➔</span>
-                <input type="text" id="replaceInput" placeholder="Yeni kelime..." class="form-input" style="flex: 1; padding: 4px 8px; font-size: 0.8rem; background: rgba(0,0,0,0.5);" />
+              <div id="findReplacePanel" style="display: none; gap: 8px; align-items: center; background: var(--accent-soft); border: 1px solid var(--line); padding: 8px 12px; border-radius: 6px;">
+                <input type="text" id="findInput" placeholder="Aranacak kelime..." class="form-input" style="flex: 1; padding: 4px 8px; font-size: 0.8rem; background: var(--inset);" />
+                <span style="color: var(--accent-text); font-weight: 700;">➔</span>
+                <input type="text" id="replaceInput" placeholder="Yeni kelime..." class="form-input" style="flex: 1; padding: 4px 8px; font-size: 0.8rem; background: var(--inset);" />
                 <button id="executeReplaceBtn" class="btn btn-primary btn-sm" style="padding: 4px 12px; font-size: 0.76rem; font-weight: 700;">Değiştir</button>
                 <button id="closeFindReplaceBtn" class="btn btn-secondary btn-sm" style="padding: 2px 7px;">✕</button>
               </div>
 
               <!-- Synchronized Lines Container -->
-              <div id="lyricsLinesContainer" style="flex: 1; max-height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 10px; background: rgba(0, 0, 0, 0.35); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05);">
-                <div id="lyricsEmptyState" style="margin: auto; text-align: center; color: var(--text-muted, #94a3b8); padding: 40px 20px;">
+              <div id="lyricsLinesContainer" style="flex: 1; max-height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 10px; background: var(--inset); border-radius: 8px; border: 1px solid var(--line);">
+                <div id="lyricsEmptyState" style="margin: auto; text-align: center; color: var(--text-muted, var(--muted)); padding: 40px 20px;">
                   <div style="font-size: 2.4rem; margin-bottom: 10px; opacity: 0.6;">📝</div>
-                  <div style="font-weight: 700; color: #e2e8f0; font-size: 0.95rem; margin-bottom: 4px;">Henüz şarkı sözü bulunmuyor</div>
+                  <div style="font-weight: 700; color: var(--text); font-size: 0.95rem; margin-bottom: 4px;">Henüz şarkı sözü bulunmuyor</div>
                   <div style="font-size: 0.82rem; max-width: 440px; margin: 0 auto; line-height: 1.4;">
                     Yukarıdaki <strong>"✨ AI ile Sözleri Çıkar"</strong> butonuna tıklayarak vokali otomatik yazıya dökün veya <strong>"📋 Söz Yapıştır"</strong> ile hazır sözleri aktarın.
                   </div>
@@ -171,8 +171,8 @@ export class LyricsModal {
               </div>
 
               <!-- Manual Add Line Row -->
-              <div style="display: flex; gap: 8px; align-items: center; background: rgba(255, 255, 255, 0.02); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05);">
-                <input type="text" id="manualLyricInput" placeholder="Şu anki konuma yeni söz satırı yazın..." class="form-input" style="flex: 1; padding: 8px 12px; font-size: 0.85rem; border-radius: 6px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.12); color: #fff;" />
+              <div style="display: flex; gap: 8px; align-items: center; background: var(--hover); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line);">
+                <input type="text" id="manualLyricInput" placeholder="Şu anki konuma yeni söz satırı yazın..." class="form-input" style="flex: 1; padding: 8px 12px; font-size: 0.85rem; border-radius: 6px; background: var(--inset); border: 1px solid var(--line); color: var(--text);" />
                 <button id="addManualLyricBtn" class="btn btn-secondary btn-sm" style="font-weight: 600; padding: 7px 14px;" title="Şu anki çalma zamanına yeni satır ekle">
                   ➕ Geçerli Zamana Ekle
                 </button>
@@ -181,22 +181,22 @@ export class LyricsModal {
             </div>
 
             <!-- 2. KARAOKE STAGE VIEW (Apple Music / Spotify Style Live Prompter) -->
-            <div id="lyricsStageView" style="display: none; flex-direction: column; align-items: center; justify-content: center; flex: 1; min-height: 380px; max-height: 480px; background: radial-gradient(circle at center, rgba(168, 85, 247, 0.12) 0%, rgba(0, 0, 0, 0.7) 80%); border-radius: 12px; border: 1px solid rgba(168, 85, 247, 0.25); overflow-y: auto; padding: 30px 20px; position: relative;">
+            <div id="lyricsStageView" style="display: none; flex-direction: column; align-items: center; justify-content: center; flex: 1; min-height: 380px; max-height: 480px; background: var(--accent-soft); border-radius: 12px; border: 1px solid var(--line); overflow-y: auto; padding: 30px 20px; position: relative;">
               <div id="lyricsStageContainer" style="display: flex; flex-direction: column; gap: 24px; text-align: center; width: 100%; max-width: 680px; padding: 60px 0;">
                 <!-- Teleprompter lines injected here -->
               </div>
             </div>
 
             <!-- 3. BULK PASTE POPOVER/PANEL (Hidden by default) -->
-            <div id="bulkPastePanel" style="display: none; flex-direction: column; gap: 10px; background: rgba(16, 20, 36, 0.95); border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 10px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.7);">
+            <div id="bulkPastePanel" style="display: none; flex-direction: column; gap: 10px; background: var(--inset); border: 1px solid var(--line); border-radius: 10px; padding: 16px; box-shadow: none;">
               <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 700; font-size: 0.9rem; color: #fff;">📋 Şarkı Sözlerini Toplu Yapıştır</span>
+                <span style="font-weight: 700; font-size: 0.9rem; color: var(--text);">📋 Şarkı Sözlerini Toplu Yapıştır</span>
                 <button id="closeBulkPasteBtn" class="btn btn-secondary btn-sm" style="padding: 2px 8px;">✕</button>
               </div>
-              <textarea id="bulkPasteTextarea" rows="8" placeholder="Şarkı sözlerini buraya satır satır yapıştırın (Her satır ayrı bir söz cümlesi olacaktır)..." style="width: 100%; padding: 10px; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; font-size: 0.85rem; font-family: inherit; resize: vertical;"></textarea>
+              <textarea id="bulkPasteTextarea" rows="8" placeholder="Şarkı sözlerini buraya satır satır yapıştırın (Her satır ayrı bir söz cümlesi olacaktır)..." style="width: 100%; padding: 10px; background: var(--inset); border: 1px solid var(--line); border-radius: 6px; color: var(--text); font-size: 0.85rem; font-family: inherit; resize: vertical;"></textarea>
               <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 0.75rem; color: #94a3b8;">Satırlar şarkının uzunluğuna ve vokal ritmine otomatik paylaştırılacaktır.</span>
-                <button id="applyBulkPasteBtn" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #a855f7, #6366f1); font-weight: 700;">
+                <span style="font-size: 0.75rem; color: var(--muted);">Satırlar şarkının uzunluğuna ve vokal ritmine otomatik paylaştırılacaktır.</span>
+                <button id="applyBulkPasteBtn" class="btn btn-primary btn-sm" style="background: var(--accent); font-weight: 700;">
                   ⚡ Şarkıya Senkronize Et
                 </button>
               </div>
@@ -205,8 +205,8 @@ export class LyricsModal {
           </div>
 
           <!-- Footer -->
-          <div style="padding: 12px 24px; border-top: 1px solid rgba(255, 255, 255, 0.08); display: flex; justify-content: space-between; align-items: center; background: rgba(0, 0, 0, 0.35);">
-            <div style="font-size: 0.78rem; color: var(--text-muted, #94a3b8); display: flex; align-items: center; gap: 8px;">
+          <div style="padding: 12px 24px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; background: var(--inset);">
+            <div style="font-size: 0.78rem; color: var(--text-muted, var(--muted)); display: flex; align-items: center; gap: 8px;">
               <span>💡 Satırlara tıklayarak o saniyeye atlayabilir, <strong>⏱️</strong> butonuyla çalma konumuna eşitleyebilir veya <strong>±0.2s</strong> ile ince ayar yapabilirsiniz.</span>
             </div>
             <button id="closeLyricsFooterBtn" class="btn btn-secondary">Kapat</button>
@@ -232,10 +232,10 @@ export class LyricsModal {
 
     editorBtn?.addEventListener('click', () => {
       this.viewMode = 'editor';
-      editorBtn.style.background = '#a855f7';
-      editorBtn.style.color = '#fff';
+      editorBtn.style.background = 'var(--accent)';
+      editorBtn.style.color = 'var(--text)';
       stageBtn.style.background = 'transparent';
-      stageBtn.style.color = '#94a3b8';
+      stageBtn.style.color = 'var(--muted)';
       if (editorView) editorView.style.display = 'flex';
       if (stageView) stageView.style.display = 'none';
       this._renderLines();
@@ -243,10 +243,10 @@ export class LyricsModal {
 
     stageBtn?.addEventListener('click', () => {
       this.viewMode = 'stage';
-      stageBtn.style.background = '#a855f7';
-      stageBtn.style.color = '#fff';
+      stageBtn.style.background = 'var(--accent)';
+      stageBtn.style.color = 'var(--text)';
       editorBtn.style.background = 'transparent';
-      editorBtn.style.color = '#94a3b8';
+      editorBtn.style.color = 'var(--muted)';
       if (editorView) editorView.style.display = 'none';
       if (stageView) stageView.style.display = 'flex';
       this._renderStage();
@@ -571,9 +571,9 @@ export class LyricsModal {
 
     if (this.lines.length === 0) {
       container.innerHTML = `
-        <div id="lyricsEmptyState" style="margin: auto; text-align: center; color: var(--text-muted, #94a3b8); padding: 40px 20px;">
+        <div id="lyricsEmptyState" style="margin: auto; text-align: center; color: var(--text-muted, var(--muted)); padding: 40px 20px;">
           <div style="font-size: 2.4rem; margin-bottom: 10px; opacity: 0.6;">📝</div>
-          <div style="font-weight: 700; color: #e2e8f0; font-size: 0.95rem; margin-bottom: 4px;">Henüz şarkı sözü bulunmuyor</div>
+          <div style="font-weight: 700; color: var(--text); font-size: 0.95rem; margin-bottom: 4px;">Henüz şarkı sözü bulunmuyor</div>
           <div style="font-size: 0.82rem; max-width: 440px; margin: 0 auto; line-height: 1.4;">
             Yukarıdaki <strong>"✨ AI ile Sözleri Çıkar"</strong> butonuna tıklayarak vokali otomatik yazıya dökün veya <strong>"📋 Söz Yapıştır"</strong> ile hazır sözleri aktarın.
           </div>
@@ -589,7 +589,7 @@ export class LyricsModal {
       row.id = `lyricRow_${idx}`;
       row.style.cssText = `
         display: flex; align-items: center; gap: 10px; padding: 8px 12px;
-        background: rgba(255, 255, 255, 0.03); border-radius: 6px;
+        background: var(--hover); border-radius: 6px;
         border-left: 3px solid transparent; transition: all 0.2s ease; cursor: pointer;
       `;
 
@@ -600,7 +600,7 @@ export class LyricsModal {
 
       row.innerHTML = `
         <!-- Time Badge -->
-        <span class="lyric-time-badge" style="font-family: var(--font-mono, monospace); font-size: 0.78rem; color: #c084fc; font-weight: 700; min-width: 60px; user-select: none;">
+        <span class="lyric-time-badge" style="font-family: var(--font-mono, monospace); font-size: 0.78rem; color: var(--accent-text); font-weight: 700; min-width: 60px; user-select: none;">
           ${timeStr}
         </span>
 
@@ -618,7 +618,7 @@ export class LyricsModal {
         </div>
 
         <!-- Editable Lyric Text -->
-        <input type="text" value="${line.text.replace(/"/g, '&quot;')}" class="form-input" style="flex: 1; padding: 4px 8px; font-size: 0.88rem; background: transparent; border: 1px solid transparent; color: #fff; border-radius: 4px;" />
+        <input type="text" value="${line.text.replace(/"/g, '&quot;')}" class="form-input" style="flex: 1; padding: 4px 8px; font-size: 0.88rem; background: transparent; border: 1px solid transparent; color: var(--text); border-radius: 4px;" />
 
         <!-- Delete Line -->
         <button class="btn btn-secondary btn-sm delete-lyric-btn" data-idx="${idx}" style="padding: 2px 6px; font-size: 0.75rem; opacity: 0.6;" title="Satırı sil">
@@ -661,8 +661,8 @@ export class LyricsModal {
       // Update text on input
       const inputEl = row.querySelector('input');
       inputEl.addEventListener('focus', () => {
-        inputEl.style.borderColor = 'rgba(168, 85, 247, 0.4)';
-        inputEl.style.background = 'rgba(0,0,0,0.4)';
+        inputEl.style.borderColor = 'var(--line)';
+        inputEl.style.background = 'var(--inset)';
       });
       inputEl.addEventListener('blur', () => {
         inputEl.style.borderColor = 'transparent';
@@ -689,7 +689,7 @@ export class LyricsModal {
 
     if (this.lines.length === 0) {
       stageContainer.innerHTML = `
-        <div style="color: #94a3b8; font-size: 1.1rem; padding: 40px 0;">
+        <div style="color: var(--muted); font-size: 1.1rem; padding: 40px 0;">
           Henüz şarkı sözü bulunmuyor.<br><span style="font-size: 0.85rem; opacity: 0.7;">"Düzenleyici" sekmesine geçerek sözleri çıkarın veya ekleyin.</span>
         </div>
       `;
@@ -701,7 +701,7 @@ export class LyricsModal {
       const lineEl = document.createElement('div');
       lineEl.id = `stageLine_${idx}`;
       lineEl.style.cssText = `
-        font-size: 1.35rem; font-weight: 700; color: rgba(255, 255, 255, 0.35);
+        font-size: 1.35rem; font-weight: 700; color: var(--text);
         transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1); cursor: pointer;
         padding: 8px 16px; border-radius: 8px; line-height: 1.4;
       `;
@@ -740,11 +740,11 @@ export class LyricsModal {
             const row = document.getElementById(`lyricRow_${idx}`);
             if (row) {
               if (idx === activeIdx) {
-                row.style.background = 'rgba(168, 85, 247, 0.22)';
-                row.style.borderLeft = '3px solid #a855f7';
+                row.style.background = 'var(--accent-soft)';
+                row.style.borderLeft = '3px solid var(--accent)';
                 row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
               } else {
-                row.style.background = 'rgba(255, 255, 255, 0.03)';
+                row.style.background = 'var(--hover)';
                 row.style.borderLeft = '3px solid transparent';
               }
             }
@@ -757,20 +757,20 @@ export class LyricsModal {
             const el = document.getElementById(`stageLine_${idx}`);
             if (el) {
               if (idx === activeIdx) {
-                el.style.color = '#ffffff';
+                el.style.color = 'var(--text)';
                 el.style.fontSize = '1.85rem';
                 el.style.transform = 'scale(1.08)';
-                el.style.textShadow = '0 0 30px rgba(168, 85, 247, 0.9), 0 0 10px rgba(0, 242, 254, 0.6)';
-                el.style.background = 'rgba(168, 85, 247, 0.15)';
+                el.style.textShadow = 'none';
+                el.style.background = 'var(--accent-soft)';
                 el.scrollIntoView({ behavior: 'smooth', block: 'center' });
               } else if (idx === activeIdx + 1) {
-                el.style.color = 'rgba(255, 255, 255, 0.65)';
+                el.style.color = 'var(--text)';
                 el.style.fontSize = '1.35rem';
                 el.style.transform = 'scale(1.0)';
                 el.style.textShadow = 'none';
                 el.style.background = 'transparent';
               } else {
-                el.style.color = 'rgba(255, 255, 255, 0.25)';
+                el.style.color = 'var(--text)';
                 el.style.fontSize = '1.25rem';
                 el.style.transform = 'scale(0.96)';
                 el.style.textShadow = 'none';

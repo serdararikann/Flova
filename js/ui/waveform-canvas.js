@@ -4,6 +4,8 @@
    Robust Canvas Peak Rendering with Safe Fallbacks
    ==================================================================== */
 
+import { themeColors, onThemeChange, withAlpha, SANS_FONT } from './theme-colors.js';
+
 export class WaveformCanvas {
   constructor(canvasElement, overlayCanvas, options = {}) {
     this.canvas = canvasElement;
@@ -26,17 +28,6 @@ export class WaveformCanvas {
     this.width = 800;
     this.height = 580;
 
-    // Styling
-    this.colors = {
-      bg: '#070912',
-      waveGradTop: '#38bdf8',
-      waveGradBottom: '#6366f1',
-      centerLine: 'rgba(255, 255, 255, 0.08)',
-      playhead: '#f43f5e',
-      regionBg: 'rgba(99, 102, 241, 0.22)',
-      regionBorder: '#818cf8',
-      handle: '#ffffff'
-    };
 
     // Zoom & Horizontal Navigation
     this.zoomLevel = 1.0;
@@ -65,6 +56,7 @@ export class WaveformCanvas {
     }
     this.resize();
     window.addEventListener('resize', () => this.resize());
+    onThemeChange(() => { this.paintBars(); this.drawOverlay(); });
   }
 
   get visibleDuration() {
@@ -205,10 +197,7 @@ export class WaveformCanvas {
     const h = this.height;
 
     ctx.clearRect(0, 0, w, h);
-
-    // Background
-    ctx.fillStyle = this.colors.bg;
-    ctx.fillRect(0, 0, w, h);
+    this.bars = null;
 
     if (!this.audioBuffer) {
       this.drawPlaceholderGrid(ctx, w, h);
@@ -222,23 +211,7 @@ export class WaveformCanvas {
     const centerY = h / 2;
     const amp = h * 0.44;
 
-    // Draw center guideline
-    ctx.strokeStyle = this.colors.centerLine;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, centerY);
-    ctx.lineTo(w, centerY);
-    ctx.stroke();
-
-    // Waveform gradient
-    const gradient = ctx.createLinearGradient(0, centerY - amp, 0, centerY + amp);
-    gradient.addColorStop(0, this.colors.waveGradTop);
-    gradient.addColorStop(0.5, '#ffffff');
-    gradient.addColorStop(1, this.colors.waveGradBottom);
-
-    ctx.fillStyle = gradient;
-
-    // Step calculation: Draw crisp peak bars for visible window
+    // Peak bars of the visible window, kept so playback and selection only repaint them
     const visDur = this.visibleDuration;
     const sampleRate = this.audioBuffer.sampleRate || 44100;
     const startSample = Math.max(0, Math.floor(this.scrollTime * sampleRate));
@@ -246,8 +219,9 @@ export class WaveformCanvas {
     const visibleSamples = Math.max(1, endSample - startSample);
 
     const barWidth = 2;
-    const gap = 1;
-    const step = Math.max(1, Math.floor(visibleSamples / (w * 1.5)));
+    const gap = 2;
+    const step = Math.max(1, Math.floor(visibleSamples / (w / (barWidth + gap))));
+    const bars = [];
 
     for (let x = 0; x < w; x += (barWidth + gap)) {
       const sampleStart = startSample + Math.floor((x / w) * visibleSamples);
@@ -269,30 +243,74 @@ export class WaveformCanvas {
       }
 
       if (max < min || min === 1.0) {
-        min = -0.02;
-        max = 0.02;
+        min = -0.01;
+        max = 0.01;
       }
 
-      const top = centerY - Math.max(2, max * amp);
-      const bottom = centerY - Math.min(-2, min * amp);
-      const barHeight = Math.max(3, bottom - top);
-
-      ctx.fillRect(x, top, barWidth, barHeight);
+      const top = centerY - Math.max(1, max * amp);
+      const bottom = centerY - Math.min(-1, min * amp);
+      bars.push({ x, top, height: Math.max(2, bottom - top), width: barWidth });
     }
+
+    this.bars = bars;
+    this.paintBars();
+  }
+
+  /**
+   * Bars as in the app: played in the text color, not played yet dim, inside a trimmed selection in the accent.
+   * Cheap (no sample reads), so it runs on every playhead move.
+   */
+  paintBars() {
+    if (!this.bars) return;
+    const ctx = this.ctx;
+    const w = this.width;
+    const h = this.height;
+    const c = themeColors();
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = c.lineSoft;
+    ctx.fillRect(0, Math.round(h / 2), w, 1);
+
+    const progressX = this.timeToPixel(this.currentTime);
+    const trimmed = this.isCustomTrimmed();
+    const sx = this.timeToPixel(this.selectionStart);
+    const ex = this.timeToPixel(this.selectionEnd);
+
+    for (const b of this.bars) {
+      const cx = b.x + b.width / 2;
+      if (trimmed && cx >= sx && cx <= ex) ctx.fillStyle = c.accent;
+      else if (b.x < progressX) ctx.fillStyle = c.text;
+      else ctx.fillStyle = c.waveIdle;
+      ctx.fillRect(b.x, b.top, b.width, b.height);
+    }
+    this.paintedProgressX = progressX;
+  }
+
+  isCustomTrimmed() {
+    return this.selectionEnd > this.selectionStart && (this.selectionStart > 0.05 || this.selectionEnd < this.duration - 0.05);
   }
 
   drawOverlay() {
     const ctx = this.overlayCtx;
     const w = this.width;
     const h = this.height;
+    const c = themeColors();
 
     ctx.clearRect(0, 0, w, h);
 
     if (!this.audioBuffer || this.duration === 0) return;
 
-    // 0. Draw Beat Grid (if enabled)
+    // The bars carry the played / selected colors: repaint them when the playhead moved a bar or the selection changed
+    const playheadPx = this.timeToPixel(this.currentTime);
+    const selKey = `${this.selectionStart}|${this.selectionEnd}`;
+    if (this.bars && (Math.abs(playheadPx - (this.paintedProgressX ?? -1)) >= 1 || selKey !== this.paintedSelKey)) {
+      this.paintBars();
+      this.paintedSelKey = selKey;
+    }
+
+    // 0. Beat grid: dashed lines at each detected beat
     if (this.showBeatGrid && this.beats && this.beats.length > 0) {
-      ctx.strokeStyle = 'rgba(0, 242, 254, 0.22)';
+      ctx.strokeStyle = withAlpha(c.muted, 0.45);
       ctx.lineWidth = 1;
       ctx.setLineDash([4, 4]);
 
@@ -318,30 +336,19 @@ export class WaveformCanvas {
 
     const startX = this.timeToPixel(this.selectionStart);
     const endX = this.timeToPixel(this.selectionEnd);
-    const playheadX = this.timeToPixel(this.currentTime);
+    const playheadX = playheadPx;
 
-    // 1. Draw Selection Range
-    const isCustomTrimmed = this.selectionEnd > this.selectionStart && (this.selectionStart > 0.05 || this.selectionEnd < this.duration - 0.05);
-
+    // 1. Selection: soft accent fill, accent edges with a tab on top
     if (this.selectionEnd > this.selectionStart) {
       const visibleLeft = Math.max(0, Math.min(w, startX));
       const visibleRight = Math.max(0, Math.min(w, endX));
 
-      // Dimmed area outside selection - only when track is actually trimmed!
-      if (isCustomTrimmed) {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-        if (visibleLeft > 0) ctx.fillRect(0, 0, visibleLeft, h);
-        if (visibleRight < w) ctx.fillRect(visibleRight, 0, w - visibleRight, h);
-
-        // Selected area highlight
-        if (visibleRight > visibleLeft) {
-          ctx.fillStyle = this.colors.regionBg;
-          ctx.fillRect(visibleLeft, 0, visibleRight - visibleLeft, h);
-        }
+      if (this.isCustomTrimmed() && visibleRight > visibleLeft) {
+        ctx.fillStyle = c.accentSoft;
+        ctx.fillRect(visibleLeft, 0, visibleRight - visibleLeft, h);
       }
 
-      // Selection Borders & Handles
-      ctx.strokeStyle = this.colors.regionBorder;
+      ctx.strokeStyle = c.accent;
       ctx.lineWidth = 2;
 
       if (startX >= -5 && startX <= w + 5) {
@@ -361,12 +368,12 @@ export class WaveformCanvas {
       }
     }
 
-    // 2. Draw Markers (Cue Points)
+    // 2. Markers (cue points)
     if (this.markers && this.markers.length > 0) {
       for (const m of this.markers) {
         const mx = this.timeToPixel(m.time);
         if (mx >= -20 && mx <= w + 20) {
-          ctx.strokeStyle = m.color || '#38bdf8';
+          ctx.strokeStyle = c.accentText;
           ctx.lineWidth = 1.5;
           ctx.setLineDash([3, 3]);
           ctx.beginPath();
@@ -375,16 +382,16 @@ export class WaveformCanvas {
           ctx.stroke();
           ctx.setLineDash([]);
 
-          // Marker Head Badge
+          // Label tag
           const labelText = m.label || 'İşaret';
-          ctx.font = '600 10px Inter, -apple-system, sans-serif';
+          ctx.font = `600 10px ${SANS_FONT}`;
           const textMetrics = ctx.measureText(labelText);
           const badgeWidth = Math.max(22, textMetrics.width + 12);
           const badgeHeight = 18;
           const badgeX = mx - badgeWidth / 2;
-          const badgeY = 6;
+          const badgeY = 22;
 
-          ctx.fillStyle = m.color || '#38bdf8';
+          ctx.fillStyle = c.accentText;
           ctx.beginPath();
           if (ctx.roundRect) {
             ctx.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 4);
@@ -393,44 +400,32 @@ export class WaveformCanvas {
           }
           ctx.fill();
 
-          // Small pointer
-          ctx.beginPath();
-          ctx.moveTo(mx - 4, badgeY + badgeHeight);
-          ctx.lineTo(mx + 4, badgeY + badgeHeight);
-          ctx.lineTo(mx, badgeY + badgeHeight + 4);
-          ctx.closePath();
-          ctx.fill();
-
-          ctx.fillStyle = '#080a10';
+          ctx.fillStyle = c.bg;
           ctx.fillText(labelText, badgeX + (badgeWidth - textMetrics.width) / 2, badgeY + 13);
         }
       }
     }
 
-    // 3. Draw Playhead Indicator
+    // 3. Playhead: a text-colored line with a small triangle on top
     if (playheadX >= -10 && playheadX <= w + 10) {
-      ctx.strokeStyle = this.colors.playhead;
-      ctx.lineWidth = 2.5;
-      ctx.shadowColor = 'rgba(244, 63, 94, 0.9)';
-      ctx.shadowBlur = 8;
+      ctx.strokeStyle = c.text;
+      ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(playheadX, 0);
       ctx.lineTo(playheadX, h);
       ctx.stroke();
 
-      // Playhead head marker
-      ctx.fillStyle = this.colors.playhead;
+      ctx.fillStyle = c.text;
       ctx.beginPath();
-      ctx.moveTo(playheadX - 7, 0);
-      ctx.lineTo(playheadX + 7, 0);
-      ctx.lineTo(playheadX, 12);
+      ctx.moveTo(playheadX - 6, 0);
+      ctx.lineTo(playheadX + 6, 0);
+      ctx.lineTo(playheadX, 8);
       ctx.closePath();
       ctx.fill();
-      ctx.shadowBlur = 0;
     }
   }
 
-  addMarker(time, label = 'İşaretçi', color = '#38bdf8') {
+  addMarker(time, label = 'İşaretçi', color = null) {
     const id = 'marker_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
     const marker = { id, time: Math.max(0, Math.min(this.duration, time)), label, color };
     this.markers.push(marker);
@@ -480,31 +475,19 @@ export class WaveformCanvas {
   }
 
   drawHandle(ctx, x, size, isLeft) {
-    ctx.fillStyle = '#ffffff';
-    ctx.strokeStyle = isLeft ? '#38bdf8' : '#a855f7';
-    ctx.lineWidth = 2;
-
-    const handleWidth = 10;
-    const handleHeight = 36;
-    const handleY = 14;
-    const handleX = isLeft ? x - handleWidth : x;
-
-    ctx.fillRect(handleX, handleY, handleWidth, handleHeight);
-    ctx.strokeRect(handleX, handleY, handleWidth, handleHeight);
-
-    // Handle grip lines
-    ctx.strokeStyle = '#475569';
-    ctx.lineWidth = 1.2;
+    // Accent tab at the top of the selection edge (the app's selection handle)
+    const c = themeColors();
+    const tabW = 12;
+    const tabH = 14;
+    ctx.fillStyle = c.accent;
     ctx.beginPath();
-    ctx.moveTo(handleX + 3.5, handleY + 9);
-    ctx.lineTo(handleX + 3.5, handleY + handleHeight - 9);
-    ctx.moveTo(handleX + 6.5, handleY + 9);
-    ctx.lineTo(handleX + 6.5, handleY + handleHeight - 9);
-    ctx.stroke();
+    if (ctx.roundRect) ctx.roundRect(x - tabW / 2, 0, tabW, tabH, [0, 0, 3, 3]);
+    else ctx.rect(x - tabW / 2, 0, tabW, tabH);
+    ctx.fill();
   }
 
   drawPlaceholderGrid(ctx, w, h) {
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+    ctx.strokeStyle = themeColors().lineSoft;
     ctx.lineWidth = 1;
     const gridSize = 24;
     for (let x = 0; x < w; x += gridSize) {

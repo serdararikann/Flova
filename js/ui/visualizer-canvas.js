@@ -1,7 +1,9 @@
 /* ====================================================================
    FLOVA AUDIO STUDIO - LIVE SPECTRUM & FREQUENCY VISUALIZER
-   Ultra-smooth 60fps Neon Audio Spectrum & Oscilloscope
+   60fps spectrum bars in the Konsol look (text-colored, accent near the top)
    ==================================================================== */
+
+import { themeColors, withAlpha } from './theme-colors.js';
 
 export class VisualizerCanvas {
   constructor(canvasElement, analyserNode) {
@@ -60,14 +62,11 @@ export class VisualizerCanvas {
     const h = this.height;
 
     ctx.clearRect(0, 0, w, h);
-
-    // Background
-    ctx.fillStyle = '#090c16';
-    ctx.fillRect(0, 0, w, h);
+    const c = themeColors();
 
     if (!this.analyser) {
       // Idle idle animated ambient line
-      this.drawIdle(ctx, w, h);
+      this.drawIdle(ctx, w, h, c);
       return;
     }
 
@@ -88,31 +87,23 @@ export class VisualizerCanvas {
         sum += this.dataArray[i * step + j] || 0;
       }
       const val = sum / step;
-      const barHeight = Math.max(3, (val / 255) * (h - 10));
+      const level = val / 255;
+      const barHeight = Math.max(2, level * (h - 6));
 
       const x = i * (barWidth + 2);
       const y = h - barHeight;
 
-      // Dynamic color gradient based on frequency
-      const hue = 190 + (i / numBars) * 90; // Cyan -> Purple
-      const gradient = ctx.createLinearGradient(0, y, 0, h);
-      gradient.addColorStop(0, `hsl(${hue}, 90%, 65%)`);
-      gradient.addColorStop(1, `hsl(${hue}, 80%, 35%)`);
-
-      ctx.fillStyle = gradient;
-      ctx.shadowColor = `hsl(${hue}, 100%, 60%)`;
-      ctx.shadowBlur = val > 120 ? 8 : 2;
-
+      ctx.fillStyle = level > 0.85 ? c.accent : c.text;
       ctx.beginPath();
-      ctx.roundRect(x, y, barWidth, barHeight, [3, 3, 0, 0]);
+      if (ctx.roundRect) ctx.roundRect(x, y, barWidth, barHeight, [1, 1, 0, 0]);
+      else ctx.rect(x, y, barWidth, barHeight);
       ctx.fill();
     }
-    ctx.shadowBlur = 0;
   }
 
-  drawIdle(ctx, w, h) {
+  drawIdle(ctx, w, h, c) {
     const t = Date.now() * 0.002;
-    ctx.strokeStyle = 'rgba(99, 102, 241, 0.25)';
+    ctx.strokeStyle = withAlpha(c.muted, 0.35);
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     for (let x = 0; x < w; x += 4) {

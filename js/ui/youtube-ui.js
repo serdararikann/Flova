@@ -100,7 +100,7 @@ export class YouTubeUI {
         ${this.isLoading ? `
           <div class="youtube-loading-box">
             <div class="spinner"></div>
-            <div style="font-weight: 700; color: #fff; margin-top: 10px; font-size: 1.05rem;">Bilgiler Alınıyor...</div>
+            <div style="font-weight: 700; color: var(--text); margin-top: 10px; font-size: 1.05rem;">Bilgiler Alınıyor...</div>
             <div id="ytLoadingStageText" style="font-size: 0.82rem; color: var(--accent-cyan); margin-top: 4px;">
               ${this.loadingStage || 'YouTube sunucularından veriler taranıyor...'}
             </div>
@@ -234,7 +234,7 @@ export class YouTubeUI {
             ${this.isBatchDownloading ? `
               <div class="playlist-batch-progress animate-fadeIn">
                 <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.82rem;">
-                  <span style="font-weight: 700; color: #fff;">${this.escapeHtml(this.batchProgressText || 'Toplu indirme yapılıyor...')}</span>
+                  <span style="font-weight: 700; color: var(--text);">${this.escapeHtml(this.batchProgressText || 'Toplu indirme yapılıyor...')}</span>
                   <div style="display: flex; gap: 8px; align-items: center;">
                     <span style="color: var(--accent-cyan); font-weight: 700;">%${this.batchProgressPercent}</span>
                     <button type="button" class="btn btn-secondary btn-sm" style="padding: 2px 8px; font-size: 0.72rem;" onclick="window.flovaYouTube.stopBatchDownload()">
@@ -1303,9 +1303,9 @@ export class YouTubeUI {
         if (cookieBtn) {
           const has = this.cookieStatus && this.cookieStatus.has_cookies;
           cookieBtn.innerHTML = `${has ? 'Çerez Aktif' : 'Bulut Çerezi Yapılandır'}`;
-          cookieBtn.style.color = has ? '#10b981' : '#f59e0b';
-          cookieBtn.style.borderColor = has ? 'rgba(16,185,129,0.45)' : 'rgba(245,158,11,0.45)';
-          cookieBtn.style.background = has ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)';
+          cookieBtn.style.color = has ? 'var(--positive)' : 'var(--accent-text)';
+          cookieBtn.style.borderColor = has ? 'color-mix(in srgb, var(--positive) 50%, var(--line))' : 'var(--accent)';
+          cookieBtn.style.background = 'transparent';
         }
       }
     } catch (_) {}
@@ -1356,39 +1356,39 @@ export class YouTubeUI {
           <div class="server-status-banner ${hasCookies ? 'status-ok' : 'status-err'}">
             <div class="status-indicator-circle ${hasCookies ? 'pulse-green' : 'pulse-red'}"></div>
             <div style="flex: 1;">
-              <div style="font-weight: 700; font-size: 0.95rem; color: #fff;">
+              <div style="font-weight: 700; font-size: 0.95rem; color: var(--text);">
                 ${hasCookies ? `Aktif YouTube Yetkilendirme Çerezi Yüklü (${cookieSizeKb} KB)` : 'Bulut Sunucusunda Çerez Bulunmuyor'}
               </div>
-              <div style="font-size: 0.82rem; color: #94a3b8; margin-top: 2px;">
+              <div style="font-size: 0.82rem; color: var(--muted); margin-top: 2px;">
                 ${hasCookies 
                   ? 'Sunucunuz YouTube isteklerini bu çerezle yetkilendirmektedir. İndirme ve aktarma işlemleri hazırdır.' 
                   : 'Bulut sunucularında YouTube bot koruması için cookies.txt yükleyebilirsiniz.'}
               </div>
             </div>
             ${hasCookies ? `
-              <button id="deleteCookiesBtn" class="btn btn-secondary btn-sm" style="color: #f87171; border-color: rgba(239,68,68,0.35);">
+              <button id="deleteCookiesBtn" class="btn btn-secondary btn-sm" style="color: var(--danger); border-color: var(--line);">
                 Çerezi Sil
               </button>
             ` : ''}
           </div>
 
           <!-- Drag & Drop File Zone -->
-          <div id="cookieDropZone" style="border: 2px dashed rgba(255, 107, 0, 0.45); border-radius: 12px; padding: 22px; text-align: center; background: rgba(255, 107, 0, 0.04); cursor: pointer; transition: all 0.2s ease;">
+          <div id="cookieDropZone" style="border: 2px dashed var(--line); border-radius: 12px; padding: 22px; text-align: center; background: var(--accent-soft); cursor: pointer; transition: all 0.2s ease;">
             <input type="file" id="cookieFileInput" accept=".txt" style="display: none;" />
             <div style="color: var(--accent-primary); margin-bottom: 8px; display: inline-flex;">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
             </div>
-            <div style="font-weight: 600; font-size: 0.9rem; color: #f8fafc;">
+            <div style="font-weight: 600; font-size: 0.9rem; color: var(--text);">
               cookies.txt dosyasını buraya sürükleyin veya tıklayarak seçin
             </div>
-            <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 4px;">
+            <div style="font-size: 0.78rem; color: var(--muted); margin-top: 4px;">
               Netscape HTTP Cookie formatı (.txt)
             </div>
           </div>
 
           <!-- Paste Raw Cookies Textarea -->
           <div class="form-group" style="margin-top: 4px;">
-            <label style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; margin-bottom: 4px; display: block;">
+            <label style="font-size: 0.82rem; font-weight: 600; color: var(--muted); margin-bottom: 4px; display: block;">
               Veya Çerez Metnini Doğrudan Buraya Yapıştırın:
             </label>
             <textarea 
@@ -1432,16 +1432,16 @@ export class YouTubeUI {
       dropZone.ondragover = (e) => {
         e.preventDefault();
         dropZone.style.borderColor = 'var(--accent-orange)';
-        dropZone.style.background = 'rgba(255, 107, 0, 0.12)';
+        dropZone.style.background = 'var(--accent-soft)';
       };
       dropZone.ondragleave = () => {
-        dropZone.style.borderColor = 'rgba(255, 107, 0, 0.45)';
-        dropZone.style.background = 'rgba(255, 107, 0, 0.04)';
+        dropZone.style.borderColor = 'var(--line)';
+        dropZone.style.background = 'var(--accent-soft)';
       };
       dropZone.ondrop = (e) => {
         e.preventDefault();
-        dropZone.style.borderColor = 'rgba(255, 107, 0, 0.45)';
-        dropZone.style.background = 'rgba(255, 107, 0, 0.04)';
+        dropZone.style.borderColor = 'var(--line)';
+        dropZone.style.background = 'var(--accent-soft)';
         if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
           this.handleCookieFileUpload(e.dataTransfer.files[0]);
         }

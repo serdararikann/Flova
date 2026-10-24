@@ -10,6 +10,7 @@
 import { VocalSplitter } from '../audio/vocal-splitter.js';
 import { AudioEncoders } from '../audio/audio-encoders.js';
 import { ApiClient } from '../audio/api-client.js';
+import { themeColors, onThemeChange } from './theme-colors.js';
 
 export class VocalSplitterUI {
   constructor(containerElement, audioEngine) {
@@ -273,13 +274,13 @@ export class VocalSplitterUI {
 
   getProgressHtml(pct, text) {
     return `
-      <div style="background: rgba(10, 14, 24, 0.9); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 16px 20px; margin-bottom: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+      <div style="background: var(--inset); border: 1px solid var(--line); border-radius: 8px; padding: 16px 20px; margin-bottom: 14px; box-shadow: none;">
         <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.88rem; margin-bottom: 8px;">
           <div style="display: flex; align-items: center; gap: 8px;">
             <div class="loading-spinner" style="width: 16px; height: 16px;"></div>
             <span style="font-weight: 700; color: var(--accent-cyan);">${text}</span>
           </div>
-          <span style="font-family: var(--font-mono); font-weight: 700; color: #fff;">%${pct}</span>
+          <span style="font-family: var(--font-mono); font-weight: 700; color: var(--text);">%${pct}</span>
         </div>
         <div class="progress-bar-bg" style="height: 7px;">
           <div class="progress-bar-fill" style="width: ${pct}%;"></div>
@@ -473,12 +474,13 @@ export class VocalSplitterUI {
      DUAL WAVEFORM RENDERING
      ==================================================================== */
   drawWaveforms() {
-    this.drawSingleWaveform('vocalWaveformCanvas', this.vocalBuffer, '#38bdf8', '#6366f1');
-    this.drawSingleWaveform('instWaveformCanvas', this.instBuffer, '#ec4899', '#8b5cf6');
+    this.drawSingleWaveform('vocalWaveformCanvas', this.vocalBuffer);
+    this.drawSingleWaveform('instWaveformCanvas', this.instBuffer);
+    if (!this.themeRedraw) this.themeRedraw = onThemeChange(() => this.drawWaveforms());
     this.drawPlayheads();
   }
 
-  drawSingleWaveform(canvasId, buffer, color1, color2) {
+  drawSingleWaveform(canvasId, buffer) {
     const canvas = this.container.querySelector(`#${canvasId}`);
     if (!canvas) return;
 
@@ -494,8 +496,8 @@ export class VocalSplitterUI {
     ctx.resetTransform ? ctx.resetTransform() : ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
 
-    ctx.fillStyle = '#070912';
-    ctx.fillRect(0, 0, w, h);
+    const c = themeColors();
+    ctx.clearRect(0, 0, w, h);
 
     if (!buffer) return;
 
@@ -505,7 +507,7 @@ export class VocalSplitterUI {
     const amp = h * 0.44;
 
     // Center guideline
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+    ctx.strokeStyle = c.lineSoft;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, centerY);
@@ -513,8 +515,8 @@ export class VocalSplitterUI {
     ctx.stroke();
 
     const barWidth = 2;
-    const gap = 1;
-    const step = Math.max(1, Math.floor(totalSamples / (w * 1.5)));
+    const gap = 2;
+    const step = Math.max(1, Math.floor(totalSamples / (w / (barWidth + gap))));
 
     for (let x = 0; x < w; x += (barWidth + gap)) {
       const sampleStart = Math.floor((x / w) * totalSamples);
@@ -536,10 +538,7 @@ export class VocalSplitterUI {
       const bottom = centerY - Math.min(-2, min * amp);
       const barHeight = Math.max(2, bottom - top);
 
-      const grad = ctx.createLinearGradient(0, top, 0, bottom);
-      grad.addColorStop(0, color1);
-      grad.addColorStop(1, color2);
-      ctx.fillStyle = grad;
+      ctx.fillStyle = c.waveIdle;
 
       ctx.fillRect(x, top, barWidth, barHeight);
     }
@@ -568,23 +567,21 @@ export class VocalSplitterUI {
 
       const playX = (this.currentTime / this.duration) * w;
 
-      ctx.strokeStyle = '#f43f5e';
-      ctx.lineWidth = 2.5;
-      ctx.shadowColor = 'rgba(244, 63, 94, 0.9)';
-      ctx.shadowBlur = 8;
+      const c = themeColors();
+      ctx.strokeStyle = c.text;
+      ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(playX, 0);
       ctx.lineTo(playX, h);
       ctx.stroke();
 
-      ctx.fillStyle = '#f43f5e';
+      ctx.fillStyle = c.text;
       ctx.beginPath();
       ctx.moveTo(playX - 6, 0);
       ctx.lineTo(playX + 6, 0);
-      ctx.lineTo(playX, 10);
+      ctx.lineTo(playX, 8);
       ctx.closePath();
       ctx.fill();
-      ctx.shadowBlur = 0;
     });
   }
 
@@ -701,7 +698,7 @@ export class VocalSplitterUI {
 
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
             <!-- Engine Mode Switcher -->
-            <div style="display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.06); padding: 3px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);">
+            <div style="display: flex; align-items: center; gap: 4px; background: var(--hover); padding: 3px 6px; border-radius: 6px; border: 1px solid var(--line);">
               <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 600;">Motor:</span>
               <button class="btn ${this.engineMode === 'ai' ? 'btn-primary' : 'btn-secondary'} btn-sm" style="padding: 2px 8px; font-size: 0.74rem;" onclick="window.flovaSplitter.setEngineMode('ai')" title="Demucs Sinir Ağı">
                 Demucs Sinir Ağı
@@ -744,7 +741,7 @@ export class VocalSplitterUI {
           <div class="stems-view-container" style="display: flex; flex-direction: column; gap: 14px;">
             
             <!-- 1. STEM: VOCALS (Acapella) -->
-            <div class="stem-card glass-card" style="border-left: 4px solid var(--accent-cyan); padding: 12px 16px; background: rgba(10, 14, 24, 0.75);">
+            <div class="stem-card glass-card" style="border-left: 4px solid var(--accent-cyan); padding: 12px 16px; background: var(--inset);">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <span style="font-size: 0.95rem; font-weight: 700; color: var(--accent-cyan);">Vokal (Acapella)</span>
@@ -775,18 +772,18 @@ export class VocalSplitterUI {
               </div>
 
               <!-- Vocal Waveform Canvas -->
-              <div class="stem-waveform-wrapper" style="position: relative; height: 130px; background: #070912; border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; overflow: hidden; cursor: crosshair;" onclick="window.flovaSplitter.handleWaveformClick(event, this)">
+              <div class="stem-waveform-wrapper" style="position: relative; height: 130px; background: var(--inset); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; cursor: crosshair;" onclick="window.flovaSplitter.handleWaveformClick(event, this)">
                 <canvas id="vocalWaveformCanvas" style="width: 100%; height: 100%; display: block;"></canvas>
                 <canvas id="vocalPlayheadCanvas" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; pointer-events: none;"></canvas>
               </div>
             </div>
 
             <!-- 2. STEM: INSTRUMENTAL (Karaoke / Music) -->
-            <div class="stem-card glass-card" style="border-left: 4px solid var(--accent-primary); padding: 12px 16px; background: rgba(10, 14, 24, 0.75);">
+            <div class="stem-card glass-card" style="border-left: 4px solid var(--accent-primary); padding: 12px 16px; background: var(--inset);">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <span style="font-size: 0.95rem; font-weight: 700; color: #ec4899;">Enstrümantal (Karaoke)</span>
-                  <span class="badge-pro" style="font-size: 0.7rem; padding: 1px 6px; background: rgba(236,72,153,0.2); color: #ec4899; border-color: rgba(236,72,153,0.3);">${this.engineMode === 'ai' ? 'Demucs' : 'DSP'}</span>
+                  <span style="font-size: 0.95rem; font-weight: 700; color: var(--accent-text);">Enstrümantal (Karaoke)</span>
+                  <span class="badge-pro" style="font-size: 0.7rem; padding: 1px 6px; background: var(--accent-soft); color: var(--accent-text); border-color: var(--line);">${this.engineMode === 'ai' ? 'Demucs' : 'DSP'}</span>
                 </div>
 
                 <!-- Stem Controls -->
@@ -804,7 +801,7 @@ export class VocalSplitterUI {
                     <input type="range" min="0" max="2" step="0.05" value="${this.instGain}" 
                       class="studio-slider" style="width: 80px; height: 4px;"
                       oninput="window.flovaSplitter.setInstGain(this.value)" />
-                    <span id="instGainVal" style="font-family: var(--font-mono); color: #ec4899; font-weight: 700; font-size: 0.8rem; width: 42px;">${Math.round(this.instGain * 100)}%</span>
+                    <span id="instGainVal" style="font-family: var(--font-mono); color: var(--accent-text); font-weight: 700; font-size: 0.8rem; width: 42px;">${Math.round(this.instGain * 100)}%</span>
                   </div>
                   <button class="btn btn-emerald btn-sm" style="padding: 3px 8px; font-size: 0.75rem;" onclick="window.flovaSplitter.exportStem('inst')">
                     İndir
@@ -813,14 +810,14 @@ export class VocalSplitterUI {
               </div>
 
               <!-- Instrumental Waveform Canvas -->
-              <div class="stem-waveform-wrapper" style="position: relative; height: 130px; background: #070912; border: 1px solid rgba(236, 72, 153, 0.2); border-radius: 8px; overflow: hidden; cursor: crosshair;" onclick="window.flovaSplitter.handleWaveformClick(event, this)">
+              <div class="stem-waveform-wrapper" style="position: relative; height: 130px; background: var(--inset); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; cursor: crosshair;" onclick="window.flovaSplitter.handleWaveformClick(event, this)">
                 <canvas id="instWaveformCanvas" style="width: 100%; height: 100%; display: block;"></canvas>
                 <canvas id="instPlayheadCanvas" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; pointer-events: none;"></canvas>
               </div>
             </div>
 
             <!-- Transport & Tuning Bar -->
-            <div style="background: rgba(10, 14, 24, 0.9); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 14px 18px; display: flex; flex-direction: column; gap: 12px;">
+            <div style="background: var(--inset); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 14px 18px; display: flex; flex-direction: column; gap: 12px;">
               
               <!-- Upper Row: Transport + Presets + Routing Actions -->
               <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
@@ -843,7 +840,7 @@ export class VocalSplitterUI {
                   </div>
 
                   <!-- Quick A/B Audition Toggles -->
-                  <div style="display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.35); padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); margin-left: 8px;">
+                  <div style="display: flex; align-items: center; gap: 4px; background: var(--inset); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--line); margin-left: 8px;">
                     <span style="font-size: 0.72rem; color: var(--text-dim); margin-right: 4px; font-weight: 600;">A/B:</span>
                     <button class="btn ${!this.vocalSolo && !this.instSolo ? 'btn-primary' : 'btn-secondary'} btn-sm" style="font-size: 0.72rem; padding: 2px 7px;" onclick="window.flovaSplitter.setQuickMode('mix')">Miks</button>
                     <button class="btn ${this.vocalSolo && !this.instSolo ? 'btn-primary' : 'btn-secondary'} btn-sm" style="font-size: 0.72rem; padding: 2px 7px;" onclick="window.flovaSplitter.setQuickMode('vocal')">Vokal</button>
@@ -868,7 +865,7 @@ export class VocalSplitterUI {
                     </button>
                   </div>
                 ` : `
-                  <div style="display: flex; align-items: center; gap: 8px; background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.25); border-radius: 6px; padding: 4px 10px;">
+                  <div style="display: flex; align-items: center; gap: 8px; background: var(--accent-soft); border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px;">
                     <span style="font-size: 0.78rem; font-weight: 600; color: var(--accent-cyan);">Demucs v4 Sinir Ağı</span>
                   </div>
                 `}
@@ -895,7 +892,7 @@ export class VocalSplitterUI {
               </div>
 
               <!-- Lower Row: DSP Fine-Tuning Sliders (when DSP mode is active) or AI Re-run Button -->
-              <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06);">
+              <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding-top: 8px; border-top: 1px solid var(--line);">
                 ${this.engineMode === 'dsp' ? `
                   <!-- 1. Vocal Sensitivity -->
                   <div style="display: flex; align-items: center; gap: 6px;">

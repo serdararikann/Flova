@@ -5,7 +5,7 @@
    - Clean cache lifecycle management
    ==================================================================== */
 
-const CACHE_NAME = 'flova-studio-v2.6';
+const CACHE_NAME = 'flova-studio-v3.0';
 
 const PRECACHE_ASSETS = [
   './',
@@ -13,7 +13,7 @@ const PRECACHE_ASSETS = [
   './manifest.json',
   './favicon.ico',
   './logo.png',
-  './css/style.css?v=13.0',
+  './css/style.css?v=14.0',
   './icons/icon-72.png',
   './icons/icon-96.png',
   './icons/icon-128.png',
@@ -24,7 +24,7 @@ const PRECACHE_ASSETS = [
   './icons/icon-512.png',
   './icons/icon-maskable-192.png',
   './icons/icon-maskable-512.png',
-  './js/app.js?v=12.6',
+  './js/app.js?v=13.0',
   './js/audio/audio-engine.js',
   './js/audio/audio-processor.js',
   './js/audio/audio-encoders.js',
@@ -33,6 +33,7 @@ const PRECACHE_ASSETS = [
   './js/audio/api-client.js?v=9.1',
   './js/ui/waveform-canvas.js',
   './js/ui/visualizer-canvas.js',
+  './js/ui/theme-colors.js',
   './js/ui/merger-ui.js?v=9.6',
   './js/ui/vocal-splitter-ui.js?v=9.6',
   './js/ui/stem-splitter-ui.js?v=9.6',
@@ -44,7 +45,7 @@ const PRECACHE_ASSETS = [
   './js/ui/audiogram-modal.js',
   './js/ui/server-modal.js?v=9.1',
   './js/security/code-guard.js?v=9.1',
-  'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap',
+  'https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@400;600;700&display=swap',
   'https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js',
   'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'
 ];

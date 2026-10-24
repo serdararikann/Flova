@@ -113,7 +113,7 @@ class FlovaStudioApp {
     this.normalizeBtn = document.getElementById('normalizeBtn');
     this.addMarkerBtn = document.getElementById('addMarkerBtn');
     this.hotkeysBtn = document.getElementById('hotkeysBtn');
-    this.themeSelector = document.getElementById('themeSelector');
+    this.themeSwitch = document.getElementById('themeSwitch');
     this.pwaInstallBtn = document.getElementById('pwaInstallBtn');
   }
 
@@ -569,17 +569,15 @@ class FlovaStudioApp {
       this.hotkeysModal?.open();
     });
 
-    // Hardware Theme Selector
-    if (this.themeSelector) {
-      const savedTheme = localStorage.getItem('flova_theme') || 'obsidian';
-      this.themeSelector.value = savedTheme;
-      document.documentElement.setAttribute('data-theme', savedTheme);
-
-      this.themeSelector.addEventListener('change', (e) => {
-        const selected = e.target.value;
-        this.applyTheme(selected);
-        const name = e.target.options[e.target.selectedIndex].text;
-        this.showToast(`Stüdyo teması: ${name}`, 'info');
+    // Theme switch (Koyu / Açık)
+    if (this.themeSwitch) {
+      let savedTheme = 'dark';
+      try { savedTheme = localStorage.getItem('flova_theme') || 'dark'; } catch (_) {}
+      this.applyTheme(savedTheme);
+      this.themeSwitch.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-theme-value]');
+        if (!btn || btn.dataset.themeValue === this.currentTheme) return;
+        this.applyTheme(btn.dataset.themeValue);
         this.pushThemeToAccount();
       });
     }
@@ -600,15 +598,11 @@ class FlovaStudioApp {
     this.beatGridToggleBtn?.addEventListener('click', () => {
       const isShown = this.waveform.toggleBeatGrid();
       if (isShown) {
-        this.beatGridToggleBtn.style.background = 'rgba(0, 242, 254, 0.2)';
-        this.beatGridToggleBtn.style.borderColor = '#00f2fe';
-        this.beatGridToggleBtn.style.color = '#00f2fe';
-        this.showToast('Ritim Izgarası Açıldı', 'info');
+        this.beatGridToggleBtn.classList.add('selected');
+        this.showToast('Ritim ızgarası açıldı', 'info');
       } else {
-        this.beatGridToggleBtn.style.background = '';
-        this.beatGridToggleBtn.style.borderColor = '';
-        this.beatGridToggleBtn.style.color = '';
-        this.showToast('Ritim Izgarası Kapatıldı', 'info');
+        this.beatGridToggleBtn.classList.remove('selected');
+        this.showToast('Ritim ızgarası kapatıldı', 'info');
       }
     });
 
@@ -965,40 +959,45 @@ class FlovaStudioApp {
     }
 
     if (cloudTitle) {
-      this.trackNameElem.innerHTML = `${activeTitle} <span class="cloud-badge" style="font-size: 0.65rem; background: rgba(56, 189, 248, 0.2); color: var(--accent-cyan); border: 1px solid rgba(56, 189, 248, 0.4); padding: 1px 6px; border-radius: 4px; font-weight: 600; margin-left: 6px;">Bulut</span>`;
+      this.trackNameElem.innerHTML = `${activeTitle} <span class="cloud-badge" style="font-family: var(--font-sans); font-stretch: 100%; font-size: 0.7rem; color: var(--accent-text); border: 1px solid var(--accent); padding: 1px 6px; border-radius: 4px; font-weight: 600; margin-left: 8px; vertical-align: middle;">Bulut</span>`;
     } else {
       this.trackNameElem.textContent = activeTitle;
     }
   }
 
+  /** "dark" or "light"; older names ("obsidian", "slate", ...) fall back to dark, as in the app. */
   applyTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
+    theme = String(theme || '').toLowerCase() === 'light' ? 'light' : 'dark';
+    this.currentTheme = theme;
+    if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+    else document.documentElement.removeAttribute('data-theme');
     try { localStorage.setItem('flova_theme', theme); } catch (_) {}
-    if (this.themeSelector) this.themeSelector.value = theme;
+    this.themeSwitch?.querySelectorAll('[data-theme-value]').forEach((b) => b.classList.toggle('active', b.dataset.themeValue === theme));
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#f3f0e8' : '#0e0e0c');
+    // Canvases read the theme tokens when they draw
+    window.dispatchEvent(new CustomEvent('flova-theme', { detail: theme }));
   }
 
   /**
-   * The theme follows the account (flova_profiles.settings.theme, shared with the mobile app, which names
-   * them "Obsidian", "Slate", ...): right after signing in the account's theme wins, otherwise this
-   * device's theme is written to the account.
+   * The theme follows the account (flova_profiles.settings.theme, shared with the mobile app: "Dark" / "Light"):
+   * right after signing in the account's theme wins, otherwise this device's theme is written to the account.
    */
   syncThemeWithAccount(user, profile) {
     if (!user || !profile) return;
     const fresh = supabaseService.freshSignIn;
     supabaseService.freshSignIn = false;
-    const accountTheme = String(profile.settings?.theme || '').toLowerCase();
-    const known = this.themeSelector && [...this.themeSelector.options].some((o) => o.value === accountTheme);
-    if (fresh && known) {
-      if (accountTheme !== this.themeSelector.value) this.applyTheme(accountTheme);
-    } else if (this.themeSelector && accountTheme !== this.themeSelector.value) {
+    const stored = String(profile.settings?.theme || '');
+    if (fresh && stored) {
+      const accountTheme = stored.toLowerCase() === 'light' ? 'light' : 'dark';
+      if (accountTheme !== this.currentTheme) this.applyTheme(accountTheme);
+    } else if (stored !== (this.currentTheme === 'light' ? 'Light' : 'Dark')) {
       this.pushThemeToAccount();
     }
   }
 
   pushThemeToAccount() {
-    if (!supabaseService.isLoggedIn() || !this.themeSelector) return;
-    const theme = this.themeSelector.value;
-    const appName = theme.charAt(0).toUpperCase() + theme.slice(1);
+    if (!supabaseService.isLoggedIn()) return;
+    const appName = this.currentTheme === 'light' ? 'Light' : 'Dark';
     clearTimeout(this.themePushTimer);
     this.themePushTimer = setTimeout(() => {
       supabaseService.updateProfile({ settings: { theme: appName } }).catch((err) => console.warn('[Flova] Theme sync:', err));
@@ -1104,8 +1103,8 @@ class FlovaStudioApp {
       <span class="spec-item">${channels}</span>
       <span class="spec-item">${buffer.sampleRate} Hz</span>
       <span class="spec-item">${this.formatTime(buffer.duration)}</span>
-      <span class="spec-item spec-bpm" id="trackBpmBadge" style="cursor: pointer; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); color: #38bdf8; font-weight: 600;" title="Ritim Izgarasını Aç/Kapat"><span style="opacity: 0.7; font-size: 0.75rem; margin-right: 4px;">BPM</span> ...</span>
-      <span class="spec-item spec-key" id="trackKeyBadge" style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.25); color: #c084fc; font-weight: 600;"><span style="opacity: 0.7; font-size: 0.75rem; margin-right: 4px;">KEY</span> ...</span>
+      <span class="spec-item spec-bpm" id="trackBpmBadge" style="cursor: pointer;" title="Ritim ızgarasını aç/kapat"><span style="color: var(--muted); margin-right: 4px;">BPM</span> …</span>
+      <span class="spec-item spec-key" id="trackKeyBadge"><span style="color: var(--muted); margin-right: 4px;">KEY</span> …</span>
     `;
 
     // Asynchronously detect BPM and Musical Key
@@ -1113,13 +1112,13 @@ class FlovaStudioApp {
       const bpmEl = document.getElementById('trackBpmBadge');
       const keyEl = document.getElementById('trackKeyBadge');
       if (bpmEl) {
-        bpmEl.innerHTML = `<span style="opacity: 0.7; font-size: 0.75rem; margin-right: 4px;">BPM</span> ${analysis.bpm}`;
+        bpmEl.innerHTML = `<span style="color: var(--muted); margin-right: 4px;">BPM</span> ${analysis.bpm}`;
         bpmEl.onclick = () => {
           document.getElementById('beatGridToggleBtn')?.click();
         };
       }
       if (keyEl) {
-        keyEl.innerHTML = `<span style="opacity: 0.7; font-size: 0.75rem; margin-right: 4px;">KEY</span> ${analysis.key}`;
+        keyEl.innerHTML = `<span style="color: var(--muted); margin-right: 4px;">KEY</span> ${analysis.key}`;
       }
       this.waveform.setBeats(analysis.beats, analysis.bpm);
     }).catch(err => {
