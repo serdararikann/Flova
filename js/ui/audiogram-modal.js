@@ -261,6 +261,9 @@ export class AudiogramModal {
     this.settings.title = trackName || 'Flova Studio Pro';
     const titleInput = document.getElementById('agTrackTitle');
     if (titleInput) titleInput.value = this.settings.title;
+    // The preview and the video show what the artist field says
+    const artistInput = document.getElementById('agTrackArtist');
+    if (artistInput) this.settings.artist = artistInput.value;
 
     this._updateCanvasResolution();
     this.modalEl.style.display = 'flex';
@@ -517,6 +520,7 @@ export class AudiogramModal {
         URL.revokeObjectURL(url);
 
         this.engine.pause();
+        try { this.engine.analyser?.disconnect(audioStreamDestination); } catch (e) { /* already gone */ }
         if (progressEl) progressEl.style.display = 'none';
         if (exportBtn) exportBtn.disabled = false;
         this.showToast('🎉 Video başarıyla oluşturuldu ve indirildi!', 'success');

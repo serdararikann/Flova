@@ -815,7 +815,16 @@ def separate_vocals_with_demucs(data, sr):
         print(f"[Demucs Vocal AI Separation Error]: {e}", flush=True)
         return None, sr
 
-def segment_and_transcribe_audio(audio_bytes, lang='tr-TR', max_workers=4, model_size='small', ai_separate=True):
+# Phrases Whisper writes over music or silence (learned from video subtitles); never real lyrics.
+WHISPER_HALLUCINATIONS = (
+    'izlediğiniz için teşekkür', 'izlediğiniz için teşekkürler', 'bir sonraki videoda', 'abone olmayı unutmayın',
+    'abone ol', 'altyazı m.k', 'altyazı:', 'beğenmeyi unutmayın', 'kanalıma abone',
+    'thanks for watching', 'thank you for watching', 'please subscribe', 'subtitles by', 'see you in the next video',
+    'untertitel', 'vielen dank fürs zuschauen', 'sous-titres', 'merci d\'avoir regardé', 'gracias por ver',
+)
+
+
+def segment_and_transcribe_audio(audio_bytes, lang='tr-TR', max_workers=4, model_size='small', ai_separate=True, vocal_stem=False):
     try:
         data, sr_orig = sf.read(io.BytesIO(audio_bytes))
     except Exception as e:
@@ -826,12 +835,14 @@ def segment_and_transcribe_audio(audio_bytes, lang='tr-TR', max_workers=4, model
 
     # 1. Demucs AI Neural Vocal Separation (cleans music/drums/instruments before Whisper)
     mono_16k = None
-    if ai_separate:
+    vocals_only = vocal_stem  # the client sent an already separated vocal
+    if ai_separate and not vocal_stem:
         try:
             print("[Demucs AI] Sarkidaki vokal yapay zeka (Demucs ONNX) ile ayristiriliyor...", flush=True)
             vocal_mono, v_sr = separate_vocals_with_demucs(data, sr_orig)
             if vocal_mono is not None and len(vocal_mono) > 0:
                 mono_16k = fast_resample(vocal_mono, v_sr, target_sr).astype(np.float32)
+                vocals_only = True
                 print("[Demucs AI] Vokal ayristirma tamamlandi, temiz vokal Whisper'a aktariliyor.", flush=True)
         except Exception as e:
             print(f"[Demucs AI Warning]: {e}. Orijinal ses kullanilacak.", flush=True)
@@ -867,13 +878,17 @@ def segment_and_transcribe_audio(audio_bytes, lang='tr-TR', max_workers=4, model
     if whisper_model:
         try:
             print(f"[Whisper] Sarki sozu transkripsiyonu baslatiliyor (model={WHISPER_MODEL_NAME}, lang={lang_code}, duration={len(mono_16k)/target_sr:.1f}s)...", flush=True)
+            # On a separated vocal the voice-activity filter skips the instrumental parts, where Whisper otherwise
+            # invents text ("Bu videoyu izlediğiniz için teşekkürler"); on the full mix it would drop the singing too.
             segments, info = whisper_model.transcribe(
                 mono_16k,
                 language=lang_code,
                 condition_on_previous_text=False,
                 repetition_penalty=1.2,
                 no_repeat_ngram_size=3,
-                vad_filter=False,
+                vad_filter=vocals_only,
+                vad_parameters={'min_silence_duration_ms': 700, 'speech_pad_ms': 300} if vocals_only else None,
+                word_timestamps=True,
                 beam_size=3,
                 temperature=0.0
             )
@@ -898,17 +913,42 @@ def segment_and_transcribe_audio(audio_bytes, lang='tr-TR', max_workers=4, model
                         return True
                 if re.search(r'(.)\1{4,}', cleaned):
                     return True
+                low = cleaned.lower()
+                if any(p in low for p in WHISPER_HALLUCINATIONS):
+                    return True
                 return False
+
+            def split_into_lines(seg):
+                """A segment often holds two sung lines ("...larla. Bir daha..."): split at sentence ends and pauses."""
+                words = list(seg.words or [])
+                if not words:
+                    return [(seg.start, seg.end, seg.text)]
+                out, cur = [], []
+                for i, w in enumerate(words):
+                    cur.append(w)
+                    text = ''.join(x.word for x in cur).strip()
+                    nxt = words[i + 1] if i + 1 < len(words) else None
+                    ends_sentence = re.search(r'[.!?…]$', w.word.strip()) is not None and len(cur) >= 2
+                    pause = nxt is not None and nxt.start - w.end > 0.6 and len(cur) >= 3
+                    if nxt is None or ends_sentence or pause or (len(text) > 48 and w.word.strip().endswith(',')) or len(text) > 64:
+                        out.append((cur[0].start, cur[-1].end, text))
+                        cur = []
+                return out
 
             lines = []
             for seg in segments:
-                txt = format_lyrics_line(seg.text)
-                if not is_hallucination_or_noise(txt):
-                    if lines and lines[-1]['text'].strip().lower() == txt.strip().lower() and abs(seg.start - lines[-1]['time']) < 2.5:
+                # Whisper is unsure there is speech at all: usually music read as words
+                if getattr(seg, 'no_speech_prob', 0) > 0.6 and getattr(seg, 'avg_logprob', 0) < -0.8:
+                    continue
+                for start, end, raw in split_into_lines(seg):
+                    txt = format_lyrics_line(raw.rstrip('.,'))
+                    if is_hallucination_or_noise(txt):
+                        continue
+                    if lines and lines[-1]['text'].strip().lower() == txt.strip().lower() and abs(start - lines[-1]['time']) < 2.5:
                         continue
                     lines.append({
-                        "time": round(float(seg.start), 1),
-                        "duration": round(float(seg.end - seg.start), 1),
+                        "time": round(float(start), 1),
+                        "duration": round(float(end - start), 1),
                         "text": txt
                     })
 
@@ -977,7 +1017,7 @@ def segment_and_transcribe_audio(audio_bytes, lang='tr-TR', max_workers=4, model
             else:
                 merged.append([s_start, s_end])
 
-    total_duration = len(mono) / sr_orig
+    total_duration = len(mono_16k) / target_sr
     if len(merged) == 0:
         step = 6.0
         cur = 0.0
@@ -2896,12 +2936,13 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                 lang = query.get('lang', ['tr-TR'])[0]
                 model_size = query.get('model', ['small'])[0]
                 ai_vocal = query.get('ai_vocal', ['0'])[0] == '1'
+                vocal_stem = query.get('vocals', ['0'])[0] == '1'
                 content_length = int(self.headers.get('Content-Length', 0))
                 audio_bytes = ensure_wav_bytes(self.rfile.read(content_length))
 
                 t0 = time.time()
                 print(f"[Transcribe] Transkripsiyon basladi (lang={lang}, model={model_size}, ai_vocal={ai_vocal}, bytes={len(audio_bytes)})", flush=True)
-                lines = segment_and_transcribe_audio(audio_bytes, lang=lang, max_workers=4, model_size=model_size, ai_separate=ai_vocal)
+                lines = segment_and_transcribe_audio(audio_bytes, lang=lang, max_workers=4, model_size=model_size, ai_separate=ai_vocal, vocal_stem=vocal_stem)
                 elapsed = time.time() - t0
                 print(f"[Transcribe] Tamamlandi: {len(lines)} satir cikarildi ({elapsed:.2f} sn)", flush=True)
 

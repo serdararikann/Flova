@@ -13,9 +13,9 @@ import { YouTubeUI } from './ui/youtube-ui.js?v=14.0';
 import { ExportModal } from './ui/export-modal.js?v=14.0';
 import { HotkeysModal } from './ui/hotkeys-modal.js?v=15.0';
 import { BPMKeyDetector } from './audio/bpm-key-detector.js';
-import { SmartToolsModal } from './ui/smart-tools-modal.js?v=14.0';
-import { LyricsModal } from './ui/lyrics-modal.js?v=14.0';
-import { AudiogramModal } from './ui/audiogram-modal.js?v=14.0';
+import { SmartToolsModal } from './ui/smart-tools-modal.js?v=15.2';
+import { LyricsModal } from './ui/lyrics-modal.js?v=15.2';
+import { AudiogramModal } from './ui/audiogram-modal.js?v=15.2';
 import { ServerModal } from './ui/server-modal.js?v=14.0';
 import { CodeGuard } from './security/code-guard.js?v=9.1';
 import { ApiClient } from './audio/api-client.js?v=9.1';
@@ -179,8 +179,7 @@ class FlovaStudioApp {
       (msg, type) => this.showToast(msg, type),
       (newBuffer, actionName) => {
         this.engine.setBuffer(newBuffer, true);
-        this.onBufferLoaded(newBuffer);
-        this.showToast(`${actionName} uygulandı!`, 'success');
+        this.onBufferLoaded(newBuffer); // the modal shows its own message
       }
     );
 
@@ -354,6 +353,7 @@ class FlovaStudioApp {
         try {
           this.projectsModal?.clearLoadedProject();
           await this.engine.loadFile(file);
+          this.lyricsModal?.reset(); // the lyrics belonged to the previous song
           this.visualizer.setAnalyser(this.engine.analyser);
           this.showToast('Ses dosyası yüklendi!', 'success');
         } catch (err) {
@@ -779,6 +779,7 @@ class FlovaStudioApp {
         try {
           this.projectsModal?.clearLoadedProject();
           await this.engine.loadFile(file);
+          this.lyricsModal?.reset(); // the lyrics belonged to the previous song
           this.visualizer.setAnalyser(this.engine.analyser);
           this.showToast('Ses dosyası yüklendi!', 'success');
         } catch (err) {
@@ -817,6 +818,7 @@ class FlovaStudioApp {
         this.showToast(`"${file.name}" yükleniyor...`, 'info');
         try {
           await this.engine.loadFile(file);
+          this.lyricsModal?.reset(); // the lyrics belonged to the previous song
           this.visualizer.setAnalyser(this.engine.analyser);
           this.showToast('Ses dosyası yüklendi!', 'success');
         } catch (err) {

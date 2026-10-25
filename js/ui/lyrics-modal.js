@@ -80,14 +80,14 @@ export class LyricsModal {
 
                 <!-- Model Selector -->
                 <select id="lyricsModelSelect" class="form-input" style="padding: 6px 10px; font-size: 0.8rem; background: var(--inset); border: 1px solid var(--line); color: var(--accent-text); border-radius: 6px; font-weight: 700;" title="Yapay zeka modeli kalitesi">
-                  <option value="small" selected>⚡ Whisper Pro (Önerilen)</option>
-                  <option value="medium">🎯 Whisper Medium (Stüdyo Kalitesi)</option>
-                  <option value="base">🚀 Whisper Base (Ultra Hızlı)</option>
+                  <option value="medium" selected>Whisper Medium (önerilen, en doğru)</option>
+                  <option value="small">Whisper Small (daha hızlı)</option>
+                  <option value="base">Whisper Base (en hızlı, en az doğru)</option>
                 </select>
 
                 <!-- Demucs AI Neural Vocal Separation Checkbox (Optional) -->
-                <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.76rem; font-weight: 600; color: var(--accent-text); background: var(--accent-soft); border: 1px solid var(--line); padding: 5px 9px; border-radius: 6px; cursor: pointer; user-select: none;" title="Demucs U-Net sinir ağı ile tüm enstrümanları izole eder. CPU üzerinde parçanın uzunluğuna göre 2-3 dakika sürebilir. Hızlı analiz için kapalı tutunuz.">
-                  <input type="checkbox" id="lyricsAutoVocalAiCheck" style="accent-color: var(--accent); cursor: pointer;">
+                <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.76rem; font-weight: 600; color: var(--accent-text); background: var(--accent-soft); border: 1px solid var(--line); padding: 5px 9px; border-radius: 6px; cursor: pointer; user-select: none;" title="Önce vokali müzikten ayırır: sözler çok daha doğru çıkar ve müzikli bölümlere uydurma söz yazılmaz. 3 dakikalık şarkı yaklaşık 1,5-2 dakika sürer.">
+                  <input type="checkbox" id="lyricsAutoVocalAiCheck" checked style="accent-color: var(--accent); cursor: pointer;">
                   🤖 Demucs Derin Vokal Ayrıştırma
                 </label>
 
@@ -319,7 +319,7 @@ export class LyricsModal {
       const input = document.getElementById('manualLyricInput');
       const text = input?.value?.trim();
       if (!text) return;
-      const time = this.engine.currentTime || 0;
+      const time = this._now();
       this.lines.push({ time: Math.round(time * 10) / 10, text });
       this.lines.sort((a, b) => a.time - b.time);
       input.value = '';
@@ -364,6 +364,23 @@ export class LyricsModal {
     this._renderLines();
   }
 
+  /** Playback position in seconds (the engine has no currentTime property). */
+  _now() {
+    return this.engine.getCurrentTime?.() || 0;
+  }
+
+  _duration() {
+    return (this.engine.currentBuffer || this.engine.audioBuffer)?.duration || 0;
+  }
+
+  /** A new song was opened: its lyrics are still to be made. */
+  reset() {
+    if (this.lines.length === 0) return;
+    this.lines = [];
+    this._renderLines();
+    if (this.viewMode === 'stage') this._renderStage();
+  }
+
   close() {
     this.modalEl.classList.remove('active');
     this.modalEl.style.display = 'none';
@@ -389,7 +406,7 @@ export class LyricsModal {
 
     const btn = document.getElementById('startTranscribeBtn');
     const lang = document.getElementById('lyricsLanguageSelect')?.value || 'tr-TR';
-    const model = document.getElementById('lyricsModelSelect')?.value || 'small';
+    const model = document.getElementById('lyricsModelSelect')?.value || 'medium';
     const aiSeparate = !usingVocalStem && (document.getElementById('lyricsAutoVocalAiCheck')?.checked ?? false);
     const progressBox = document.getElementById('lyricsProgressBox');
     const progressText = document.getElementById('lyricsProgressText');
@@ -399,7 +416,7 @@ export class LyricsModal {
     if (progressBox) progressBox.style.display = 'flex';
 
     let elapsedSec = 0;
-    const modelLabel = model === 'medium' ? 'Whisper Medium' : (model === 'base' ? 'Whisper Base' : 'Whisper Pro');
+    const modelLabel = model === 'medium' ? 'Whisper Medium' : (model === 'base' ? 'Whisper Base' : 'Whisper Small');
     const baseMsg = usingVocalStem
       ? `🎙️ Ayrıştırılmış temiz vokal taranıyor (${modelLabel})`
       : (aiSeparate
@@ -419,7 +436,8 @@ export class LyricsModal {
       const wavBlob = await this._audioBufferToWavBlob(buffer);
 
       const aiVocalParam = aiSeparate ? '1' : '0';
-      const transcribeUrl = ApiClient.getApiUrl(`/api/ai/transcribe?lang=${lang}&model=${model}&ai_vocal=${aiVocalParam}`);
+      // vocals=1: the audio is already a clean vocal, so the server skips the parts without singing
+      const transcribeUrl = ApiClient.getApiUrl(`/api/ai/transcribe?lang=${lang}&model=${model}&ai_vocal=${aiVocalParam}&vocals=${usingVocalStem ? 1 : 0}`);
       const resp = await fetch(transcribeUrl, {
         method: 'POST',
         body: wavBlob,
@@ -513,7 +531,7 @@ export class LyricsModal {
 
     if (rawLines.length === 0) return;
 
-    const totalDur = (this.engine.currentBuffer ? this.engine.currentBuffer.duration : this.engine.duration) || 120;
+    const totalDur = this._duration() || 120;
     const startOffset = Math.min(3.0, totalDur * 0.05);
     const usableDur = Math.max(10, totalDur - startOffset - 4.0);
     const interval = usableDur / rawLines.length;
@@ -529,7 +547,7 @@ export class LyricsModal {
   }
 
   _generateSmartSampleLyrics(lang) {
-    const dur = (this.engine.currentBuffer ? this.engine.currentBuffer.duration : this.engine.duration) || 60;
+    const dur = this._duration() || 60;
     const interval = Math.max(4, Math.floor(dur / 10));
     this.lines = [];
 
@@ -637,7 +655,7 @@ export class LyricsModal {
       // Snap time to current
       row.querySelector('.snap-time-btn').addEventListener('click', (e) => {
         e.stopPropagation();
-        const cur = this.engine.currentTime || 0;
+        const cur = this._now();
         this.lines[idx].time = Math.round(cur * 10) / 10;
         this.lines.sort((a, b) => a.time - b.time);
         this._renderLines();
@@ -720,7 +738,7 @@ export class LyricsModal {
     const updateFollower = () => {
       if (this.modalEl.style.display === 'none') return;
 
-      const current = this.engine.currentTime;
+      const current = this._now();
       let activeIdx = -1;
 
       for (let i = 0; i < this.lines.length; i++) {
@@ -850,7 +868,7 @@ export class LyricsModal {
     }
 
     let srt = '';
-    const dur = this.engine.duration || 120;
+    const dur = this._duration() || 120;
 
     this.lines.forEach((l, idx) => {
       const nextTime = (idx < this.lines.length - 1) ? this.lines[idx + 1].time : Math.min(dur, l.time + 3.5);
