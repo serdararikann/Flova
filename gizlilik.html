@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gizlilik politikası · Flova</title>
+  <link rel="icon" href="./favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0e0e0f; --surface: #161618; --line: #2a2a2e; --text: #ededee; --muted: #9a9aa0; --accent: #ff6a2b; --accent-text: #ff8a55;
+    }
+    @media (prefers-color-scheme: light) {
+      :root { --bg: #f6f5f2; --surface: #ffffff; --line: #e1dfda; --text: #161618; --muted: #5d5d63; --accent: #ff6a2b; --accent-text: #c2410c; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 Archivo, system-ui, sans-serif; }
+    main { max-width: 720px; margin: 0 auto; padding: 32px 16px 64px; }
+    header { display: flex; align-items: center; gap: 10px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+    header img { width: 28px; height: 28px; }
+    header a { color: var(--text); text-decoration: none; font-weight: 700; letter-spacing: 1.5px; }
+    h1 { font-stretch: 75%; font-weight: 800; font-size: 40px; line-height: 1.05; margin: 28px 0 6px; }
+    h2 { font-stretch: 75%; font-weight: 700; font-size: 24px; margin: 32px 0 8px; padding-top: 20px; border-top: 1px solid var(--line); }
+    .date { color: var(--muted); font: 13px 'JetBrains Mono', monospace; }
+    p, li { color: var(--text); }
+    ul { padding-left: 20px; }
+    li { margin: 4px 0; }
+    .muted { color: var(--muted); }
+    a { color: var(--accent-text); }
+    .box { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; }
+    ol { padding-left: 20px; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="./logo.png" alt="" />
+    <a href="./">FLOVA</a>
+  </header>
+
+  <h1>Gizlilik politikası</h1>
+  <div class="date">Son güncelleme: 25 Ekim 2026</div>
+
+  <p>Bu metin, Flova Audio Studio web sitesi (flova.serdararikan.net) ve Flova Android uygulaması için geçerlidir. Flova'da reklam, analiz ya da izleme aracı yoktur; verileriniz satılmaz ve başkalarıyla paylaşılmaz.</p>
+
+  <h2>Cihazınızda kalanlar</h2>
+  <p>Kırpma, efektler, birleştirme, format dönüştürme ve dışa aktarma cihazınızda (sitede tarayıcınızda) yapılır; bu işlemler için ses dosyalarınız hiçbir yere gönderilmez. Uygulama son çalışmanızı, içe aktardığınız dosyaların kopyalarını ve ayarlarınızı yalnızca kendi depolama alanında tutar. Uygulamayı kaldırdığınızda bunlar da silinir.</p>
+
+  <h2>Sunucuya gönderilenler</h2>
+  <p>Yapay zekâ özellikleri (vokal ayırma, enstrüman ayırma, gürültü temizleme, şarkı sözü çıkarma) ve uygulamadaki MP3 dönüştürme için seçtiğiniz ses, Hugging Face Spaces üzerinde çalışan Flova sunucusuna gönderilir. Bu dosyalar hesabınızla ilişkilendirilmez, yalnızca istediğiniz işlem için kullanılır ve en geç iki saat içinde sunucudan silinir.</p>
+
+  <h2>Hesap ve bulut projeleri</h2>
+  <p>Hesap açmak isteğe bağlıdır. Hesap açarsanız şunlar saklanır:</p>
+  <ul>
+    <li>E-posta adresiniz ve görünen adınız,</li>
+    <li>Şifreniz (yalnızca geri çevrilemeyen bir özet olarak),</li>
+    <li>Tema ve aktarım biçimi gibi ayarlarınız,</li>
+    <li>Buluta kaydettiğiniz projeler ve bu projelerin ses dosyaları.</li>
+  </ul>
+  <p>Bu veriler Supabase altyapısında tutulur ve yalnızca sizin hesabınızla erişilebilir. Sildiğiniz projeler 30 gün çöp kutusunda kalır, sonra kalıcı olarak silinir. Hesap onayı ve şifre sıfırlama e-postaları Resend aracılığıyla gönderilir.</p>
+  <p class="muted">Web sitesi yazı tiplerini Google Fonts'tan yükler; bu sırada tarayıcınız Google'a IP adresinizi iletir.</p>
+
+  <h2 id="hesap-silme">Hesabınızı silme</h2>
+  <div class="box">
+    <p style="margin-top:0">Hesabınızı istediğiniz zaman kendiniz silebilirsiniz:</p>
+    <ol>
+      <li><strong>Uygulamada:</strong> menü → hesabınız (Profil) → <em>Hesabı sil</em>.</li>
+      <li><strong>Web sitesinde:</strong> <a href="./">flova.serdararikan.net</a> → sağ üstteki hesap düğmesi → <em>Hesabı sil</em>.</li>
+    </ol>
+    <p style="margin-bottom:0">Silme anında yapılır ve geri alınamaz: hesabınız, profiliniz, ayarlarınız, buluttaki tüm projeleriniz ve ses dosyalarınız kalıcı olarak silinir.</p>
+  </div>
+
+</main>
+</body>
+</html>

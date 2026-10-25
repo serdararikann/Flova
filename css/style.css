@@ -3053,3 +3053,21 @@ select.studio-input option {
     display: none;
   }
 }
+
+.auth-footer-links {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  font-size: 12px;
+}
+.auth-footer-links a { color: var(--muted); padding: 8px 0; }
+.auth-delete-link {
+  padding: 8px 0;
+  background: none;
+  border: 0;
+  color: var(--danger);
+  font: inherit;
+  cursor: pointer;
+}
+.auth-delete-link:hover { text-decoration: underline; }

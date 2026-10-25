@@ -19,7 +19,7 @@ import { AudiogramModal } from './ui/audiogram-modal.js?v=14.0';
 import { ServerModal } from './ui/server-modal.js?v=14.0';
 import { CodeGuard } from './security/code-guard.js?v=9.1';
 import { ApiClient } from './audio/api-client.js?v=9.1';
-import { AuthModal } from './ui/auth-modal.js?v=14.0';
+import { AuthModal } from './ui/auth-modal.js?v=15.1';
 import { ProjectsModal } from './ui/projects-modal.js?v=14.0';
 import { ConverterUI } from './ui/converter-ui.js?v=15.0';
 import { supabaseService } from './db/supabase-client.js';

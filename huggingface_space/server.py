@@ -9,6 +9,7 @@ import shutil
 import re
 import urllib.request
 import urllib.parse
+import hmac
 from urllib.parse import urlparse, parse_qs, quote
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 import io
@@ -1040,6 +1041,76 @@ def segment_and_transcribe_audio(audio_bytes, lang='tr-TR', max_workers=4, model
     return lines
 
 
+SAFE_ID_RE = re.compile(r'^[A-Za-z0-9_-]{1,64}$')
+
+# Upload limit of /api/convert (a 1 h stereo FLAC is ~350 MB; the app uploads FLAC or the original compressed file).
+MAX_CONVERT_BYTES = 500 * 1024 * 1024
+
+# Formats the mobile app can ask for instead of WAV: (mime type, ffmpeg codec args). 16-bit WAV is ~10 MB per minute;
+# AAC 192 kbps is ~1.4 MB and FLAC (lossless) about half of WAV.
+TRANSFER_FORMATS = {
+    'm4a': ('audio/mp4', lambda kbps: ['-c:a', 'aac', '-b:a', f'{kbps}k', '-movflags', '+faststart']),
+    'flac': ('audio/flac', lambda kbps: ['-c:a', 'flac']),
+}
+
+
+def ensure_wav_bytes(audio_bytes):
+    """Uploads may be compressed (the mobile app sends AAC to save data); the AI jobs read WAV with soundfile."""
+    if audio_bytes[:4] == b'RIFF' and audio_bytes[8:12] == b'WAVE':
+        return audio_bytes
+    if not FFMPEG_EXE:
+        raise RuntimeError("Sıkıştırılmış ses için sunucuda FFmpeg yok; lütfen WAV gönderin.")
+    tmp_id = uuid.uuid4().hex[:10]
+    in_path = os.path.join(TEMP_DIR, f'upload_{tmp_id}.bin')
+    out_path = os.path.join(TEMP_DIR, f'upload_{tmp_id}.wav')
+    try:
+        with open(in_path, 'wb') as f:
+            f.write(audio_bytes)
+        res = subprocess.run(
+            [FFMPEG_EXE, '-y', '-v', 'error', '-i', in_path, '-vn', '-c:a', 'pcm_s16le', '-f', 'wav', out_path],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=180
+        )
+        if res.returncode != 0 or not os.path.exists(out_path):
+            raise RuntimeError(f"Ses dosyası çözülemedi: {res.stderr.decode(errors='ignore')[-200:].strip()}")
+        with open(out_path, 'rb') as f:
+            return f.read()
+    finally:
+        for p in (in_path, out_path):
+            try:
+                os.remove(p)
+            except Exception:
+                pass
+
+
+def transcode_wav(wav_path, fmt, kbps=192):
+    """Encodes a result WAV as [fmt] next to it (cached, so a retried download doesn't re-encode); returns (path, mime)."""
+    mime, codec_args = TRANSFER_FORMATS[fmt]
+    kbps = max(64, min(int(kbps), 320))
+    out_path = f"{os.path.splitext(wav_path)[0]}_{kbps}.{fmt}"
+    if not os.path.exists(out_path) or os.path.getmtime(out_path) < os.path.getmtime(wav_path):
+        tmp_path = out_path + '.part'
+        res = subprocess.run(
+            [FFMPEG_EXE, '-y', '-v', 'error', '-i', wav_path] + codec_args(kbps) + ['-f', 'mp4' if fmt == 'm4a' else fmt, tmp_path],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=180
+        )
+        if res.returncode != 0 or not os.path.exists(tmp_path):
+            raise RuntimeError(f"Kodlama başarısız: {res.stderr.decode(errors='ignore')[-200:].strip()}")
+        os.replace(tmp_path, out_path)
+    return out_path, mime
+
+
+def requested_transfer_format(query):
+    """`format=m4a|flac` (+ `kbps`) from the query, or None for the original WAV."""
+    fmt = (query.get('format', [''])[0] or '').lower()
+    if fmt not in TRANSFER_FORMATS or not FFMPEG_EXE:
+        return None, None
+    try:
+        kbps = int(query.get('kbps', ['192'])[0])
+    except ValueError:
+        kbps = 192
+    return fmt, kbps
+
+
 def find_valid_cookie_file():
     # 1. Environment variable support (ideal for Hugging Face Spaces Secrets / Docker deployments)
     env_cookies = os.environ.get('YOUTUBE_COOKIES') or os.environ.get('COOKIES_TXT') or os.environ.get('YOUTUBE_COOKIE_CONTENT')
@@ -1069,6 +1140,41 @@ def find_valid_cookie_file():
     return None
 
 
+YOUTUBE_LOGIN_COOKIES = {'SID', 'HSID', 'SSID', 'APISID', 'SAPISID', '__Secure-1PSID', '__Secure-3PSID', 'LOGIN_INFO'}
+
+
+def inspect_cookie_file(path):
+    """Checks a cookies.txt without exposing any value: Netscape format needs 7 tab-separated fields per line,
+    and pasting into a web form or secret often turns the tabs into spaces, which yt-dlp silently ignores."""
+    if not path or not os.path.exists(path):
+        return {'found': False}
+    try:
+        with open(path, encoding='utf-8', errors='ignore') as f:
+            lines = f.read().splitlines()
+    except Exception as e:
+        return {'found': True, 'readable': False, 'error': str(e)[:120]}
+    data = [l for l in lines if l.strip() and (not l.startswith('#') or l.startswith('#HttpOnly_'))]
+    valid = [l.split('\t') for l in data if len(l.split('\t')) == 7]
+    youtube = [p for p in valid if 'youtube.com' in p[0]]
+    now = time.time()
+    expired = 0
+    for p in youtube:
+        try:
+            if 0 < int(p[4]) < now:
+                expired += 1
+        except ValueError:
+            pass
+    return {
+        'found': True,
+        'lines': len(data),
+        'valid_lines': len(valid),
+        'format_ok': bool(data) and len(valid) == len(data),
+        'youtube_cookies': len(youtube),
+        'has_login_cookies': any(p[5] in YOUTUBE_LOGIN_COOKIES for p in youtube),
+        'expired_youtube_cookies': expired,
+    }
+
+
 def fetch_oembed_info(yt_url):
     """
     Direct no-auth YouTube oEmbed metadata resolver.
@@ -1093,7 +1199,7 @@ def fetch_oembed_info(yt_url):
     return None
 
 
-def download_stream_and_convert(stream_url, target_path, media_format='mp3', quality='192', headers=None, chunk_size=1048576):
+def download_stream_and_convert(stream_url, target_path, media_format='mp3', quality='192', headers=None, chunk_size=1048576, proxy=None):
     """
     Two-stage high-speed reliable stream downloader & transcoder:
     1. Downloads raw audio stream via Python's native urllib with HTTP Range chunking (1MB chunks).
@@ -1118,18 +1224,17 @@ def download_stream_and_convert(stream_url, target_path, media_format='mp3', qua
                 if k.lower() in ('user-agent', 'accept-language', 'range'):
                     req_headers[k] = v
 
-        proxy = (
-            os.environ.get('YOUTUBE_PROXY') or 
-            os.environ.get('PROXY_URL') or 
-            os.environ.get('HTTPS_PROXY') or 
-            os.environ.get('HTTP_PROXY')
-        )
+        # proxy: route the stream URL was extracted through ('' = direct); None = first configured proxy.
+        if proxy is None:
+            configured = get_configured_proxies()
+            proxy = configured[0] if configured else ''
         if proxy and proxy.strip():
             proxy_clean = proxy.strip()
             proxy_handler = urllib.request.ProxyHandler({'http': proxy_clean, 'https': proxy_clean})
             opener = urllib.request.build_opener(proxy_handler)
         else:
-            opener = urllib.request.build_opener()
+            # Empty ProxyHandler: a bare build_opener() would still pick up HTTP(S)_PROXY from the environment.
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
         downloaded = 0
         total_size = None
@@ -1344,11 +1449,65 @@ def ensure_pot_server():
         return False
 
 
+WEBSHARE_CACHE = {'proxies': [], 'fetched_at': 0.0, 'error': None}
+WEBSHARE_LOCK = threading.Lock()
+WEBSHARE_TTL = 30 * 60
+
+
+def fetch_webshare_proxies(force=False):
+    """Current proxy list from the Webshare API (WEBSHARE_API_KEY secret), cached for 30 minutes.
+    Webshare replaces free-plan proxies from time to time, so a fixed IP in YOUTUBE_PROXY eventually stops working."""
+    api_key = (os.environ.get('WEBSHARE_API_KEY') or '').strip()
+    if not api_key:
+        return []
+    with WEBSHARE_LOCK:
+        # After a failed fetch, wait a minute before asking again instead of slowing every request down.
+        ttl = WEBSHARE_TTL if WEBSHARE_CACHE['proxies'] else 60
+        if not force and time.time() - WEBSHARE_CACHE['fetched_at'] < ttl:
+            return list(WEBSHARE_CACHE['proxies'])
+        try:
+            req = urllib.request.Request(
+                'https://proxy.webshare.io/api/v2/proxy/list/?mode=direct&page=1&page_size=100',
+                headers={'Authorization': f'Token {api_key}', 'User-Agent': 'Flova/1.0'}
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode('utf-8'))
+            proxies = []
+            for item in data.get('results', []):
+                if not item.get('valid', True) or not item.get('proxy_address'):
+                    continue
+                user = quote(str(item.get('username', '')), safe='')
+                password = quote(str(item.get('password', '')), safe='')
+                proxies.append(f"http://{user}:{password}@{item['proxy_address']}:{item['port']}")
+            WEBSHARE_CACHE.update(proxies=proxies, fetched_at=time.time(), error=None)
+            print(f"[Proxy] Webshare listesi yenilendi: {len(proxies)} proxy", flush=True)
+        except Exception as e:
+            WEBSHARE_CACHE.update(fetched_at=time.time(), error=str(e)[:200])
+            print(f"[Proxy] Webshare listesi alınamadı: {e}", flush=True)
+        return list(WEBSHARE_CACHE['proxies'])
+
+
+def is_complete_audio_file(path, duration):
+    """Rejects truncated/placeholder downloads. YouTube sometimes serves a format (often itag 18 on the android
+    client) holding only a moment of audio; FFmpeg turns it into a valid but empty MP3 of ~1 KB. Every MP3 quality
+    we encode (128-320 kbps) is at least 16 KB per second, so anything under half of that is not the whole song."""
+    if not path or not os.path.exists(path):
+        return False
+    size = os.path.getsize(path)
+    if size <= 1024:
+        return False
+    try:
+        seconds = float(duration or 0)
+    except (TypeError, ValueError):
+        seconds = 0
+    return seconds <= 0 or size >= seconds * 8000
+
+
 def get_configured_proxies():
     raw = (
-        os.environ.get('YOUTUBE_PROXY') or 
-        os.environ.get('PROXY_URL') or 
-        os.environ.get('HTTPS_PROXY') or 
+        os.environ.get('YOUTUBE_PROXY') or
+        os.environ.get('PROXY_URL') or
+        os.environ.get('HTTPS_PROXY') or
         os.environ.get('HTTP_PROXY') or ''
     )
     proxies = []
@@ -1358,7 +1517,29 @@ def get_configured_proxies():
             if not p.startswith('http://') and not p.startswith('https://') and not p.startswith('socks5://'):
                 p = 'http://' + p
             proxies.append(p)
+    for p in fetch_webshare_proxies():
+        if p not in proxies:
+            proxies.append(p)
     return proxies
+
+
+def mask_proxy(proxy):
+    """host:port only; never log or return proxy credentials."""
+    if not proxy:
+        return 'doğrudan'
+    return proxy.split('@')[-1].split('://')[-1]
+
+
+PROXY_ERROR_MARKERS = (
+    'proxy authentication required', '407 proxy', 'unable to connect to proxy', 'cannot connect to proxy',
+    'tunnel connection failed', 'proxyerror', 'proxy error',
+)
+
+
+def is_proxy_error(message):
+    """True when the failure is the proxy itself (bad credentials, proxy down), not YouTube."""
+    m = (message or '').lower()
+    return any(k in m for k in PROXY_ERROR_MARKERS)
 
 
 def get_youtube_dl_opts(extra_opts=None, client_list=None, use_cookies=True, proxy_override=None):
@@ -1376,6 +1557,7 @@ def get_youtube_dl_opts(extra_opts=None, client_list=None, use_cookies=True, pro
         'no_warnings': True,
         'nocheckcertificate': True,
         'socket_timeout': 20,
+        'extractor_retries': 1,
         'ffmpeg_location': FFMPEG_EXE,
         'js_runtimes': get_js_runtime_config(),
         'check_formats': False,
@@ -1403,7 +1585,8 @@ def get_youtube_dl_opts(extra_opts=None, client_list=None, use_cookies=True, pro
     if cookie_file:
         opts['cookiefile'] = cookie_file
 
-    if proxy_override:
+    if proxy_override is not None:
+        # "" = direct connection: yt-dlp then ignores the configured proxy.
         opts['proxy'] = proxy_override
     else:
         proxies = get_configured_proxies()
@@ -1501,16 +1684,24 @@ def run_resilient_ytdlp_action(yt_url, base_opts=None, is_download=False):
             'use_cookies': True
         })
 
-    proxies_to_try = get_configured_proxies() or [None]
+    proxies = get_configured_proxies()
+    queue = list(proxies) or [None]
+    tried = []
+    broken = []
+    refreshed = False
     last_err = None
-    for p_idx, proxy_item in enumerate(proxies_to_try, 1):
+    while queue:
+        proxy_item = queue.pop(0)
+        tried.append(proxy_item)
+        p_idx = len(tried)
+        proxies_to_try = tried + queue
         for idx, strat in enumerate(strategies, 1):
             try:
                 ydl_opts = get_youtube_dl_opts(
                     extra_opts=base_opts,
                     client_list=strat['clients'],
                     use_cookies=strat['use_cookies'],
-                    proxy_override=proxy_item
+                    proxy_override=proxy_item if proxy_item else ('' if proxies else None)
                 )
                 # Ensure format check is never blocking valid extraction
                 ydl_opts['check_formats'] = False
@@ -1538,20 +1729,49 @@ def run_resilient_ytdlp_action(yt_url, base_opts=None, is_download=False):
                             outtmpl_pattern = base_opts.get('outtmpl') if base_opts else None
                             if outtmpl_pattern and isinstance(outtmpl_pattern, str):
                                 prefix = os.path.basename(outtmpl_pattern).split('.%')[0]
-                                matched = [f for f in os.listdir(YT_TEMP_DIR) if f.startswith(prefix) and os.path.getsize(os.path.join(YT_TEMP_DIR, f)) > 1024]
-                                if not matched:
-                                    print(f"[YouTube Engine] Strateji {idx} ({strat['name']}) indirme dosyası üretemedi, sonraki strateji deneniyor...", flush=True)
+                                produced = [os.path.join(YT_TEMP_DIR, f) for f in os.listdir(YT_TEMP_DIR) if f.startswith(prefix)]
+                                complete = [f for f in produced if is_complete_audio_file(f, info.get('duration'))]
+                                if not complete:
+                                    for f in produced:
+                                        try:
+                                            os.remove(f)
+                                        except Exception:
+                                            pass
+                                    reason = "eksik/boş ses akışı döndürdü" if produced else "indirme dosyası üretemedi"
+                                    print(f"[YouTube Engine] Strateji {idx} ({strat['name']}) {reason}, sonraki strateji deneniyor...", flush=True)
                                     continue
 
                         print(f"[YouTube Engine] BAŞARILI! ({strat['name']})", flush=True)
+                        # Stream URLs are bound to the extracting IP, so the direct downloader must use the same route.
+                        if isinstance(info, dict):
+                            info['_flova_proxy'] = proxy_item or ''
                         return info
             except Exception as e:
                 err_msg = str(e)
                 print(f"[YouTube Engine] Strateji {idx} başarısız ({strat['name']}): {err_msg[:120]}", flush=True)
                 last_err = e
                 if "Video unavailable" in err_msg or "Private video" in err_msg:
+                    raise
+                if proxy_item and is_proxy_error(err_msg):
+                    # Every other strategy would fail the same way through this proxy.
+                    broken.append(mask_proxy(proxy_item))
+                    print(f"[YouTube Engine] Proxy çalışmıyor ({mask_proxy(proxy_item)}), atlanıyor.", flush=True)
                     break
 
+        all_proxies_broken = bool(proxies) and len(broken) == len([p for p in tried if p])
+        if not queue and proxy_item and all_proxies_broken:
+            if not refreshed and os.environ.get('WEBSHARE_API_KEY'):
+                refreshed = True
+                queue = [p for p in fetch_webshare_proxies(force=True) if p not in tried]
+            if not queue:
+                print("[YouTube Engine] Hiçbir proxy çalışmadı, doğrudan bağlantı deneniyor...", flush=True)
+                queue = [None]
+
+    if broken and None in tried:
+        raise RuntimeError(
+            f"YouTube proxy'si çalışmıyor ({', '.join(broken)}): kimlik doğrulaması reddedildi (407) ya da proxy kapalı. "
+            f"Hugging Face'teki YOUTUBE_PROXY secret'ını kontrol edin. Doğrudan bağlantı hatası: {str(last_err)[:200]}"
+        )
     if last_err:
         raise last_err
     raise RuntimeError("YouTube verisi alınamadı.")
@@ -1589,11 +1809,35 @@ class FlovaHandler(SimpleHTTPRequestHandler):
     def send_error_json(self, status_code, message):
         self.send_json(status_code, {'success': False, 'error': message})
 
+    def require_admin(self):
+        """Cookie management changes what every user's downloads run as, so it needs the FLOVA_ADMIN_TOKEN secret."""
+        token = (os.environ.get('FLOVA_ADMIN_TOKEN') or '').strip()
+        if not token:
+            self.send_error_json(403, "Çerez yönetimi kapalı: sunucuya FLOVA_ADMIN_TOKEN secret'ı tanımlanmamış.")
+            return False
+        given = (self.headers.get('X-Flova-Admin-Token') or '').strip()
+        if not hmac.compare_digest(given.encode('utf-8'), token.encode('utf-8')):
+            self.send_error_json(401, "Yönetici anahtarı geçersiz.")
+            return False
+        return True
+
+    # Only the web app itself is served as static files; cookies.txt, server code, temp folders etc. stay private.
+    PUBLIC_DIRS = ('css', 'js', 'icons', 'dist')
+    PUBLIC_FILES = ('index.html', 'favicon.ico', 'logo.png', 'logo-original.png', 'manifest.json', 'sw.js')
+
+    def is_public_static_path(self, path):
+        parts = [p for p in urllib.parse.unquote(path).replace('\\', '/').split('/') if p]
+        if not parts or any(p.startswith('.') for p in parts):
+            return False
+        if len(parts) == 1:
+            return parts[0] in self.PUBLIC_FILES
+        return parts[0] in self.PUBLIC_DIRS
+
     def do_OPTIONS(self):
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Range')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Range, X-Flova-Admin-Token')
         self.send_header('Access-Control-Expose-Headers', 'Content-Disposition')
         self.end_headers()
 
@@ -1762,6 +2006,15 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                 'pot_ping_ok': pot_ping,
                 'proxy_configured': bool(proxy_val),
                 'proxy_masked': (proxy_val.split('@')[-1] if '@' in proxy_val else (proxy_val[:12] + '...')) if proxy_val else None,
+                'proxy_list': [mask_proxy(p) for p in get_configured_proxies()],
+                'proxy_error': is_proxy_error(extract_err),
+                'webshare_api': {
+                    'enabled': bool((os.environ.get('WEBSHARE_API_KEY') or '').strip()),
+                    'proxies': len(WEBSHARE_CACHE['proxies']),
+                    'age_seconds': round(time.time() - WEBSHARE_CACHE['fetched_at']) if WEBSHARE_CACHE['fetched_at'] else None,
+                    'error': WEBSHARE_CACHE['error'],
+                },
+                'cookies': inspect_cookie_file(find_valid_cookie_file()),
                 'tested_client': test_client,
                 'formats_found': len(extract_formats),
                 'formats': extract_formats,
@@ -1855,7 +2108,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                     'success': True,
                     'has_cookies': True,
                     'size': os.path.getsize(cookie_path),
-                    'path': cookie_path,
+                    'check': inspect_cookie_file(cookie_path),
                     'message': 'Sunucuda aktif YouTube çerez dosyası yüklü.'
                 })
             else:
@@ -1869,6 +2122,8 @@ class FlovaHandler(SimpleHTTPRequestHandler):
 
         # YouTube Cookie Delete API
         if parsed.path == '/api/youtube/cookies/delete':
+            if not self.require_admin():
+                return
             deleted = []
             base_dir = os.path.dirname(os.path.abspath(__file__))
             candidate_paths = [
@@ -2156,18 +2411,22 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                     print(f"[YouTube Download] Standart yt-dlp indirme uyarısı ({dl_err}), doğrudan akış katmanı deneniyor...", flush=True)
 
                 filepath = os.path.join(YT_TEMP_DIR, f'{dl_id}.{target_ext}')
+                expected_duration = (info or {}).get('duration')
 
                 # Fail-Safe Layer 2: Fast chunked stream downloader & local transcode
-                if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
+                if not is_complete_audio_file(filepath, expected_duration):
                     print(f"[YouTube Download] Hızlı doğrudan akış kurtarma başlatılıyor: {yt_url}", flush=True)
                     try:
                         info_raw = run_resilient_ytdlp_action(yt_url, base_opts={'skip_download': True}, is_download=False)
+                        stream_proxy = info_raw.get('_flova_proxy') if isinstance(info_raw, dict) else None
                     except Exception as extract_err:
                         print(f"[YouTube Download] Format çıkarma uyarısı: {extract_err}", flush=True)
                         info_raw = {}
+                        stream_proxy = None
 
                     if 'entries' in info_raw and info_raw['entries']:
                         info_raw = info_raw['entries'][0]
+                    expected_duration = expected_duration or info_raw.get('duration')
                     if not info:
                         info = info_raw
                     formats = info_raw.get('formats', []) or []
@@ -2217,8 +2476,15 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                             target_path=filepath,
                             media_format='mp3',
                             quality=preferred_quality,
-                            headers=best_fmt.get('http_headers')
+                            headers=best_fmt.get('http_headers'),
+                            proxy=stream_proxy
                         )
+                        if ok and not is_complete_audio_file(filepath, expected_duration):
+                            ok, err_detail = False, f"eksik/boş ses akışı ({os.path.getsize(filepath)} bayt)"
+                            try:
+                                os.remove(filepath)
+                            except Exception:
+                                pass
                         if ok:
                             print(f"[YouTube Download] Akış dönüştürme BAŞARILI! Boyut: {os.path.getsize(filepath)} bayt", flush=True)
                             last_stream_err = "OK"
@@ -2226,7 +2492,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                         else:
                             last_stream_err = f"id={fid}: {err_detail}"
 
-                if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
+                if not is_complete_audio_file(filepath, expected_duration):
                     v_id = ''
                     if target and target.get('id'):
                         v_id = target.get('id')
@@ -2322,15 +2588,26 @@ class FlovaHandler(SimpleHTTPRequestHandler):
             query = parse_qs(parsed.query)
             job_id = query.get('jobId', [None])[0]
             stem_type = query.get('type', ['vocal'])[0]
+            if not job_id or not SAFE_ID_RE.match(job_id) or not SAFE_ID_RE.match(stem_type):
+                self.send_error(404, "Stem file not found")
+                return
             filename = f'{stem_type}_{job_id}.wav'
             filepath = os.path.join(TEMP_DIR, filename)
             if not os.path.exists(filepath):
                 self.send_error(404, "Stem file not found")
                 return
+            mime = 'audio/wav'
+            fmt, kbps = requested_transfer_format(query)
+            if fmt:
+                try:
+                    filepath, mime = transcode_wav(filepath, fmt, kbps)
+                except Exception as e:
+                    print(f"[Stem] {fmt} kodlama hatası, WAV gönderiliyor: {e}", flush=True)
+                    mime = 'audio/wav'
             with open(filepath, 'rb') as f:
                 content = f.read()
             self.send_response(200)
-            self.send_header('Content-Type', 'audio/wav')
+            self.send_header('Content-Type', mime)
             self.send_header('Content-Length', str(len(content)))
             self.send_header('Access-Control-Allow-Origin', '*')
             self.send_header('Cache-Control', 'no-cache, no-store')
@@ -2338,6 +2615,9 @@ class FlovaHandler(SimpleHTTPRequestHandler):
             self.wfile.write(content)
             return
 
+        if not self.is_public_static_path(parsed.path):
+            self.send_error(404, "Not found")
+            return
         super().do_GET()
 
     def do_POST(self):
@@ -2345,6 +2625,8 @@ class FlovaHandler(SimpleHTTPRequestHandler):
 
         # Upload / Save YouTube Cookies API
         if parsed.path == '/api/youtube/cookies':
+            if not self.require_admin():
+                return
             try:
                 content_length = int(self.headers.get('Content-Length', 0))
                 payload = self.rfile.read(content_length).decode('utf-8', errors='ignore')
@@ -2391,7 +2673,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
         if parsed.path == '/api/separate-ai':
             try:
                 content_length = int(self.headers.get('Content-Length', 0))
-                audio_bytes = self.rfile.read(content_length)
+                audio_bytes = ensure_wav_bytes(self.rfile.read(content_length))
 
                 job_id = str(uuid.uuid4())[:8]
                 input_path = os.path.join(TEMP_DIR, f'input_{job_id}.wav')
@@ -2436,7 +2718,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                 is_6s = (parsed.path == '/api/separate-stems-6s') or (query.get('mode', ['4s'])[0] == '6s')
                 
                 content_length = int(self.headers.get('Content-Length', 0))
-                audio_bytes = self.rfile.read(content_length)
+                audio_bytes = ensure_wav_bytes(self.rfile.read(content_length))
 
                 job_id = str(uuid.uuid4())[:8]
                 input_path = os.path.join(TEMP_DIR, f'input_{job_id}.wav')
@@ -2482,7 +2764,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                 query = parse_qs(parsed.query)
                 strength = float(query.get('strength', [0.8])[0])
                 content_length = int(self.headers.get('Content-Length', 0))
-                audio_bytes = self.rfile.read(content_length)
+                audio_bytes = ensure_wav_bytes(self.rfile.read(content_length))
 
                 job_id = str(uuid.uuid4())[:8]
                 in_path = os.path.join(TEMP_DIR, f'denoise_in_{job_id}.wav')
@@ -2503,17 +2785,24 @@ class FlovaHandler(SimpleHTTPRequestHandler):
 
                 sf.write(out_path, cleaned, sr)
 
-                with open(out_path, 'rb') as f:
+                send_path, mime = out_path, 'audio/wav'
+                fmt, kbps = requested_transfer_format(query)
+                if fmt:
+                    try:
+                        send_path, mime = transcode_wav(out_path, fmt, kbps)
+                    except Exception as e:
+                        print(f"[Denoise] {fmt} kodlama hatası, WAV gönderiliyor: {e}", flush=True)
+                with open(send_path, 'rb') as f:
                     out_bytes = f.read()
 
-                try:
-                    os.remove(in_path)
-                    os.remove(out_path)
-                except Exception:
-                    pass
+                for p in {in_path, out_path, send_path}:
+                    try:
+                        os.remove(p)
+                    except Exception:
+                        pass
 
                 self.send_response(200)
-                self.send_header('Content-Type', 'audio/wav')
+                self.send_header('Content-Type', mime)
                 self.send_header('Content-Length', str(len(out_bytes)))
                 self.send_header('Access-Control-Allow-Origin', '*')
                 self.end_headers()
@@ -2526,6 +2815,81 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                 self.send_header('Access-Control-Allow-Origin', '*')
                 self.end_headers()
                 self.wfile.write(body)
+        elif parsed.path == '/api/convert':
+            # Format conversion for the mobile app's converter (MP3 output; Android has no MP3 encoder).
+            in_path = out_path = None
+            try:
+                query = parse_qs(parsed.query)
+                fmt = (query.get('format', ['mp3'])[0] or 'mp3').lower()
+                if fmt != 'mp3':
+                    self.send_error_json(400, "Desteklenmeyen hedef format.")
+                    return
+                if not FFMPEG_EXE:
+                    self.send_error_json(500, "Sunucuda FFmpeg yok.")
+                    return
+                try:
+                    kbps = max(64, min(int(query.get('kbps', ['192'])[0]), 320))
+                except ValueError:
+                    kbps = 192
+                rate = query.get('rate', [''])[0]
+                channels = query.get('channels', [''])[0]
+                content_length = int(self.headers.get('Content-Length', 0))
+                if content_length <= 0:
+                    self.send_error_json(400, "Boş dosya.")
+                    return
+                if content_length > MAX_CONVERT_BYTES:
+                    self.send_error_json(413, f"Dosya çok büyük (en fazla {MAX_CONVERT_BYTES // (1024 * 1024)} MB).")
+                    return
+
+                job_id = uuid.uuid4().hex[:10]
+                in_path = os.path.join(TEMP_DIR, f'convert_in_{job_id}.bin')
+                out_path = os.path.join(TEMP_DIR, f'convert_out_{job_id}.mp3')
+                remaining = content_length
+                with open(in_path, 'wb') as f:
+                    while remaining > 0:
+                        chunk = self.rfile.read(min(1 << 20, remaining))
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                        remaining -= len(chunk)
+
+                cmd = [FFMPEG_EXE, '-y', '-v', 'error', '-i', in_path, '-vn', '-map', '0:a:0',
+                       '-c:a', 'libmp3lame', '-b:a', f'{kbps}k']
+                if rate in ('8000', '11025', '12000', '16000', '22050', '24000', '32000', '44100', '48000'):
+                    cmd += ['-ar', rate]
+                if channels in ('1', '2'):
+                    cmd += ['-ac', channels]
+                # Tags: FFmpeg copies the upload's (title, artist, ...) by default; ID3v2.3 is what Windows and most players read.
+                if query.get('tags', ['1'])[0] == '0':
+                    cmd += ['-map_metadata', '-1']
+                else:
+                    cmd += ['-id3v2_version', '3']
+                cmd.append(out_path)
+                t0 = time.time()
+                res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=900)
+                if res.returncode != 0 or not os.path.exists(out_path):
+                    print(f"[Convert] FFmpeg hatası: {res.stderr.decode(errors='ignore')[-300:].strip()}", flush=True)
+                    self.send_error_json(422, "Dosya okunamadı veya dönüştürülemedi; desteklenen bir ses/video dosyası seçin.")
+                    return
+                with open(out_path, 'rb') as f:
+                    out_bytes = f.read()
+                print(f"[Convert] {content_length} B -> mp3 {kbps}k {len(out_bytes)} B ({time.time() - t0:.1f}s)", flush=True)
+                self.send_response(200)
+                self.send_header('Content-Type', 'audio/mpeg')
+                self.send_header('Content-Length', str(len(out_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(out_bytes)
+            except Exception as e:
+                print(f"[Convert Error]: {e}", flush=True)
+                self.send_error_json(500, f"Dönüştürme hatası: {e}")
+            finally:
+                for p in (in_path, out_path):
+                    if p:
+                        try:
+                            os.remove(p)
+                        except Exception:
+                            pass
         elif parsed.path == '/api/ai/transcribe':
             try:
                 query = parse_qs(parsed.query)
@@ -2533,7 +2897,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                 model_size = query.get('model', ['small'])[0]
                 ai_vocal = query.get('ai_vocal', ['0'])[0] == '1'
                 content_length = int(self.headers.get('Content-Length', 0))
-                audio_bytes = self.rfile.read(content_length)
+                audio_bytes = ensure_wav_bytes(self.rfile.read(content_length))
 
                 t0 = time.time()
                 print(f"[Transcribe] Transkripsiyon basladi (lang={lang}, model={model_size}, ai_vocal={ai_vocal}, bytes={len(audio_bytes)})", flush=True)
@@ -2567,10 +2931,35 @@ class FlovaHandler(SimpleHTTPRequestHandler):
         else:
             self.send_error(404)
 
+TEMP_MAX_AGE = 2 * 60 * 60
+
+
+def clean_temp_dirs():
+    """Users' uploads and results are kept only while they are being fetched: files older than TEMP_MAX_AGE go."""
+    while True:
+        cutoff = time.time() - TEMP_MAX_AGE
+        for root_dir in (TEMP_DIR, YT_TEMP_DIR):
+            for root, dirs, files in os.walk(root_dir, topdown=False):
+                for name in files:
+                    p = os.path.join(root, name)
+                    try:
+                        if os.path.getmtime(p) < cutoff:
+                            os.remove(p)
+                    except Exception:
+                        pass
+                if root != root_dir:
+                    try:
+                        os.rmdir(root)  # only succeeds when empty
+                    except Exception:
+                        pass
+        time.sleep(10 * 60)
+
+
 def run_server(port=None):
     server_port = int(port or os.environ.get('PORT', 3000))
     print(f'Starting Flova Threading Server on port {server_port}...')
     threading.Thread(target=ensure_pot_server, daemon=True).start()
+    threading.Thread(target=clean_temp_dirs, daemon=True).start()
     server = ThreadingHTTPServer(('0.0.0.0', server_port), FlovaHandler)
     server.serve_forever()
 

@@ -2931,10 +2931,35 @@ class FlovaHandler(SimpleHTTPRequestHandler):
         else:
             self.send_error(404)
 
+TEMP_MAX_AGE = 2 * 60 * 60
+
+
+def clean_temp_dirs():
+    """Users' uploads and results are kept only while they are being fetched: files older than TEMP_MAX_AGE go."""
+    while True:
+        cutoff = time.time() - TEMP_MAX_AGE
+        for root_dir in (TEMP_DIR, YT_TEMP_DIR):
+            for root, dirs, files in os.walk(root_dir, topdown=False):
+                for name in files:
+                    p = os.path.join(root, name)
+                    try:
+                        if os.path.getmtime(p) < cutoff:
+                            os.remove(p)
+                    except Exception:
+                        pass
+                if root != root_dir:
+                    try:
+                        os.rmdir(root)  # only succeeds when empty
+                    except Exception:
+                        pass
+        time.sleep(10 * 60)
+
+
 def run_server(port=None):
     server_port = int(port or os.environ.get('PORT', 3000))
     print(f'Starting Flova Threading Server on port {server_port}...')
     threading.Thread(target=ensure_pot_server, daemon=True).start()
+    threading.Thread(target=clean_temp_dirs, daemon=True).start()
     server = ThreadingHTTPServer(('0.0.0.0', server_port), FlovaHandler)
     server.serve_forever()
 

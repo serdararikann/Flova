@@ -476,6 +476,29 @@ class SupabaseService {
     return { files, bytes };
   }
 
+  /**
+   * Deletes the account for good, as the app does: every file in the user's flova-media folder, then the rows and the
+   * auth user (flova_delete_account in schema.sql). Signs out afterwards.
+   */
+  async deleteAccount() {
+    const user = this.requireUser();
+    const bucket = this.client.storage.from(MEDIA_BUCKET);
+    for (;;) {
+      const { data, error } = await bucket.list(user.id, { limit: 1000 });
+      if (error) throw cloudError(error, 'Dosyalar silinemedi.');
+      const files = (data || []).filter((f) => f.id); // folders have no id
+      if (!files.length) break;
+      const { error: removeError } = await bucket.remove(files.map((f) => `${user.id}/${f.name}`));
+      if (removeError) throw cloudError(removeError, 'Dosyalar silinemedi.');
+    }
+    const { error } = await this.client.rpc('flova_delete_account');
+    if (error) {
+      if (error.code === 'PGRST202' || error.code === '42883') throw new Error('Hesap silme sunucuda henüz etkin değil. Lütfen daha sonra tekrar deneyin.');
+      throw cloudError(error, 'Hesap silinemedi.');
+    }
+    await this.signOut();
+  }
+
   // ==========================================
   // AUDIO ASSETS (flova_assets + flova-media)
   // ==========================================
