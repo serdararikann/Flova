@@ -5,7 +5,7 @@
    - Clean cache lifecycle management
    ==================================================================== */
 
-const CACHE_NAME = 'flova-studio-v3.1';
+const CACHE_NAME = 'flova-studio-v3.2';
 
 const PRECACHE_ASSETS = [
   './',
@@ -13,7 +13,7 @@ const PRECACHE_ASSETS = [
   './manifest.json',
   './favicon.ico',
   './logo.png',
-  './css/style.css?v=14.0',
+  './css/style.css?v=15.0',
   './icons/icon-72.png',
   './icons/icon-96.png',
   './icons/icon-128.png',
@@ -24,7 +24,7 @@ const PRECACHE_ASSETS = [
   './icons/icon-512.png',
   './icons/icon-maskable-192.png',
   './icons/icon-maskable-512.png',
-  './js/app.js?v=14.0',
+  './js/app.js?v=15.0',
   './js/audio/audio-engine.js',
   './js/audio/audio-processor.js',
   './js/audio/audio-encoders.js',
@@ -34,12 +34,17 @@ const PRECACHE_ASSETS = [
   './js/ui/waveform-canvas.js?v=14.0',
   './js/ui/visualizer-canvas.js?v=14.0',
   './js/ui/theme-colors.js',
+  './js/ui/converter-ui.js?v=15.0',
+  './js/audio/converter.js',
+  './js/audio/media-info.js',
+  './js/audio/webcodecs-encoders.js',
+  './js/audio/flac-encoder.js',
   './js/ui/merger-ui.js?v=14.0',
   './js/ui/vocal-splitter-ui.js?v=14.0',
   './js/ui/stem-splitter-ui.js?v=14.0',
   './js/ui/youtube-ui.js?v=14.0',
   './js/ui/export-modal.js?v=14.0',
-  './js/ui/hotkeys-modal.js?v=9.6',
+  './js/ui/hotkeys-modal.js?v=15.0',
   './js/ui/smart-tools-modal.js?v=14.0',
   './js/ui/lyrics-modal.js?v=14.0',
   './js/ui/audiogram-modal.js?v=14.0',

@@ -317,12 +317,6 @@ kbd {
   white-space: nowrap;
 }
 
-.mode-tab-btn .mode-num {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  color: var(--dim);
-}
-
 .mode-tab-btn svg {
   display: none;
 }
@@ -336,11 +330,6 @@ kbd {
   background: var(--text);
   color: var(--bg);
   font-weight: 600;
-}
-
-.mode-tab-btn.active .mode-num {
-  color: var(--bg);
-  opacity: 0.6;
 }
 
 .header-actions {
@@ -450,6 +439,37 @@ kbd {
 }
 .icon-btn:hover {
   background: var(--hover);
+}
+
+.icon-btn.is-on {
+  color: var(--accent-text);
+}
+
+.preset-chip.disabled,
+.preset-chip:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.preset-chip.disabled:hover,
+.preset-chip:disabled:hover {
+  background: transparent;
+}
+
+.preset-chip.active:disabled {
+  opacity: 1;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.field-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: 14px 0 6px;
 }
 
 /* ====================================================================
@@ -1212,6 +1232,7 @@ kbd {
   align-items: center;
   height: 26px;
   border: 1px solid var(--line);
+  background: transparent;
   padding: 0 9px;
   border-radius: var(--radius-sm);
   font-size: 0.74rem;
@@ -2431,6 +2452,248 @@ kbd {
 }
 
 /* ====================================================================
+   CONVERTER ("Dönüştürücü")
+   ==================================================================== */
+.conv-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 24px;
+  align-items: start;
+}
+
+#converterContainer.is-dragover .conv-files,
+#converterContainer.is-dragover .conv-drop {
+  outline: 1px dashed var(--accent);
+  outline-offset: 6px;
+  border-radius: var(--radius-md);
+}
+
+.conv-count {
+  font-family: var(--font-mono);
+  font-stretch: 100%;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--muted);
+  margin-left: 6px;
+}
+
+.conv-head-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.conv-list {
+  border-top: 1px solid var(--line);
+}
+
+.conv-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.conv-row-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.conv-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: var(--raised);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.conv-icon.is-done {
+  color: var(--positive);
+}
+
+.conv-icon.is-failed {
+  color: var(--danger);
+}
+
+.conv-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.conv-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conv-meta {
+  font-size: 0.74rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conv-meta.is-accent,
+.conv-note.is-accent {
+  color: var(--accent-text);
+}
+
+.conv-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.conv-pct {
+  font-size: 0.8rem;
+  color: var(--accent-text);
+}
+
+.conv-msg {
+  font-size: 0.78rem;
+}
+
+.conv-row > .conv-msg,
+.conv-row > .progress-track {
+  margin-left: 48px;
+}
+
+.conv-msg.is-done {
+  color: var(--positive);
+}
+
+.conv-msg.is-failed {
+  color: var(--danger);
+}
+
+.conv-trim {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--inset);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.conv-trim-row {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.conv-times {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.conv-trim .time-input-row {
+  background: var(--surface);
+}
+
+.conv-settings {
+  position: sticky;
+  top: 76px;
+  padding-left: 24px;
+  border-left: 1px solid var(--line);
+}
+
+.conv-settings .field-label:first-of-type {
+  margin-top: 0;
+}
+
+.conv-note {
+  font-size: 0.76rem;
+  color: var(--muted);
+  margin-top: 6px;
+  line-height: 1.45;
+}
+
+.conv-estimate {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.conv-estimate .mono {
+  color: var(--text);
+}
+
+.conv-busy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 12px;
+  min-width: 0;
+}
+
+.conv-busy span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conv-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.conv-buttons .btn {
+  width: 100%;
+  min-height: 44px;
+}
+
+@media (max-width: 1000px) {
+  .conv-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .conv-settings {
+    position: static;
+    padding-left: 0;
+    border-left: none;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 520px) {
+  .conv-meta {
+    white-space: normal;
+  }
+  .conv-times {
+    grid-template-columns: 1fr 1fr;
+  }
+  .conv-times .time-input-box:nth-child(3) {
+    grid-column: span 2;
+  }
+  .conv-head-actions .btn span,
+  .conv-actions .btn {
+    font-size: 0.74rem;
+  }
+}
+
+/* ====================================================================
    SMART TOOLS, LYRICS, AUDIOGRAM
    ==================================================================== */
 .spec-bpm, .spec-key {
@@ -2605,9 +2868,6 @@ select.studio-input option {
 }
 
 @media (max-width: 1240px) {
-  .mode-tab-btn .mode-num {
-    display: none;
-  }
   .mode-tab-btn {
     padding: 0 10px;
   }

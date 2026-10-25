@@ -11,7 +11,7 @@ import { VocalSplitterUI } from './ui/vocal-splitter-ui.js?v=14.0';
 import { StemSplitterUI } from './ui/stem-splitter-ui.js?v=14.0';
 import { YouTubeUI } from './ui/youtube-ui.js?v=14.0';
 import { ExportModal } from './ui/export-modal.js?v=14.0';
-import { HotkeysModal } from './ui/hotkeys-modal.js?v=9.6';
+import { HotkeysModal } from './ui/hotkeys-modal.js?v=15.0';
 import { BPMKeyDetector } from './audio/bpm-key-detector.js';
 import { SmartToolsModal } from './ui/smart-tools-modal.js?v=14.0';
 import { LyricsModal } from './ui/lyrics-modal.js?v=14.0';
@@ -21,13 +21,14 @@ import { CodeGuard } from './security/code-guard.js?v=9.1';
 import { ApiClient } from './audio/api-client.js?v=9.1';
 import { AuthModal } from './ui/auth-modal.js?v=14.0';
 import { ProjectsModal } from './ui/projects-modal.js?v=14.0';
+import { ConverterUI } from './ui/converter-ui.js?v=15.0';
 import { supabaseService } from './db/supabase-client.js';
 
 class FlovaStudioApp {
   constructor() {
     CodeGuard.init();
     this.engine = new AudioEngine();
-    this.activeMode = 'editor'; // 'editor' | 'merger' | 'vocal-splitter' | 'stem-splitter'
+    this.activeMode = 'editor'; // 'editor' | 'merger' | 'vocal-splitter' | 'stem-splitter' | 'youtube' | 'converter'
 
     this.selectionStart = 0;
     this.selectionEnd = 0;
@@ -47,11 +48,13 @@ class FlovaStudioApp {
     this.tabVocalSplitter = document.getElementById('tabVocalSplitter');
     this.tabStemSplitter = document.getElementById('tabStemSplitter');
     this.tabYoutube = document.getElementById('tabYoutube');
+    this.tabConverter = document.getElementById('tabConverter');
     this.editorView = document.getElementById('editorView');
     this.mergerView = document.getElementById('mergerView');
     this.vocalSplitterView = document.getElementById('vocalSplitterView');
     this.stemSplitterView = document.getElementById('stemSplitterView');
     this.youtubeView = document.getElementById('youtubeView');
+    this.converterView = document.getElementById('converterView');
 
     // Uploader / Empty State
     this.dropZone = document.getElementById('dropZone');
@@ -158,6 +161,13 @@ class FlovaStudioApp {
     if (ytContainer) {
       this.youtubeUI = new YouTubeUI(ytContainer, this.engine);
       window.flovaYouTube = this.youtubeUI;
+    }
+
+    // 7. Format Converter UI
+    const converterContainer = document.getElementById('converterContainer');
+    if (converterContainer) {
+      this.converter = new ConverterUI(converterContainer, { showToast: (msg, type) => this.showToast(msg, type) });
+      window.flovaConverter = this.converter;
     }
 
     // 7. Export Modal
@@ -277,6 +287,7 @@ class FlovaStudioApp {
     if (this.tabYoutube) {
       this.tabYoutube.addEventListener('click', () => this.switchMode('youtube'));
     }
+    this.tabConverter?.addEventListener('click', () => this.switchMode('converter'));
 
     // File Upload & Demo
     if (this.loadDemoBtn) {
@@ -290,6 +301,10 @@ class FlovaStudioApp {
     }
 
     this.openFileBtn.addEventListener('click', () => {
+      if (this.activeMode === 'converter' && this.converter) {
+        this.converter.pick();
+        return;
+      }
       if (this.activeMode === 'vocal-splitter') {
         const inp = document.getElementById('splitterFileInput');
         if (inp) { inp.value = ''; inp.click(); return; }
@@ -745,6 +760,10 @@ class FlovaStudioApp {
       e.preventDefault();
       const files = e.dataTransfer && e.dataTransfer.files;
       if (!files || !files.length) return;
+      if (this.activeMode === 'converter' && this.converter) {
+        this.converter.addFiles(files);
+        return;
+      }
       const file = files[0];
       const isAudio = file.type.startsWith('audio/') || /\.(mp3|wav|ogg|flac|m4a|aac|wma|aiff)$/i.test(file.name);
       if (!isAudio) return;
@@ -829,12 +848,14 @@ class FlovaStudioApp {
     this.tabVocalSplitter.classList.remove('active');
     this.tabStemSplitter.classList.remove('active');
     if (this.tabYoutube) this.tabYoutube.classList.remove('active');
+    this.tabConverter?.classList.remove('active');
 
     this.editorView.style.display = 'none';
     this.mergerView.style.display = 'none';
     this.vocalSplitterView.style.display = 'none';
     this.stemSplitterView.style.display = 'none';
     if (this.youtubeView) this.youtubeView.style.display = 'none';
+    if (this.converterView) this.converterView.style.display = 'none';
 
     // Show Studio Bottom Rack (Spectrum & Master Effects) ONLY in Editor mode
     if (this.studioBottomRack) {
@@ -879,6 +900,9 @@ class FlovaStudioApp {
       if (this.tabYoutube) this.tabYoutube.classList.add('active');
       if (this.youtubeView) this.youtubeView.style.display = 'block';
       if (this.youtubeUI) this.youtubeUI.render();
+    } else if (mode === 'converter') {
+      this.tabConverter?.classList.add('active');
+      if (this.converterView) this.converterView.style.display = 'block';
     }
 
     try {
@@ -938,7 +962,7 @@ class FlovaStudioApp {
 
   handleHashNavigation() {
     const rawHash = window.location.hash.replace(/^#/, '').toLowerCase();
-    const validModes = ['editor', 'merger', 'vocal-splitter', 'stem-splitter', 'youtube'];
+    const validModes = ['editor', 'merger', 'vocal-splitter', 'stem-splitter', 'youtube', 'converter'];
     if (validModes.includes(rawHash) && rawHash !== this.activeMode) {
       this.switchMode(rawHash);
     }
@@ -1320,8 +1344,8 @@ class FlovaStudioApp {
           e.preventDefault();
           this.addMarkerBtn.click();
         }
-      } else if (['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'].includes(e.code) && !e.ctrlKey && !e.metaKey) {
-        const modes = ['editor', 'merger', 'vocal-splitter', 'stem-splitter', 'youtube'];
+      } else if (['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6'].includes(e.code) && !e.ctrlKey && !e.metaKey) {
+        const modes = ['editor', 'merger', 'vocal-splitter', 'stem-splitter', 'youtube', 'converter'];
         const idx = parseInt(e.code.replace('Digit', ''), 10) - 1;
         if (modes[idx]) {
           e.preventDefault();

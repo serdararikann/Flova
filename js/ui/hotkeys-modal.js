@@ -86,8 +86,8 @@ export class HotkeysModal {
                 <td>Döngü Modunu (Loop) Aç / Kapat</td>
               </tr>
               <tr>
-                <td><kbd>1</kbd> - <kbd>5</kbd></td>
-                <td>Sekmeler Arası Geçiş (Düzenleyici, Vokal, Stem, Birleştirici, YouTube)</td>
+                <td><kbd>1</kbd> - <kbd>6</kbd></td>
+                <td>Sekmeler arası geçiş (Düzenleyici, Birleştirici, Vokal, Enstrümanlar, YouTube, Dönüştürücü)</td>
               </tr>
               <tr>
                 <td><kbd>Ctrl</kbd> + <kbd>Fare Tekerleği</kbd></td>
