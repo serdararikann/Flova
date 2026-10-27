@@ -80,7 +80,8 @@ export class LyricsModal {
 
                 <!-- Model Selector -->
                 <select id="lyricsModelSelect" class="form-input" style="padding: 6px 10px; font-size: 0.8rem; background: var(--inset); border: 1px solid var(--line); color: var(--accent-text); border-radius: 6px; font-weight: 700;" title="Yapay zeka modeli kalitesi">
-                  <option value="medium" selected>Whisper Medium (önerilen, en doğru)</option>
+                  <option value="turbo" selected>Whisper Turbo (önerilen, en doğru)</option>
+                  <option value="medium">Whisper Medium</option>
                   <option value="small">Whisper Small (daha hızlı)</option>
                   <option value="base">Whisper Base (en hızlı, en az doğru)</option>
                 </select>
@@ -89,6 +90,11 @@ export class LyricsModal {
                 <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.76rem; font-weight: 600; color: var(--accent-text); background: var(--accent-soft); border: 1px solid var(--line); padding: 5px 9px; border-radius: 6px; cursor: pointer; user-select: none;" title="Önce vokali müzikten ayırır: sözler çok daha doğru çıkar ve müzikli bölümlere uydurma söz yazılmaz. 3 dakikalık şarkı yaklaşık 1,5-2 dakika sürer.">
                   <input type="checkbox" id="lyricsAutoVocalAiCheck" checked style="accent-color: var(--accent); cursor: pointer;">
                   🤖 Demucs Derin Vokal Ayrıştırma
+                </label>
+
+                <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.76rem; font-weight: 600; color: var(--text); border: 1px solid var(--line); padding: 5px 9px; border-radius: 6px; cursor: pointer; user-select: none;" title="Şarkı açık söz veritabanında (LRCLIB) varsa gerçek sözleri kullanır ve şarkıya hizalar; yoksa sözler yapay zekâyla çıkarılır.">
+                  <input type="checkbox" id="lyricsDbLookupCheck" checked style="accent-color: var(--accent); cursor: pointer;">
+                  Sözleri önce veritabanında ara
                 </label>
 
                 <!-- Vocal Source Badge / Switcher -->
@@ -364,6 +370,24 @@ export class LyricsModal {
     this._renderLines();
   }
 
+  /** LRCLIB lookup through the server by the file name and length; null when it can't be reached. */
+  async _findLyrics(duration) {
+    const name = this.engine.currentFileName || '';
+    const { title, artist } = this.engine.currentTags || {};
+    if (!name && !title) return null;
+    try {
+      const params = new URLSearchParams({ q: name, duration: duration.toFixed(1) });
+      if (title) params.set('title', title);
+      if (artist) params.set('artist', artist);
+      const url = ApiClient.getApiUrl(`/api/lyrics/find?${params}`);
+      const resp = await fetch(url, { signal: AbortSignal.timeout(40000) });
+      return resp.ok ? await resp.json() : null;
+    } catch (err) {
+      console.warn('[Lyrics] Database lookup failed:', err);
+      return null;
+    }
+  }
+
   /** Playback position in seconds (the engine has no currentTime property). */
   _now() {
     return this.engine.getCurrentTime?.() || 0;
@@ -406,7 +430,8 @@ export class LyricsModal {
 
     const btn = document.getElementById('startTranscribeBtn');
     const lang = document.getElementById('lyricsLanguageSelect')?.value || 'tr-TR';
-    const model = document.getElementById('lyricsModelSelect')?.value || 'medium';
+    const model = document.getElementById('lyricsModelSelect')?.value || 'turbo';
+    const lookup = document.getElementById('lyricsDbLookupCheck')?.checked ?? true;
     const aiSeparate = !usingVocalStem && (document.getElementById('lyricsAutoVocalAiCheck')?.checked ?? false);
     const progressBox = document.getElementById('lyricsProgressBox');
     const progressText = document.getElementById('lyricsProgressText');
@@ -416,28 +441,42 @@ export class LyricsModal {
     if (progressBox) progressBox.style.display = 'flex';
 
     let elapsedSec = 0;
-    const modelLabel = model === 'medium' ? 'Whisper Medium' : (model === 'base' ? 'Whisper Base' : 'Whisper Small');
+    const modelLabel = { turbo: 'Whisper Turbo', medium: 'Whisper Medium', base: 'Whisper Base' }[model] || 'Whisper Small';
     const baseMsg = usingVocalStem
       ? `🎙️ Ayrıştırılmış temiz vokal taranıyor (${modelLabel})`
       : (aiSeparate
           ? `🤖 Demucs sinir ağı ile vokal ayrıştırılıyor ve taranıyor (${modelLabel})`
           : `🎙️ Şarkı taranıyor ve sözler çözümleniyor (${modelLabel})`);
 
-    if (progressText) progressText.textContent = `${baseMsg} (0 sn)...`;
+    let stepMsg = lookup ? '🔎 Şarkı sözü veritabanında aranıyor' : baseMsg;
+    if (progressText) progressText.textContent = `${stepMsg} (0 sn)...`;
     const timerInterval = setInterval(() => {
       elapsedSec++;
       if (progressText) {
-        progressText.textContent = `${baseMsg} (${elapsedSec} sn)...`;
+        progressText.textContent = `${stepMsg} (${elapsedSec} sn)...`;
       }
     }, 1000);
 
     try {
+      // 1. The song's real lyrics, when the open database has it: used as they are when their timing fits this
+      //    file, otherwise the server times them by what it hears
+      const found = lookup ? await this._findLyrics(buffer.duration) : null;
+      if (found?.usable && found.synced?.length) {
+        this.lines = found.synced.map((l) => ({ time: l.time, duration: l.duration, text: l.text }));
+        this._renderLines();
+        if (this.viewMode === 'stage') this._renderStage();
+        this.showToast(`✨ Sözler veritabanında bulundu: ${found.artistName} – ${found.trackName} (${this.lines.length} satır)`, 'success');
+        return;
+      }
+      stepMsg = found?.found ? `${baseMsg}; bulunan sözler şarkıya hizalanacak` : baseMsg;
+
       // Encode audio buffer directly
       const wavBlob = await this._audioBufferToWavBlob(buffer);
 
       const aiVocalParam = aiSeparate ? '1' : '0';
       // vocals=1: the audio is already a clean vocal, so the server skips the parts without singing
-      const transcribeUrl = ApiClient.getApiUrl(`/api/ai/transcribe?lang=${lang}&model=${model}&ai_vocal=${aiVocalParam}&vocals=${usingVocalStem ? 1 : 0}`);
+      const lyricsParam = found?.found ? `&lyrics_id=${found.id}` : '';
+      const transcribeUrl = ApiClient.getApiUrl(`/api/ai/transcribe?lang=${lang}&model=${model}&ai_vocal=${aiVocalParam}&vocals=${usingVocalStem ? 1 : 0}${lyricsParam}`);
       const resp = await fetch(transcribeUrl, {
         method: 'POST',
         body: wavBlob,
@@ -450,7 +489,9 @@ export class LyricsModal {
           this.lines = data.lines;
           this._renderLines();
           if (this.viewMode === 'stage') this._renderStage();
-          this.showToast(`✨ ${data.lines.length} satır şarkı sözü başarıyla çıkarıldı ve ritimle eşleştirildi! (${elapsedSec} sn)`, 'success');
+          this.showToast(data.source === 'aligned'
+            ? `✨ Sözler veritabanından alındı ve şarkıya hizalandı: ${found.artistName} – ${found.trackName} (${data.lines.length} satır, ${elapsedSec} sn)`
+            : `✨ ${data.lines.length} satır şarkı sözü yapay zekâyla çıkarıldı (${elapsedSec} sn)${found?.found ? '. Veritabanında bulunan sözler bu kayda uymadı.' : ''}`, 'success');
           return;
         } else {
           this.showToast('Parçada belirgin şarkı sözü algılanamadı. İsterseniz "Söz Yapıştır" ile hazır sözleri aktarabilirsiniz.', 'info');

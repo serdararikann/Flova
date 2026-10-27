@@ -5,7 +5,7 @@
    - Clean cache lifecycle management
    ==================================================================== */
 
-const CACHE_NAME = 'flova-studio-v3.4';
+const CACHE_NAME = 'flova-studio-v3.6';
 
 const PRECACHE_ASSETS = [
   './',
@@ -24,7 +24,7 @@ const PRECACHE_ASSETS = [
   './icons/icon-512.png',
   './icons/icon-maskable-192.png',
   './icons/icon-maskable-512.png',
-  './js/app.js?v=15.2',
+  './js/app.js?v=15.4',
   './js/audio/audio-engine.js',
   './js/audio/audio-processor.js',
   './js/audio/audio-encoders.js',
@@ -40,13 +40,13 @@ const PRECACHE_ASSETS = [
   './js/audio/webcodecs-encoders.js',
   './js/audio/flac-encoder.js',
   './js/ui/merger-ui.js?v=14.0',
-  './js/ui/vocal-splitter-ui.js?v=14.0',
-  './js/ui/stem-splitter-ui.js?v=14.0',
+  './js/ui/vocal-splitter-ui.js?v=15.4',
+  './js/ui/stem-splitter-ui.js?v=15.4',
   './js/ui/youtube-ui.js?v=14.0',
   './js/ui/export-modal.js?v=14.0',
   './js/ui/hotkeys-modal.js?v=15.0',
   './js/ui/smart-tools-modal.js?v=14.0',
-  './js/ui/lyrics-modal.js?v=14.0',
+  './js/ui/lyrics-modal.js?v=15.4',
   './js/ui/audiogram-modal.js?v=14.0',
   './js/ui/server-modal.js?v=14.0',
   './js/security/code-guard.js?v=9.1',

@@ -6,6 +6,7 @@
 import { AudioEffectsRack } from './audio-effects.js';
 import { AudioProcessor } from './audio-processor.js';
 import { DemoAudioGenerator } from './demo-generator.js';
+import { readTags } from './media-info.js';
 
 export class AudioEngine {
   constructor() {
@@ -17,6 +18,8 @@ export class AudioEngine {
     // Active Audio Source & Buffer
     this.currentBuffer = null;
     this.currentFileName = 'Flova Parçası';
+    // Title/artist written in the opened file (finds its lyrics when the file name doesn't say)
+    this.currentTags = {};
     this.sourceNode = null;
 
     // Playback State
@@ -79,7 +82,10 @@ export class AudioEngine {
   async loadFile(file) {
     this.ensureContext();
     const arrayBuffer = await file.arrayBuffer();
+    // Before decoding, which detaches the buffer
+    const tags = readTags(new Uint8Array(arrayBuffer));
     const decodedBuffer = await this.ctx.decodeAudioData(arrayBuffer);
+    this.currentTags = tags;
     
     const baseName = file.name ? file.name.replace(/\.[^/.]+$/, "") : 'Ses Dosyası';
     this.currentFileName = baseName;
@@ -94,6 +100,7 @@ export class AudioEngine {
   async loadDemoTrack() {
     this.ensureContext();
     this.currentFileName = 'Flova Synthwave Demo';
+    this.currentTags = {};
     this.historyStack = [];
     this.historyIndex = -1;
     const demoBuffer = await DemoAudioGenerator.generateDemoTrack(this.ctx);
@@ -174,6 +181,7 @@ export class AudioEngine {
   loadFromRecipe(audioBuffer, recipe, name, selectionRange = null) {
     this.ensureContext();
     this.currentFileName = name;
+    this.currentTags = {};
     this.historyStack = [];
     this.historyIndex = -1;
     this.pendingRecipe = recipe;

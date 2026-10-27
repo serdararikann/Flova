@@ -30,6 +30,9 @@ from fastapi import Request, Response
 import server
 
 INTERNAL_PORT = 8000
+# Uploads are read into memory here before server.py sees them: bigger ones are refused unread (server.py has the
+# per-endpoint limits; /api/convert takes the most, 500 MB)
+MAX_PROXY_BODY = 520 * 1024 * 1024
 
 # 1. Start the core Flova ThreadingHTTPServer in the background on internal port 8000
 def start_backend():
@@ -94,6 +97,18 @@ async def proxy_api(request: Request, path: str):
             }
         )
         
+    try:
+        declared = int(request.headers.get("content-length") or 0)
+    except ValueError:
+        declared = 0
+    if declared > MAX_PROXY_BODY:
+        return Response(
+            content='{"success": false, "error": "Dosya çok büyük.", "limited": true}',
+            status_code=413,
+            headers={"Access-Control-Allow-Origin": "*", "Connection": "close"},
+            media_type="application/json"
+        )
+
     url = f"http://127.0.0.1:{INTERNAL_PORT}/api/{path}"
     if request.url.query:
         url += f"?{request.url.query}"
@@ -101,6 +116,11 @@ async def proxy_api(request: Request, path: str):
     body = await request.body()
     excluded = {"host", "content-length"}
     req_headers = {k: v for k, v in request.headers.items() if k.lower() not in excluded}
+    # The address this connection came from goes last, so server.py's per-client limits see the real caller
+    if request.client and request.client.host:
+        previous = request.headers.get("x-forwarded-for")
+        req_headers = {k: v for k, v in req_headers.items() if k.lower() != "x-forwarded-for"}
+        req_headers["X-Forwarded-For"] = f"{previous}, {request.client.host}" if previous else request.client.host
     
     try:
         async with httpx.AsyncClient(timeout=600.0) as client:

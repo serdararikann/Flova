@@ -161,7 +161,9 @@ export class StemSplitterUI {
       });
 
       if (!response.ok) {
-        throw new Error('AI sunucusundan hata yanıtı alındı.');
+        // Over a limit (busy, too many jobs, too large) the server says why
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'AI sunucusundan hata yanıtı alındı.');
       }
 
       const initData = await response.json();

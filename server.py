@@ -9,7 +9,10 @@ import shutil
 import re
 import urllib.request
 import urllib.parse
+import urllib.error
 import hmac
+import ipaddress
+import collections
 from urllib.parse import urlparse, parse_qs, quote
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 import io
@@ -696,7 +699,7 @@ def get_whisper_model(model_name="small"):
             except Exception as e:
                 print(f"[Whisper Load Error for {model_name}]: {e}", flush=True)
                 # Cascading fallbacks: medium -> small -> base
-                fallback_target = "small" if model_name == "medium" else "base"
+                fallback_target = "medium" if model_name in ("turbo", "large-v3-turbo") else ("small" if model_name == "medium" else "base")
                 if model_name != fallback_target:
                     try:
                         print(f"[Whisper] Fallback to {fallback_target} model...", flush=True)
@@ -824,7 +827,261 @@ WHISPER_HALLUCINATIONS = (
 )
 
 
-def segment_and_transcribe_audio(audio_bytes, lang='tr-TR', max_workers=4, model_size='small', ai_separate=True, vocal_stem=False):
+# ---------------------------------------------------------------------------------------------------------------
+# Lyrics from LRCLIB (lrclib.net, an open lyrics database with line timings). Whisper misses about a third of the
+# words in sung Turkish, so when the song is in the database its real lyrics are used: as they are when its timing
+# fits the file, otherwise aligned to the words Whisper heard.
+# ---------------------------------------------------------------------------------------------------------------
+LRCLIB_API = 'https://lrclib.net/api'
+LRCLIB_HEADERS = {'User-Agent': 'Flova Audio Studio (https://flova.serdararikan.net)'}
+# Share of the database lyrics' words that must be found in the transcription before they are used (a wrong song
+# matches only a few common words).
+LYRICS_MIN_MATCH = 0.35  # measured: the right song 0.6-1.0 (also with Whisper Small), other songs under 0.1
+
+
+LRCLIB_CACHE = {}  # url -> (time, answer): the lookup and the transcription ask for the same song
+LRCLIB_CACHE_SECONDS = 6 * 60 * 60
+
+
+def lrclib_request(path, params=None):
+    url = LRCLIB_API + path + ('?' + urllib.parse.urlencode(params) if params else '')
+    hit = LRCLIB_CACHE.get(url)
+    if hit and time.time() - hit[0] < LRCLIB_CACHE_SECONDS:
+        return hit[1]
+    attempts = 5
+    for attempt in range(attempts):
+        try:
+            req = urllib.request.Request(url, headers=LRCLIB_HEADERS)
+            with urllib.request.urlopen(req, timeout=12) as r:
+                answer = json.loads(r.read().decode('utf-8'))
+            if len(LRCLIB_CACHE) > 500:
+                LRCLIB_CACHE.clear()
+            LRCLIB_CACHE[url] = (time.time(), answer)
+            return answer
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                return None
+            if e.code in (429, 500, 502, 503, 504) and attempt < attempts - 1:
+                # LRCLIB answers "busy" now and then; it says how long to wait
+                try:
+                    wait = float(e.headers.get('Retry-After') or 0)
+                except ValueError:
+                    wait = 0
+                time.sleep(min(6.0, wait or (1.0 + attempt * 1.5)))
+                continue
+            raise
+        except (urllib.error.URLError, TimeoutError):
+            if attempt < attempts - 1:
+                time.sleep(1.0 + attempt)
+                continue
+            raise
+
+
+def clean_track_query(name):
+    """'Birol Can - Gururlan (Official Video)_flova (1).mp3' -> 'Birol Can - Gururlan'."""
+    t = os.path.splitext(name or '')[0] if re.search(r'\.[A-Za-z0-9]{2,4}$', name or '') else (name or '')
+    t = re.sub(r'\s*\(\d+\)\s*$', '', t)
+    t = re.sub(r'(_flova|\bflova\b)', ' ', t, flags=re.I)
+    t = re.sub(r'[\(\[][^\)\]]*(official|video|audio|lyric|klip|hd|4k|remaster|söz|soz|live|canlı)[^\)\]]*[\)\]]', ' ', t, flags=re.I)
+    t = re.sub(r'[_]+', ' ', t)
+    return re.sub(r'\s+', ' ', t).strip(' -')
+
+
+def lyric_tokens(text):
+    t = (text or '').replace('I', 'ı').replace('İ', 'i').lower()
+    return re.findall(r'[^\W_]+', t)
+
+
+def lrc_to_lines(lrc):
+    lines = []
+    for raw in (lrc or '').splitlines():
+        m = re.match(r'^\s*\[(\d+):(\d+(?:\.\d+)?)\](.*)$', raw)
+        if m and m.group(3).strip():
+            lines.append({'time': round(int(m.group(1)) * 60 + float(m.group(2)), 2), 'text': m.group(3).strip()})
+    for i, l in enumerate(lines):
+        nxt = lines[i + 1]['time'] if i + 1 < len(lines) else l['time'] + 4
+        l['duration'] = round(max(0.5, min(8.0, nxt - l['time'])), 1)
+    return lines
+
+
+def lyrics_reference_lines(entry):
+    """Text lines of a database entry, without section headers such as [Nakarat]."""
+    if entry.get('syncedLyrics'):
+        return [l['text'] for l in lrc_to_lines(entry['syncedLyrics'])]
+    out = []
+    for raw in (entry.get('plainLyrics') or '').splitlines():
+        s = raw.strip()
+        if s and not re.match(r'^[\[\(].*[\]\)]$', s):
+            out.append(s)
+    return out
+
+
+def find_lyrics(query='', title='', artist='', duration=None):
+    """Best LRCLIB entry for the file: by title/artist when known, else by the cleaned file name; closest duration."""
+    candidates = []
+    if title:
+        params = {'track_name': title}
+        if artist:
+            params['artist_name'] = artist
+        candidates = lrclib_request('/search', params) or []
+    # The tags as free text (an artist spelled differently), then the cleaned file name
+    tagged = clean_track_query(' '.join(x for x in (artist, title) if x))
+    if not candidates and tagged:
+        candidates = lrclib_request('/search', {'q': tagged}) or []
+    if not candidates and title and artist:
+        candidates = lrclib_request('/search', {'track_name': title}) or []
+    q = clean_track_query(query) if query else ''
+    if not candidates and q and q != tagged:
+        candidates = lrclib_request('/search', {'q': q}) or []
+        # "Gururlan kisa", "Şarkı v2 final": drop words from the end until something is found (twice at most)
+        words = q.split()
+        for cut in (1, 2):
+            if candidates or len(words) - cut < 1:
+                break
+            candidates = lrclib_request('/search', {'q': ' '.join(words[:-cut])}) or []
+    candidates = [c for c in candidates if not c.get('instrumental') and (c.get('syncedLyrics') or c.get('plainLyrics'))]
+    if not candidates:
+        return None
+    best = min(candidates, key=lambda c: (min(abs(float(c.get('duration') or 0) - duration), 60) if duration else 0,
+                                          0 if c.get('syncedLyrics') else 1))
+    # The name the user gave has to contain the track's name: a song with a similar length is not enough
+    wanted = set(lyric_tokens(' '.join((query or '', title or '', artist or ''))))
+    track = lyric_tokens(best.get('trackName'))
+    best['_nameMatch'] = bool(track) and all(w in wanted for w in track)
+    return best
+
+
+def align_lyrics(reference, words):
+    """
+    Times [reference] lines by the [words] Whisper heard ((start, end, text) each): a global word alignment
+    (Needleman-Wunsch, similar spellings count as a match), then each line starts where its first matched word was
+    heard. Returns (lines, share of reference words matched).
+    """
+    import difflib
+    ref = [(i, w) for i, line in enumerate(reference) for w in lyric_tokens(line)]
+    hyp = [(s, e, t) for s, e, raw in words for t in lyric_tokens(raw)]
+    if not ref or not hyp:
+        return None, 0.0
+    sims = {}
+
+    def sim(a, b):
+        key = (a, b)
+        if key not in sims:
+            sims[key] = 1.0 if a == b else difflib.SequenceMatcher(None, a, b).ratio()
+        return sims[key]
+
+    n, m = len(ref), len(hyp)
+    gap = -0.4
+    score = [[0.0] * (m + 1) for _ in range(n + 1)]
+    move = [[0] * (m + 1) for _ in range(n + 1)]  # 1 = match/substitute, 2 = skip a reference word, 3 = skip a heard word
+    # Semi-global: the lyrics before and after the heard part are skipped for free (a trimmed file, an intro), so the
+    # heard words land on one stretch of the lyrics instead of being spread over every repeat of the chorus
+    for i in range(1, n + 1):
+        score[i][0] = 0.0
+        move[i][0] = 2
+    for j in range(1, m + 1):
+        score[0][j] = j * gap
+        move[0][j] = 3
+    for i in range(1, n + 1):
+        a = ref[i - 1][1]
+        row, prev = score[i], score[i - 1]
+        for j in range(1, m + 1):
+            s = sim(a, hyp[j - 1][2])
+            diag = prev[j - 1] + (2 * s - 1 if s >= 0.5 else -1.0)
+            up = prev[j] + gap
+            left = row[j - 1] + gap
+            if diag >= up and diag >= left:
+                row[j], move[i][j] = diag, 1
+            elif up >= left:
+                row[j], move[i][j] = up, 2
+            else:
+                row[j], move[i][j] = left, 3
+    heard = [None] * n  # reference word -> (start, end) of the word it matched
+    i, j = max(range(n + 1), key=lambda r: score[r][m]), m
+    while i > 0 and j > 0:
+        mv = move[i][j]
+        if mv == 1:
+            if sim(ref[i - 1][1], hyp[j - 1][2]) >= 0.5:
+                heard[i - 1] = (hyp[j - 1][0], hyp[j - 1][1])
+            i, j = i - 1, j - 1
+        elif mv == 2:
+            i -= 1
+        else:
+            j -= 1
+    hits_at = [k for k, h in enumerate(heard) if h]
+    if len(hits_at) < 8:
+        return None, 0.0
+    # The file may be a part of the song (trimmed in the editor): only the lines between the first and the last
+    # heard word count, and only they are returned
+    first_line, last_line = ref[hits_at[0]][0], ref[hits_at[-1]][0]
+    if last_line - first_line < 2:
+        return None, 0.0
+    span_words = sum(1 for li, _ in ref if first_line <= li <= last_line)
+    # How well they fit: words matched with (nearly) the same spelling, as a share of the lyrics stretch and of
+    # everything heard. Another song only shares a few short words, which also match loosely.
+    strong = 0
+    for k in hits_at:
+        a = ref[k][1]
+        if len(a) >= 3 and any(sim(a, t) >= 0.75 for s, e, t in hyp if (s, e) == heard[k]):
+            strong += 1
+    long_heard = sum(1 for _, _, t in hyp if len(t) >= 3)
+    fit = min(strong / max(1, sum(1 for li, w in ref if first_line <= li <= last_line and len(w) >= 3)),
+              strong / max(1, long_heard))
+
+    # Line starts: the first heard word, moved back by the words before it in the line (~0.3 s each)
+    starts, ends = [None] * len(reference), [None] * len(reference)
+    for line in range(len(reference)):
+        idx = [k for k, (li, _) in enumerate(ref) if li == line]
+        hits = [(pos, heard[k]) for pos, k in enumerate(idx) if heard[k]]
+        if hits:
+            pos, (s, _) = hits[0]
+            starts[line] = max(0.0, s - pos * 0.3)
+            ends[line] = hits[-1][1][1] + 0.3 * (len(idx) - 1 - hits[-1][0])
+    # Keep the order, then fill lines nobody heard between their neighbours
+    last = 0.0
+    for k in range(len(starts)):
+        if starts[k] is not None:
+            starts[k] = max(starts[k], last)
+            last = starts[k]
+    k = 0
+    while k < len(starts):
+        if starts[k] is None:
+            e = k
+            while e < len(starts) and starts[e] is None:
+                e += 1
+            lo = (ends[k - 1] if k > 0 and ends[k - 1] else (starts[k - 1] + 2 if k > 0 else 0.0))
+            hi = starts[e] if e < len(starts) else lo + 3.0 * (e - k)
+            step = max(0.5, (hi - lo) / (e - k + (1 if e < len(starts) else 0)))
+            for x in range(k, e):
+                starts[x] = lo + (x - k) * step
+            k = e
+        else:
+            k += 1
+    lines = []
+    for k, text in enumerate(reference):
+        nxt = starts[k + 1] if k + 1 < len(starts) else (ends[k] or starts[k] + 4)
+        dur = (ends[k] - starts[k]) if ends[k] else (nxt - starts[k])
+        lines.append({'time': round(starts[k], 1), 'duration': round(max(0.5, min(dur, nxt - starts[k] if nxt > starts[k] else dur, 10.0)), 1), 'text': text})
+    return lines[first_line:last_line + 1], fit
+
+
+def segment_and_transcribe_audio(audio_bytes, lang='tr-TR', max_workers=4, model_size='small', ai_separate=True, vocal_stem=False, reference=None):
+    """
+    Returns (lines, source, match): with [reference] (lyric lines from LRCLIB) they are timed by the transcription
+    when enough of their words were heard (source 'aligned'); otherwise the transcription itself ('whisper').
+    """
+    words = []
+    lines = _transcribe_lines(audio_bytes, lang, max_workers, model_size, ai_separate, vocal_stem, words)
+    if reference and words:
+        aligned, match = align_lyrics(reference, words)
+        print(f"[Lyrics] Veritabani sozleri hizalandi: kelimelerin %{match * 100:.0f}'i duyuldu.", flush=True)
+        if aligned and match >= LYRICS_MIN_MATCH:
+            return aligned, 'aligned', match
+        return lines, 'whisper', match
+    return lines, 'whisper', None
+
+
+def _transcribe_lines(audio_bytes, lang='tr-TR', max_workers=4, model_size='small', ai_separate=True, vocal_stem=False, words_out=None):
     try:
         data, sr_orig = sf.read(io.BytesIO(audio_bytes))
     except Exception as e:
@@ -940,6 +1197,8 @@ def segment_and_transcribe_audio(audio_bytes, lang='tr-TR', max_workers=4, model
                 # Whisper is unsure there is speech at all: usually music read as words
                 if getattr(seg, 'no_speech_prob', 0) > 0.6 and getattr(seg, 'avg_logprob', 0) < -0.8:
                     continue
+                if words_out is not None and seg.words:
+                    words_out.extend((w.start, w.end, w.word) for w in seg.words)
                 for start, end, raw in split_into_lines(seg):
                     txt = format_lyrics_line(raw.rstrip('.,'))
                     if is_hallucination_or_noise(txt):
@@ -1817,6 +2076,76 @@ def run_resilient_ytdlp_action(yt_url, base_opts=None, is_download=False):
     raise RuntimeError("YouTube verisi alınamadı.")
 
 
+# --- Fair use: the API is open (the site works without an account), so each client gets a share of the machine ---
+# Heavy requests (Demucs, Whisper, denoise, FFmpeg) are capped per client at once and per hour, and in total at once;
+# light ones (lyrics/YouTube lookups) per minute. Job status polling and result downloads are not limited. Mobile
+# carriers put many people behind one address, so the per-client numbers are generous. Override with Space variables.
+MAX_UPLOAD_BYTES = int(os.environ.get('FLOVA_MAX_UPLOAD_MB', '300')) * 1024 * 1024
+HEAVY_TOTAL = int(os.environ.get('FLOVA_MAX_JOBS', '4'))
+HEAVY_PER_CLIENT = int(os.environ.get('FLOVA_MAX_JOBS_PER_CLIENT', '2'))
+HEAVY_PER_HOUR = int(os.environ.get('FLOVA_JOBS_PER_HOUR', '30'))
+LIGHT_PER_MINUTE = int(os.environ.get('FLOVA_LOOKUPS_PER_MINUTE', '60'))
+HEAVY_POST_PATHS = {'/api/separate-ai', '/api/separate-stems', '/api/separate-stems-6s', '/api/ai/denoise',
+                    '/api/ai/transcribe', '/api/convert'}
+LIMITED_GET_PREFIXES = ('/api/lyrics/', '/api/youtube/', '/api/debug/')
+LIMIT_LOCK = threading.Lock()
+HEAVY_ACTIVE = collections.Counter()
+RATE_HITS = {}
+
+
+def client_address_of(handler):
+    """
+    The caller's address. On the Space every request comes through app.py's proxy (127.0.0.1); Hugging Face's edge
+    adds the real address to X-Forwarded-For, so it is the last public one there (earlier entries can be forged).
+    """
+    forwarded = [p.strip() for p in (handler.headers.get('X-Forwarded-For') or '').split(',') if p.strip()]
+    for part in reversed(forwarded):
+        try:
+            if ipaddress.ip_address(part).is_global:
+                return part
+        except ValueError:
+            continue
+    return handler.client_address[0]
+
+
+def rate_wait(key, limit, window):
+    """Counts a request under [key]; seconds to wait when [limit] were already made in the last [window] s, else 0."""
+    now = time.time()
+    with LIMIT_LOCK:
+        if len(RATE_HITS) > 5000:
+            for k in [k for k, q in RATE_HITS.items() if not q or q[-1] <= now - 3600]:
+                del RATE_HITS[k]
+        hits = RATE_HITS.setdefault(key, collections.deque())
+        while hits and hits[0] <= now - window:
+            hits.popleft()
+        if len(hits) >= limit:
+            return int(hits[0] + window - now) + 1
+        hits.append(now)
+        return 0
+
+
+def heavy_acquire(client):
+    """Takes a heavy-job slot for [client]: None when granted, else (status, message, retry seconds)."""
+    with LIMIT_LOCK:
+        if HEAVY_ACTIVE[client] >= HEAVY_PER_CLIENT:
+            return 429, f"Aynı anda en fazla {HEAVY_PER_CLIENT} işlem yapılabilir; devam eden işlemin bitmesini bekleyin.", 30
+        if sum(HEAVY_ACTIVE.values()) >= HEAVY_TOTAL:
+            return 503, "Sunucu şu an çok yoğun. Lütfen bir dakika sonra tekrar deneyin.", 60
+    wait = rate_wait((client, 'heavy'), HEAVY_PER_HOUR, 3600)
+    if wait:
+        return 429, f"Saatlik işlem sınırına ulaşıldı ({HEAVY_PER_HOUR}). {max(1, wait // 60)} dakika sonra tekrar deneyin.", wait
+    with LIMIT_LOCK:
+        HEAVY_ACTIVE[client] += 1
+    return None
+
+
+def heavy_release(client):
+    with LIMIT_LOCK:
+        HEAVY_ACTIVE[client] -= 1
+        if HEAVY_ACTIVE[client] <= 0:
+            del HEAVY_ACTIVE[client]
+
+
 class FlovaHandler(SimpleHTTPRequestHandler):
     extensions_map = {
         **SimpleHTTPRequestHandler.extensions_map,
@@ -1848,6 +2177,31 @@ class FlovaHandler(SimpleHTTPRequestHandler):
 
     def send_error_json(self, status_code, message):
         self.send_json(status_code, {'success': False, 'error': message})
+
+    def send_limited(self, status_code, message, retry_after):
+        """Refuses a request over a limit. The upload isn't read, so the connection is closed after the answer."""
+        body = json.dumps({'success': False, 'error': message, 'limited': True}).encode('utf-8')
+        self.close_connection = True
+        self.send_response(status_code)
+        self.send_header('Content-Type', 'application/json; charset=utf-8')
+        self.send_header('Content-Length', str(len(body)))
+        self.send_header('Retry-After', str(retry_after))
+        self.send_header('Connection', 'close')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        self.wfile.write(body)
+
+    def job_thread(self, target, args):
+        """A worker thread that keeps this request's heavy-job slot until the job ends (separation runs on after the answer)."""
+        client, self.slot_client = self.slot_client, None
+
+        def run():
+            try:
+                target(*args)
+            finally:
+                if client is not None:
+                    heavy_release(client)
+        return threading.Thread(target=run, daemon=True)
 
     def require_admin(self):
         """Cookie management changes what every user's downloads run as, so it needs the FLOVA_ADMIN_TOKEN secret."""
@@ -1883,6 +2237,11 @@ class FlovaHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path.startswith(LIMITED_GET_PREFIXES):
+            wait = rate_wait((client_address_of(self), 'light'), LIGHT_PER_MINUTE, 60)
+            if wait:
+                self.send_limited(429, "Çok fazla istek gönderildi. Lütfen biraz sonra tekrar deneyin.", wait)
+                return
 
         # Root route: Serve the Flova Audio Studio application (index.html)
         if parsed.path in ('/', ''):
@@ -1931,7 +2290,38 @@ class FlovaHandler(SimpleHTTPRequestHandler):
 
         # Health Check API
         if parsed.path == '/api/health':
-            self.send_json(200, {'status': 'ok', 'service': 'flova-backend', 'time': time.time()})
+            # `client`: the address the limits count this caller under (checks that the proxy passes it on)
+            self.send_json(200, {'status': 'ok', 'service': 'flova-backend', 'time': time.time(),
+                                 'client': client_address_of(self)})
+            return
+
+        # Lyrics lookup: ?q=<file name>&title=&artist=&duration=<seconds>. `synced` holds the timed lines when the
+        # database has them; `usable` says they fit the file as they are (same song name, length within 2 s).
+        if parsed.path == '/api/lyrics/find':
+            query = parse_qs(parsed.query)
+            arg = lambda k: query.get(k, [''])[0].strip()
+            try:
+                duration = float(arg('duration')) if arg('duration') else None
+                best = find_lyrics(arg('q'), arg('title'), arg('artist'), duration)
+            except Exception as e:
+                self.send_json(502, {'found': False, 'error': f'Şarkı sözü veritabanına ulaşılamadı: {e}'})
+                return
+            if not best:
+                self.send_json(200, {'found': False})
+                return
+            synced = lrc_to_lines(best.get('syncedLyrics')) if best.get('syncedLyrics') else None
+            diff = abs(float(best.get('duration') or 0) - duration) if duration else None
+            self.send_json(200, {
+                'found': True,
+                'id': best.get('id'),
+                'trackName': best.get('trackName'),
+                'artistName': best.get('artistName'),
+                'duration': best.get('duration'),
+                'durationDiff': round(diff, 1) if diff is not None else None,
+                'nameMatch': best.get('_nameMatch', False),
+                'synced': synced,
+                'usable': bool(synced) and best.get('_nameMatch', False) and diff is not None and diff <= 2.0,
+            })
             return
 
         # POT and Engine Diagnostics API
@@ -2662,7 +3052,35 @@ class FlovaHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
+        self.slot_client = None
+        if parsed.path in HEAVY_POST_PATHS:
+            try:
+                length = int(self.headers.get('Content-Length', 0))
+            except ValueError:
+                length = -1
+            if length <= 0:
+                self.send_limited(400, "Boş veya geçersiz yükleme.", 0)
+                return
+            cap = MAX_CONVERT_BYTES if parsed.path == '/api/convert' else MAX_UPLOAD_BYTES
+            if length > cap:
+                self.send_limited(413, f"Dosya çok büyük (en fazla {cap // (1024 * 1024)} MB).", 0)
+                return
+            client = client_address_of(self)
+            refused = heavy_acquire(client)
+            if refused:
+                print(f"[Limit] {parsed.path} reddedildi ({client}): {refused[1]}", flush=True)
+                self.send_limited(*refused)
+                return
+            self.slot_client = client
+        try:
+            self.handle_post(parsed)
+        finally:
+            # Not handed to a job thread (a synchronous request, or one that failed before starting its job)
+            if self.slot_client is not None:
+                heavy_release(self.slot_client)
+                self.slot_client = None
 
+    def handle_post(self, parsed):
         # Upload / Save YouTube Cookies API
         if parsed.path == '/api/youtube/cookies':
             if not self.require_admin():
@@ -2728,11 +3146,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                     }
 
                 # Launch async thread
-                worker_thread = threading.Thread(
-                    target=run_demucs_job,
-                    args=(job_id, input_path),
-                    daemon=True
-                )
+                worker_thread = self.job_thread(run_demucs_job, (job_id, input_path))
                 worker_thread.start()
 
                 resp = {'success': True, 'jobId': job_id}
@@ -2775,11 +3189,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
 
                 # Launch async worker thread
                 worker_func = run_htdemucs_6s_job if is_6s else run_htdemucs_job
-                worker_thread = threading.Thread(
-                    target=worker_func,
-                    args=(job_id, input_path),
-                    daemon=True
-                )
+                worker_thread = self.job_thread(worker_func, (job_id, input_path))
                 worker_thread.start()
 
                 resp = {'success': True, 'jobId': job_id, 'is6s': is_6s}
@@ -2937,12 +3347,20 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                 model_size = query.get('model', ['small'])[0]
                 ai_vocal = query.get('ai_vocal', ['0'])[0] == '1'
                 vocal_stem = query.get('vocals', ['0'])[0] == '1'
+                lyrics_id = query.get('lyrics_id', [''])[0]
                 content_length = int(self.headers.get('Content-Length', 0))
                 audio_bytes = ensure_wav_bytes(self.rfile.read(content_length))
 
                 t0 = time.time()
                 print(f"[Transcribe] Transkripsiyon basladi (lang={lang}, model={model_size}, ai_vocal={ai_vocal}, bytes={len(audio_bytes)})", flush=True)
-                lines = segment_and_transcribe_audio(audio_bytes, lang=lang, max_workers=4, model_size=model_size, ai_separate=ai_vocal, vocal_stem=vocal_stem)
+                reference = None
+                if lyrics_id.isdigit():
+                    try:
+                        entry = lrclib_request(f'/get/{lyrics_id}')
+                        reference = lyrics_reference_lines(entry) if entry else None
+                    except Exception as e:
+                        print(f"[Lyrics] LRCLIB okunamadi: {e}", flush=True)
+                lines, source, match = segment_and_transcribe_audio(audio_bytes, lang=lang, max_workers=4, model_size=model_size, ai_separate=ai_vocal, vocal_stem=vocal_stem, reference=reference)
                 elapsed = time.time() - t0
                 print(f"[Transcribe] Tamamlandi: {len(lines)} satir cikarildi ({elapsed:.2f} sn)", flush=True)
 
@@ -2950,6 +3368,8 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                     'success': True,
                     'lines': lines,
                     'detectedCount': len(lines),
+                    'source': source,
+                    'matchRatio': round(match, 2) if match is not None else None,
                     'language': lang,
                     'elapsedSeconds': round(elapsed, 2)
                 }
