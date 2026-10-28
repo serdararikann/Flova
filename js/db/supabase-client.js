@@ -13,6 +13,11 @@ export const SUPABASE_CONFIG = {
   anonKey: 'sb_publishable_PzBm4mWIQtsKzdqRRSIV1Q_YiFeQiQI'
 };
 
+/** "Google ile devam et": on once Google is enabled in Supabase (Authentication > Providers > Google). */
+export const GOOGLE_SIGN_IN = true;
+/** Set before leaving for Google: the session that comes back is a new sign-in (the account's settings win). */
+const OAUTH_PENDING_KEY = 'flova_oauth_pending';
+
 export const MEDIA_BUCKET = 'flova-media';
 /** Supabase free tier: 50 MB per file. */
 export const MAX_FILE_BYTES = 50 * 1024 * 1024;
@@ -276,6 +281,26 @@ class SupabaseService {
     this.requireClient();
     const { error } = await this.client.auth.signInWithPassword({ email, password });
     if (error) throw new Error(authErrorMessage(error));
+  }
+
+  /** Leaves for Google's account page; supabase-js picks the session up when it comes back (detectSessionInUrl). */
+  async signInWithGoogle() {
+    this.requireClient();
+    try { sessionStorage.setItem(OAUTH_PENDING_KEY, '1'); } catch (_) {}
+    const { error } = await this.client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: siteUrl() } });
+    if (error) {
+      try { sessionStorage.removeItem(OAUTH_PENDING_KEY); } catch (_) {}
+      throw new Error(authErrorMessage(error));
+    }
+  }
+
+  /** True once after coming back from Google signed in. */
+  takeOAuthReturn() {
+    try {
+      const pending = sessionStorage.getItem(OAUTH_PENDING_KEY) === '1';
+      sessionStorage.removeItem(OAUTH_PENDING_KEY);
+      return pending;
+    } catch (_) { return false; }
   }
 
   async signOut() {

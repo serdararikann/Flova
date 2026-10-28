@@ -19,7 +19,7 @@ import { AudiogramModal } from './ui/audiogram-modal.js?v=15.2';
 import { ServerModal } from './ui/server-modal.js?v=14.0';
 import { CodeGuard } from './security/code-guard.js?v=9.1';
 import { ApiClient } from './audio/api-client.js?v=9.1';
-import { AuthModal } from './ui/auth-modal.js?v=15.1';
+import { AuthModal } from './ui/auth-modal.js?v=15.2';
 import { ProjectsModal } from './ui/projects-modal.js?v=14.0';
 import { ConverterUI } from './ui/converter-ui.js?v=15.0';
 import { supabaseService } from './db/supabase-client.js';
@@ -1010,7 +1010,8 @@ class FlovaStudioApp {
    */
   syncThemeWithAccount(user, profile) {
     if (!user || !profile) return;
-    const fresh = supabaseService.freshSignIn;
+    // A password sign-in in this page, or a return from Google's account page
+    const fresh = supabaseService.freshSignIn || supabaseService.takeOAuthReturn();
     supabaseService.freshSignIn = false;
     const stored = String(profile.settings?.theme || '');
     if (fresh && stored) {
