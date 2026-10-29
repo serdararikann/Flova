@@ -2,8 +2,8 @@
    FLOVA AUDIO STUDIO - "KONSOL" DESIGN SYSTEM
    Same look as the mobile app (2026-10-24): flat surfaces split by
    hairlines, no shadows or gradients, one accent (the logo's orange) for
-   play, selection and active settings, condensed Archivo titles,
-   JetBrains Mono for every number, sentence-case labels.
+   play, selection and active settings, Space Mono for everything
+   (text, titles and numbers, like the app since 2026-10-29), sentence-case labels.
    Colors are read through the tokens below so both themes work; the
    JS modules use the same tokens (and the legacy aliases at the end).
    ==================================================================== */
@@ -31,9 +31,9 @@
   --hover: rgba(242, 240, 234, 0.05);
   --scrim: rgba(8, 8, 7, 0.72);
 
-  --font-sans: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-display: 'Archivo', 'Arial Narrow', sans-serif; /* used with font-stretch: 75% (Archivo Condensed) */
-  --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+  --font-sans: 'Space Mono', 'SF Mono', Consolas, monospace;
+  --font-display: 'Space Mono', 'SF Mono', Consolas, monospace; /* font-stretch below is a no-op for it */
+  --font-mono: 'Space Mono', 'SF Mono', Consolas, monospace;
 
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -92,6 +92,7 @@
 
 body {
   font-family: var(--font-sans);
+  letter-spacing: -0.02em; /* Space Mono reads a little loose */
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
@@ -2860,7 +2861,9 @@ select.studio-input option {
 /* ====================================================================
    RESPONSIVE
    ==================================================================== */
-@media (max-width: 1400px) {
+/* Header breakpoints sized for Space Mono (wider than the old condensed Archivo): the brand, mode tabs and actions
+   with every label need ~1790px; without the hotkeys/install labels ~1575px; icon-only actions ~1260px. */
+@media (max-width: 1800px) {
   #hotkeysBtn span,
   #pwaInstallBtn span {
     display: none;
@@ -2873,8 +2876,9 @@ select.studio-input option {
   }
 }
 
-@media (max-width: 1150px) {
-  .header-actions .btn-sm span {
+@media (max-width: 1580px) {
+  /* Export, the main action, keeps its label down to phone width */
+  .header-actions .btn-sm:not(#exportBtn) span {
     display: none;
   }
 }
@@ -2890,7 +2894,7 @@ select.studio-input option {
 }
 
 /* Two rows: brand + actions, then the mode tabs across */
-@media (max-width: 920px) {
+@media (max-width: 1260px) {
   .studio-header {
     flex-wrap: wrap;
     row-gap: 10px;

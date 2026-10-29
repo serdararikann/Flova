@@ -41,5 +41,5 @@ export function withAlpha(color, alpha) {
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
 
-export const MONO_FONT = "'JetBrains Mono', Consolas, monospace";
-export const SANS_FONT = "Archivo, -apple-system, 'Segoe UI', sans-serif";
+export const MONO_FONT = "'Space Mono', Consolas, monospace";
+export const SANS_FONT = "'Space Mono', Consolas, monospace";

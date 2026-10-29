@@ -5,7 +5,7 @@
    - Clean cache lifecycle management
    ==================================================================== */
 
-const CACHE_NAME = 'flova-studio-v3.7';
+const CACHE_NAME = 'flova-studio-v3.8';
 
 const PRECACHE_ASSETS = [
   './',
@@ -13,7 +13,7 @@ const PRECACHE_ASSETS = [
   './manifest.json',
   './favicon.ico',
   './logo.png',
-  './css/style.css?v=15.2',
+  './css/style.css?v=15.3',
   './icons/icon-72.png',
   './icons/icon-96.png',
   './icons/icon-128.png',
@@ -50,7 +50,7 @@ const PRECACHE_ASSETS = [
   './js/ui/audiogram-modal.js?v=14.0',
   './js/ui/server-modal.js?v=14.0',
   './js/security/code-guard.js?v=9.1',
-  'https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@400;600;700&display=swap',
+  'https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap',
   'https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js',
   'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'
 ];
