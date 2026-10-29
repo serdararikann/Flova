@@ -5,7 +5,7 @@
    - Clean cache lifecycle management
    ==================================================================== */
 
-const CACHE_NAME = 'flova-studio-v3.8';
+const CACHE_NAME = 'flova-studio-v3.9';
 
 const PRECACHE_ASSETS = [
   './',

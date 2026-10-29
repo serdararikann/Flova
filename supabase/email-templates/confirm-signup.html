@@ -1,21 +1,24 @@
 <!--
   Supabase > Authentication > Emails > Templates > "Confirm signup"
-  Konu (Subject): Flova Studio hesabınızı onaylayın
-  Değişkenler: {{ .ConfirmationURL }} onay bağlantısı, {{ .Email }} kayıt olan adres.
+  Konu (Subject), iki dilli:
+    {{ if eq (printf "%v" .Data.lang) "en" }}Confirm your Flova Studio account{{ else }}Flova Studio hesabınızı onaylayın{{ end }}
+  Değişkenler: {{ .ConfirmationURL }} onay bağlantısı, {{ .Email }} kayıt olan adres,
+  {{ .Data.lang }} hesabın dili (uygulama/site kayıtta yazar: "tr" ya da "en"; yoksa Türkçe).
 -->
+{{ $en := eq (printf "%v" .Data.lang) "en" }}
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="{{ if $en }}en{{ else }}tr{{ end }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="supported-color-schemes" content="dark">
-  <title>Flova Studio hesabınızı onaylayın</title>
+  <title>{{ if $en }}Confirm your Flova Studio account{{ else }}Flova Studio hesabınızı onaylayın{{ end }}</title>
 </head>
 <body style="margin:0; padding:0; background-color:#080A10;">
   <!-- Önizleme satırı (gelen kutusunda konunun yanında görünür) -->
   <div style="display:none; max-height:0; overflow:hidden; opacity:0; color:#080A10;">
-    Kaydınızı tamamlamak için e-posta adresinizi onaylayın.&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;
+    {{ if $en }}Confirm your e-mail address to finish signing up.{{ else }}Kaydınızı tamamlamak için e-posta adresinizi onaylayın.{{ end }}&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;
   </div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#080A10" style="background-color:#080A10;">
     <tr>
@@ -42,11 +45,16 @@
           <tr>
             <td bgcolor="#0D101B" style="background-color:#0D101B; border:1px solid #1E2433; border-radius:16px; padding:36px 32px; font-family:Inter,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
               <h1 style="margin:0 0 12px 0; font-size:22px; line-height:30px; color:#F1F5F9; font-weight:700;">
-                Hesabınızı onaylayın
+                {{ if $en }}Confirm your account{{ else }}Hesabınızı onaylayın{{ end }}
               </h1>
               <p style="margin:0 0 24px 0; font-size:15px; line-height:24px; color:#94A3B8;">
+                {{ if $en }}
+                Welcome to Flova Studio! Tap the button below to start using the account you created with
+                <span style="color:#CBD5E1;">{{ .Email }}</span>.
+                {{ else }}
                 Flova Studio'ya hoş geldiniz! <span style="color:#CBD5E1;">{{ .Email }}</span> adresiyle oluşturduğunuz hesabı
                 kullanmaya başlamak için aşağıdaki düğmeye dokunun.
+                {{ end }}
               </p>
 
               <!-- Düğme -->
@@ -55,14 +63,14 @@
                   <td align="center" bgcolor="#4F46E5" style="border-radius:10px; background-color:#4F46E5;">
                     <a href="{{ .ConfirmationURL }}" target="_blank"
                        style="display:inline-block; padding:14px 30px; font-family:Inter,Segoe UI,Roboto,Helvetica,Arial,sans-serif; font-size:15px; font-weight:600; color:#FFFFFF; text-decoration:none; border-radius:10px;">
-                      E-postamı Onayla
+                      {{ if $en }}Confirm my e-mail{{ else }}E-postamı Onayla{{ end }}
                     </a>
                   </td>
                 </tr>
               </table>
 
               <p style="margin:0 0 8px 0; font-size:13px; line-height:20px; color:#64748B;">
-                Düğme çalışmazsa bu bağlantıyı tarayıcınıza yapıştırın:
+                {{ if $en }}If the button doesn't work, paste this link into your browser:{{ else }}Düğme çalışmazsa bu bağlantıyı tarayıcınıza yapıştırın:{{ end }}
               </p>
               <p style="margin:0 0 24px 0; font-size:12px; line-height:18px; word-break:break-all;">
                 <a href="{{ .ConfirmationURL }}" target="_blank" style="color:#38BDF8; text-decoration:underline;">{{ .ConfirmationURL }}</a>
@@ -72,7 +80,7 @@
                 <tr><td style="border-top:1px solid #1E2433; font-size:0; line-height:0;">&nbsp;</td></tr>
               </table>
               <p style="margin:20px 0 0 0; font-size:13px; line-height:20px; color:#64748B;">
-                Bu hesabı siz oluşturmadıysanız bu e-postayı yok sayabilirsiniz; adresiniz onaylanmadan hesap kullanılamaz.
+                {{ if $en }}If you didn't create this account, you can ignore this e-mail; the account can't be used until the address is confirmed.{{ else }}Bu hesabı siz oluşturmadıysanız bu e-postayı yok sayabilirsiniz; adresiniz onaylanmadan hesap kullanılamaz.{{ end }}
               </p>
             </td>
           </tr>
@@ -80,7 +88,7 @@
           <!-- Alt bilgi -->
           <tr>
             <td align="center" style="padding:24px 8px 0 8px; font-family:Inter,Segoe UI,Roboto,Helvetica,Arial,sans-serif; font-size:12px; line-height:18px; color:#475569;">
-              Flova Studio · Ses Stüdyosu<br>
+              {{ if $en }}Flova Studio · Audio studio{{ else }}Flova Studio · Ses Stüdyosu{{ end }}<br>
               <a href="https://flova.serdararikan.net" target="_blank" style="color:#64748B; text-decoration:none;">flova.serdararikan.net</a>
             </td>
           </tr>

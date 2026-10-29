@@ -264,7 +264,8 @@ class SupabaseService {
       email,
       password,
       options: {
-        data: { full_name: displayName || email.split('@')[0] },
+        // lang: the language Supabase's e-mails use for this account (the app keeps it on its UI language)
+        data: { full_name: displayName || email.split('@')[0], lang: 'tr' },
         emailRedirectTo: siteUrl()
       }
     });
