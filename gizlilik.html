@@ -21,6 +21,7 @@
     header { display: flex; align-items: center; gap: 10px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
     header img { width: 28px; height: 28px; }
     header a { color: var(--text); text-decoration: none; font-weight: 700; letter-spacing: 1.5px; }
+    header a.lang { margin-left: auto; color: var(--muted); font-weight: 400; letter-spacing: 0; font-size: 13px; }
     h1 { font-stretch: 75%; font-weight: 800; font-size: 40px; line-height: 1.05; margin: 28px 0 6px; }
     h2 { font-stretch: 75%; font-weight: 700; font-size: 24px; margin: 32px 0 8px; padding-top: 20px; border-top: 1px solid var(--line); }
     .date { color: var(--muted); font: 13px 'JetBrains Mono', monospace; }
@@ -38,10 +39,11 @@
   <header>
     <img src="./logo.png" alt="" />
     <a href="./">FLOVA</a>
+    <a class="lang" href="./privacy" hreflang="en" lang="en">English</a>
   </header>
 
   <h1>Gizlilik politikası</h1>
-  <div class="date">Son güncelleme: 27 Ekim 2026</div>
+  <div class="date">Son güncelleme: 29 Ekim 2026</div>
 
   <p>Bu metin, Flova Audio Studio web sitesi (flova.serdararikan.net) ve Flova Android uygulaması için geçerlidir. Flova'da reklam, analiz ya da izleme aracı yoktur; verileriniz satılmaz ve başkalarıyla paylaşılmaz. Uygulama yalnızca hataları düzeltebilmek için çökme raporları gönderir (aşağıda).</p>
 
@@ -59,9 +61,10 @@
   <ul>
     <li>E-posta adresiniz ve görünen adınız,</li>
     <li>Şifreniz (yalnızca geri çevrilemeyen bir özet olarak),</li>
-    <li>Tema ve aktarım biçimi gibi ayarlarınız,</li>
+    <li>Tema, dil ve aktarım biçimi gibi ayarlarınız,</li>
     <li>Buluta kaydettiğiniz projeler ve bu projelerin ses dosyaları.</li>
   </ul>
+  <p>Google ile giriş yaparsanız şifre oluşturulmaz; Google'dan yalnızca e-posta adresiniz ve adınız alınır. Google'a Flova'daki çalışmalarınızla ilgili hiçbir bilgi gönderilmez.</p>
   <p>Bu veriler Supabase altyapısında tutulur ve yalnızca sizin hesabınızla erişilebilir. Sildiğiniz projeler 30 gün çöp kutusunda kalır, sonra kalıcı olarak silinir. Hesap onayı ve şifre sıfırlama e-postaları Resend aracılığıyla gönderilir.</p>
   <p class="muted">Web sitesi yazı tiplerini Google Fonts'tan yükler; bu sırada tarayıcınız Google'a IP adresinizi iletir.</p>
 

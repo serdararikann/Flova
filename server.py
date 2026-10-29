@@ -2209,6 +2209,60 @@ def heavy_release(client):
             del HEAVY_ACTIVE[client]
 
 
+# --- English answers -------------------------------------------------------------------------------------------------
+# The messages are written in Turkish (the website's language). The app sends Accept-Language with its UI language;
+# for "en" the user-facing 'error' and 'message' fields are translated here, in one place, as the answer is written.
+MESSAGES_EN = [(re.compile(p), en) for p, en in (
+    (r'^Ses dosyası yükleniyor ve hazırlanıyor\.\.\.$', 'Uploading and preparing the audio…'),
+    (r'^Kuyruğa alındı\.\.\.$', 'Queued…'),
+    (r'^(.+) kuyruğuna alındı\.\.\.$', r'Queued: \1…'),
+    (r'^Demucs 4-Stem modeli yükleniyor \((\d+) parça yüksek kaliteyle ayrıştırılacak\)\.\.\.$', r'Loading the Demucs 4-stem model (\1 chunks to separate)…'),
+    (r'^Demucs 6-Stem Pro modeli yükleniyor \((\d+) parça derinlemesine ayrıştırılacak\)\.\.\.$', r'Loading the Demucs 6-stem model (\1 chunks to separate)…'),
+    (r'^Demucs yapay zeka modeli yükleniyor \((\d+) parça işlenecek\)\.\.\.$', r'Loading the Demucs AI model (\1 chunks)…'),
+    (r'^4 Stem ayrıştırılıyor: (\d+)/(\d+) parça \(%(\d+)\)$', r'Separating 4 stems: chunk \1/\2 (\3%)'),
+    (r'^6 Stem \(Piyano & Gitar dahil\) ayrıştırılıyor: (\d+)/(\d+) parça \(%(\d+)\)$', r'Separating 6 stems: chunk \1/\2 (\3%)'),
+    (r'^Sinir ağı ayrıştırıyor: (\d+)/(\d+) parça \(%(\d+)\)$', r'Separating: chunk \1/\2 (\3%)'),
+    (r'^Akustik gürültü kapısı ve tavan sınırlayıcısı uygulanıyor\.\.\.$', 'Applying the noise gate and limiter…'),
+    (r'^Stüdyo kalitesinde 4 Stem WAV dosyası kaydediliyor\.\.\.$', 'Saving the 4 stems…'),
+    (r'^6 Stem WAV dosyaları stüdyo kalitesinde kaydediliyor\.\.\.$', 'Saving the 6 stems…'),
+    (r'^Enstrümantal altyapı hesaplanıyor\.\.\.$', 'Computing the backing track…'),
+    (r'^İzler WAV dosyası olarak kaydediliyor\.\.\.$', 'Saving the tracks…'),
+    (r'^4 Stem başarıyla ayrıştırıldı!$', '4 stems separated.'),
+    (r'^6 Stem \(.*\) başarıyla ayrıştırıldı!$', '6 stems separated.'),
+    (r'^Ayrıştırma başarıyla tamamlandı!$', 'Separation finished.'),
+    (r'^Aynı anda en fazla (\d+) işlem yapılabilir; devam eden işlemin bitmesini bekleyin\.$', r'At most \1 jobs can run at once; wait for the running one to finish.'),
+    (r'^Sunucu şu an çok yoğun\. Lütfen bir dakika sonra tekrar deneyin\.$', 'The server is very busy right now. Please try again in a minute.'),
+    (r'^Saatlik işlem sınırına ulaşıldı \((\d+)\)\. (\d+) dakika sonra tekrar deneyin\.$', r'The hourly limit (\1 jobs) is reached. Try again in \2 minutes.'),
+    (r'^Çok fazla istek gönderildi\. Lütfen biraz sonra tekrar deneyin\.$', 'Too many requests. Please try again in a little while.'),
+    (r'^Boş veya geçersiz yükleme\.$', 'Empty or invalid upload.'),
+    (r'^Dosya çok büyük \(en fazla (\d+) MB\)\.$', r'The file is too large (\1 MB at most).'),
+    (r'^Sıkıştırılmış ses için sunucuda FFmpeg yok; lütfen WAV gönderin\.$', 'The server has no FFmpeg for compressed audio; please send WAV.'),
+    (r'^Ses dosyası çözülemedi: (.*)$', r"Couldn't decode the audio file: \1"),
+    (r'^Kodlama başarısız: (.*)$', r'Encoding failed: \1'),
+    (r'^Şarkı sözü veritabanına ulaşılamadı: (.*)$', r"Couldn't reach the lyrics database: \1"),
+)]
+
+
+def message_en(text):
+    if not isinstance(text, str):
+        return text
+    for pattern, en in MESSAGES_EN:
+        if pattern.match(text):
+            return pattern.sub(en, text)
+    return text
+
+
+def localize_answer(data, accept_language):
+    """A copy of [data] with its 'error' and 'message' in English when the client asked for English."""
+    if not isinstance(data, dict) or not (accept_language or '').lower().startswith('en'):
+        return data
+    out = dict(data)
+    for key in ('error', 'message'):
+        if key in out:
+            out[key] = message_en(out[key])
+    return out
+
+
 class FlovaHandler(SimpleHTTPRequestHandler):
     extensions_map = {
         **SimpleHTTPRequestHandler.extensions_map,
@@ -2229,8 +2283,12 @@ class FlovaHandler(SimpleHTTPRequestHandler):
         self.send_header('Expires', '0')
         super().end_headers()
 
+    def json_body(self, data):
+        """The answer as JSON, its messages in the client's language (see localize_answer)."""
+        return json.dumps(localize_answer(data, self.headers.get('Accept-Language'))).encode('utf-8')
+
     def send_json(self, status_code, data):
-        body = json.dumps(data).encode('utf-8')
+        body = self.json_body(data)
         self.send_response(status_code)
         self.send_header('Content-Type', 'application/json; charset=utf-8')
         self.send_header('Content-Length', str(len(body)))
@@ -2243,7 +2301,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
 
     def send_limited(self, status_code, message, retry_after):
         """Refuses a request over a limit. The upload isn't read, so the connection is closed after the answer."""
-        body = json.dumps({'success': False, 'error': message, 'limited': True}).encode('utf-8')
+        body = self.json_body({'success': False, 'error': message, 'limited': True})
         self.close_connection = True
         self.send_response(status_code)
         self.send_header('Content-Type', 'application/json; charset=utf-8')
@@ -3067,7 +3125,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
             job_id = query.get('jobId', [None])[0]
             with JOBS_LOCK:
                 job_data = JOBS.get(job_id, {'status': 'not_found'})
-            body = json.dumps(job_data).encode('utf-8')
+            body = self.json_body(job_data)
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.send_header('Content-Length', str(len(body)))
@@ -3213,7 +3271,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                 worker_thread.start()
 
                 resp = {'success': True, 'jobId': job_id}
-                body = json.dumps(resp).encode('utf-8')
+                body = self.json_body(resp)
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Content-Length', str(len(body)))
@@ -3222,7 +3280,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                 self.wfile.write(body)
             except Exception as e:
                 err_resp = {'success': False, 'error': str(e)}
-                body = json.dumps(err_resp).encode('utf-8')
+                body = self.json_body(err_resp)
                 self.send_response(500)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Content-Length', str(len(body)))
@@ -3256,7 +3314,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                 worker_thread.start()
 
                 resp = {'success': True, 'jobId': job_id, 'is6s': is_6s}
-                body = json.dumps(resp).encode('utf-8')
+                body = self.json_body(resp)
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Content-Length', str(len(body)))
@@ -3265,7 +3323,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                 self.wfile.write(body)
             except Exception as e:
                 err_resp = {'success': False, 'error': str(e)}
-                body = json.dumps(err_resp).encode('utf-8')
+                body = self.json_body(err_resp)
                 self.send_response(500)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Content-Length', str(len(body)))
@@ -3322,7 +3380,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                 self.wfile.write(out_bytes)
             except Exception as e:
                 err_resp = {'success': False, 'error': str(e)}
-                body = json.dumps(err_resp).encode('utf-8')
+                body = self.json_body(err_resp)
                 self.send_response(500)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Access-Control-Allow-Origin', '*')
@@ -3436,7 +3494,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
                     'language': lang,
                     'elapsedSeconds': round(elapsed, 2)
                 }
-                body = json.dumps(resp).encode('utf-8')
+                body = self.json_body(resp)
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Content-Length', str(len(body)))
@@ -3446,7 +3504,7 @@ class FlovaHandler(SimpleHTTPRequestHandler):
             except Exception as e:
                 print(f"[Transcribe Error]: {e}")
                 err_resp = {'success': False, 'error': str(e)}
-                body = json.dumps(err_resp).encode('utf-8')
+                body = self.json_body(err_resp)
                 self.send_response(500)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Access-Control-Allow-Origin', '*')

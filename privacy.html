@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privacy policy · Flova</title>
+  <link rel="icon" href="./favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0e0e0f; --surface: #161618; --line: #2a2a2e; --text: #ededee; --muted: #9a9aa0; --accent: #ff6a2b; --accent-text: #ff8a55;
+    }
+    @media (prefers-color-scheme: light) {
+      :root { --bg: #f6f5f2; --surface: #ffffff; --line: #e1dfda; --text: #161618; --muted: #5d5d63; --accent: #ff6a2b; --accent-text: #c2410c; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 Archivo, system-ui, sans-serif; }
+    main { max-width: 720px; margin: 0 auto; padding: 32px 16px 64px; }
+    header { display: flex; align-items: center; gap: 10px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+    header img { width: 28px; height: 28px; }
+    header a { color: var(--text); text-decoration: none; font-weight: 700; letter-spacing: 1.5px; }
+    header a.lang { margin-left: auto; color: var(--muted); font-weight: 400; letter-spacing: 0; font-size: 13px; }
+    h1 { font-stretch: 75%; font-weight: 800; font-size: 40px; line-height: 1.05; margin: 28px 0 6px; }
+    h2 { font-stretch: 75%; font-weight: 700; font-size: 24px; margin: 32px 0 8px; padding-top: 20px; border-top: 1px solid var(--line); }
+    .date { color: var(--muted); font: 13px 'JetBrains Mono', monospace; }
+    p, li { color: var(--text); }
+    ul { padding-left: 20px; }
+    li { margin: 4px 0; }
+    .muted { color: var(--muted); }
+    a { color: var(--accent-text); }
+    .box { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; }
+    ol { padding-left: 20px; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="./logo.png" alt="" />
+    <a href="./">FLOVA</a>
+    <a class="lang" href="./gizlilik" hreflang="tr" lang="tr">Türkçe</a>
+  </header>
+
+  <h1>Privacy policy</h1>
+  <div class="date">Last updated: 29 October 2026</div>
+
+  <p>This policy covers the Flova Audio Studio website (flova.serdararikan.net) and the Flova Android app. Flova has no ads, analytics or tracking; your data is not sold or shared with anyone. The app only sends crash reports so that bugs can be fixed (see below).</p>
+
+  <h2>What stays on your device</h2>
+  <p>Trimming, effects, merging, format conversion and export run on your device (in your browser on the website); your audio files are not sent anywhere for them. The app keeps your last session, copies of the files you import and your settings in its own storage only. They are deleted when you uninstall the app.</p>
+
+  <h2>What is sent to the server</h2>
+  <p>For the AI features (vocal separation, instrument separation, noise reduction, lyrics transcription) and for MP3 conversion in the app, the audio you choose is sent to the Flova server running on Hugging Face Spaces. These files are not linked to your account, are used only for the task you asked for and are deleted from the server within two hours at the latest. To keep the server fair for everyone, your IP address is held only in the server's memory for at most one hour to limit the number of requests; it is not stored.</p>
+
+  <h2>Crash and error reports</h2>
+  <p>When the Android app crashes or an unexpected error occurs, an error report is sent to Sentry (servers in Germany) so that we can find and fix the problem. The report contains the technical details of the error, the app version, the device model and the Android version. Your name, e-mail address, IP address, audio files and file names are not sent; the report is not linked to your account.</p>
+
+  <h2>Account and cloud projects</h2>
+  <p>Creating an account is optional. If you create one, the following is stored:</p>
+  <ul>
+    <li>Your e-mail address and display name,</li>
+    <li>Your password (only as an irreversible hash),</li>
+    <li>Your settings, such as the theme, the language and the transfer format,</li>
+    <li>The projects you save to the cloud and their audio files.</li>
+  </ul>
+  <p>If you sign in with Google, no password is created; only your e-mail address and name are taken from Google. Nothing about your work in Flova is sent to Google.</p>
+  <p>This data is kept on Supabase and can only be reached with your account. Projects you delete stay in the trash for 30 days and are then deleted for good. Account confirmation and password reset e-mails are sent through Resend.</p>
+  <p class="muted">The website loads its fonts from Google Fonts; your browser sends your IP address to Google when it does.</p>
+
+  <h2 id="delete-account">Deleting your account</h2>
+  <div class="box">
+    <p style="margin-top:0">You can delete your account yourself at any time:</p>
+    <ol>
+      <li><strong>In the app:</strong> menu → your account (Profile) → <em>Delete account</em>.</li>
+      <li><strong>On the website:</strong> <a href="./">flova.serdararikan.net</a> → the account button at the top right → <em>Delete account</em>.</li>
+    </ol>
+    <p style="margin-bottom:0">Deletion happens at once and can't be undone: your account, profile, settings, all your projects in the cloud and their audio files are deleted for good.</p>
+  </div>
+
+</main>
+</body>
+</html>
