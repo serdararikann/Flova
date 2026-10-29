@@ -712,6 +712,61 @@ def get_whisper_model(model_name="small"):
                     WHISPER_MODEL = False
         return WHISPER_MODEL
 
+# Lyrics transcription (Turbo) on the ZeroGPU Space Nergall/flova-gpu (huggingface_gpu_space/): the same Demucs vocal
+# model and Whisper settings as the CPU path, ~5x faster. HF_TOKEN (a Space secret) bills the GPU time to the owner's
+# daily quota instead of the anonymous one; when it runs out, or the Space is busy or down, the CPU path is used.
+GPU_SPACE = os.environ.get('FLOVA_GPU_SPACE', 'Nergall/flova-gpu')
+GPU_CLIENT = None
+GPU_LOCK = threading.Lock()
+GPU_PAUSED_UNTIL = 0.0
+
+def transcribe_on_gpu(data, sr, lang_code, separate, vocal_stem):
+    """Whisper's segments (start/end/text/no_speech_prob/avg_logprob/words) from the GPU Space, or None."""
+    global GPU_CLIENT, GPU_PAUSED_UNTIL
+    if not GPU_SPACE or time.time() < GPU_PAUSED_UNTIL:
+        return None
+    import tempfile
+    from types import SimpleNamespace
+    path = None
+    started = time.time()
+    try:
+        from gradio_client import Client, handle_file
+        with GPU_LOCK:
+            if GPU_CLIENT is None:
+                GPU_CLIENT = Client(GPU_SPACE, token=os.environ.get('HF_TOKEN') or None, verbose=False)
+            client = GPU_CLIENT
+        fd, path = tempfile.mkstemp(suffix='.flac')
+        os.close(fd)
+        sf.write(path, np.clip(data, -1.0, 1.0), sr, format='FLAC', subtype='PCM_16')
+        seconds = len(data) / sr
+        job = client.submit(handle_file(path), lang_code, bool(separate), bool(vocal_stem), api_name='/lyrics')
+        try:
+            result = job.result(timeout=90 + seconds * 0.5)
+        except Exception:
+            job.cancel()
+            raise
+        print(f"[Whisper GPU] {seconds:.0f} sn ses {time.time() - started:.1f} sn'de yazildi "
+              f"(GPU {result.get('seconds')} sn, ayristirma {result.get('separate_seconds')} sn).", flush=True)
+        return [SimpleNamespace(
+            start=s['start'], end=s['end'], text=s['text'],
+            no_speech_prob=s.get('no_speech_prob', 0), avg_logprob=s.get('avg_logprob', 0),
+            words=[SimpleNamespace(start=w[0], end=w[1], word=w[2]) for w in s.get('words') or []],
+        ) for s in result['segments']]
+    except Exception as e:
+        message = str(e) or type(e).__name__
+        print(f"[Whisper GPU] Kullanilamadi ({time.time() - started:.1f} sn), CPU'ya geciliyor: {message[:300]}", flush=True)
+        if 'quota' in message.lower():
+            GPU_PAUSED_UNTIL = time.time() + 15 * 60  # don't upload every song only to hear it again
+        with GPU_LOCK:
+            GPU_CLIENT = None
+        return None
+    finally:
+        if path:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+
 def format_lyrics_line(txt):
     import re
     t = (txt or '').strip()
@@ -1090,10 +1145,18 @@ def _transcribe_lines(audio_bytes, lang='tr-TR', max_workers=4, model_size='smal
 
     target_sr = 16000
 
+    # Map language code: tr-TR -> tr, en-US -> en, de-DE -> de, etc.
+    lang_code = lang.split('-')[0].lower() if lang else 'tr'
+
+    # 0. Turbo on the ZeroGPU Space (separation + Whisper there); None: busy, out of quota or down -> CPU below
+    gpu_segments = None
+    if model_size in ('turbo', 'large-v3-turbo'):
+        gpu_segments = transcribe_on_gpu(data, sr_orig, lang_code, ai_separate and not vocal_stem, vocal_stem)
+
     # 1. Demucs AI Neural Vocal Separation (cleans music/drums/instruments before Whisper)
     mono_16k = None
     vocals_only = vocal_stem  # the client sent an already separated vocal
-    if ai_separate and not vocal_stem:
+    if ai_separate and not vocal_stem and gpu_segments is None:
         try:
             print("[Demucs AI] Sarkidaki vokal yapay zeka (Demucs ONNX) ile ayristiriliyor...", flush=True)
             vocal_mono, v_sr = separate_vocals_with_demucs(data, sr_orig)
@@ -1127,28 +1190,28 @@ def _transcribe_lines(audio_bytes, lang='tr-TR', max_workers=4, model_size='smal
     if peak > 1e-4:
         mono_16k = mono_16k / peak * 0.95
 
-    # Map language code: tr-TR -> tr, en-US -> en, de-DE -> de, etc.
-    lang_code = lang.split('-')[0].lower() if lang else 'tr'
-
     # 2. Primary Engine: Whisper (Exact previous formula: condition_on_previous_text=False)
-    whisper_model = get_whisper_model(model_size)
-    if whisper_model:
+    whisper_model = None if gpu_segments is not None else get_whisper_model(model_size)
+    if gpu_segments is not None or whisper_model:
         try:
-            print(f"[Whisper] Sarki sozu transkripsiyonu baslatiliyor (model={WHISPER_MODEL_NAME}, lang={lang_code}, duration={len(mono_16k)/target_sr:.1f}s)...", flush=True)
-            # On a separated vocal the voice-activity filter skips the instrumental parts, where Whisper otherwise
-            # invents text ("Bu videoyu izlediğiniz için teşekkürler"); on the full mix it would drop the singing too.
-            segments, info = whisper_model.transcribe(
-                mono_16k,
-                language=lang_code,
-                condition_on_previous_text=False,
-                repetition_penalty=1.2,
-                no_repeat_ngram_size=3,
-                vad_filter=vocals_only,
-                vad_parameters={'min_silence_duration_ms': 700, 'speech_pad_ms': 300} if vocals_only else None,
-                word_timestamps=True,
-                beam_size=3,
-                temperature=0.0
-            )
+            if gpu_segments is not None:
+                segments = gpu_segments
+            else:
+                print(f"[Whisper] Sarki sozu transkripsiyonu baslatiliyor (model={WHISPER_MODEL_NAME}, lang={lang_code}, duration={len(mono_16k)/target_sr:.1f}s)...", flush=True)
+                # On a separated vocal the voice-activity filter skips the instrumental parts, where Whisper otherwise
+                # invents text ("Bu videoyu izlediğiniz için teşekkürler"); on the full mix it would drop the singing too.
+                segments, info = whisper_model.transcribe(
+                    mono_16k,
+                    language=lang_code,
+                    condition_on_previous_text=False,
+                    repetition_penalty=1.2,
+                    no_repeat_ngram_size=3,
+                    vad_filter=vocals_only,
+                    vad_parameters={'min_silence_duration_ms': 700, 'speech_pad_ms': 300} if vocals_only else None,
+                    word_timestamps=True,
+                    beam_size=3,
+                    temperature=0.0
+                )
 
             import re
             def is_hallucination_or_noise(txt):

@@ -1,0 +1,8 @@
+torch==2.8.0
+faster-whisper>=1.1.1
+onnxruntime-gpu==1.23.2
+soxr>=1.0.0
+scipy>=1.15.0
+soundfile
+numpy
+huggingface_hub
