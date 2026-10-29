@@ -13,7 +13,7 @@ import { YouTubeUI } from './ui/youtube-ui.js?v=14.0';
 import { ExportModal } from './ui/export-modal.js?v=14.0';
 import { HotkeysModal } from './ui/hotkeys-modal.js?v=15.0';
 import { BPMKeyDetector } from './audio/bpm-key-detector.js';
-import { SmartToolsModal } from './ui/smart-tools-modal.js?v=15.2';
+import { SmartToolsModal } from './ui/smart-tools-modal.js?v=15.3';
 import { LyricsModal } from './ui/lyrics-modal.js?v=15.4';
 import { AudiogramModal } from './ui/audiogram-modal.js?v=15.2';
 import { ServerModal } from './ui/server-modal.js?v=14.0';
@@ -1147,6 +1147,8 @@ class FlovaStudioApp {
       if (keyEl) {
         keyEl.innerHTML = `<span style="color: var(--muted); margin-right: 4px;">KEY</span> ${analysis.key}`;
       }
+      // Auto-Tune starts in this key (smart-tools-modal.js)
+      this.engine.detectedKey = { key: analysis.key, buffer };
       this.waveform.setBeats(analysis.beats, analysis.bpm);
     }).catch(err => {
       console.warn('BPM/Key analysis error:', err);

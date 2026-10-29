@@ -121,7 +121,8 @@ export class SmartToolsModal {
 
             <!-- 3. AUTOTUNE PANEL -->
             <div id="stAutotunePanel" class="st-panel" style="display: none;">
-              <h4 style="margin: 0 0 14px 0; font-size: 0.95rem; color: var(--text);">Akıllı Pitch Correction & Auto-Tune</h4>
+              <h4 style="margin: 0 0 6px 0; font-size: 0.95rem; color: var(--text);">Akıllı Pitch Correction & Auto-Tune</h4>
+              <p style="margin: 0 0 14px 0; font-size: 0.78rem; color: var(--muted); line-height: 1.5;">Parçanın algılanan tonu seçili gelir. En iyi sonucu tek başına vokalde verir: önce Vokal sekmesinde ayırın.</p>
 
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
                 <div style="background: var(--hover); padding: 12px; border-radius: 8px; border: 1px solid var(--line);">
@@ -271,6 +272,16 @@ export class SmartToolsModal {
     if (!buffer) {
       this.showToast('Lütfen önce bir ses dosyası açın.', 'info');
     }
+    // Auto-Tune starts in the key detected for this track (once per track, so a choice made here stays)
+    const detected = this.engine.detectedKey;
+    if (detected && detected.buffer !== this._keyAppliedFor) {
+      const match = /^([A-G]#?)\s+(Min|Maj)/.exec(detected.key || '');
+      if (match) {
+        this._keyAppliedFor = detected.buffer;
+        document.getElementById('autotuneRootSelect').value = match[1];
+        document.getElementById('autotuneScaleSelect').value = match[2] === 'Min' ? 'minor' : 'major';
+      }
+    }
   }
 
   close() {
@@ -361,7 +372,7 @@ export class SmartToolsModal {
           root,
           scale,
           speed,
-          amount: 0.92
+          amount: 1
         }, this.engine.ctx);
 
         this.onBufferUpdated(tuned, `Auto-Tune (${root} ${scale})`);
